@@ -137,6 +137,33 @@ pnpm start
 
 *Lưu ý: Biến môi trường `PORT` cho phép thay đổi cổng lắng nghe của máy chủ (mặc định là `3000`). Ở giai đoạn hiện tại, dự án không yêu cầu kết nối cơ sở dữ liệu hay khóa API bên ngoài để chạy.*
 
+### 5.3. PostgreSQL và Redis local bằng Docker
+
+Docker Compose cho hai dịch vụ nằm tại `infrastructure/docker/compose.yaml`. Backend hiện vẫn chạy trên host bằng `pnpm dev` và chưa kết nối hai dịch vụ này. Cần Docker Desktop hoặc Docker daemon đang chạy.
+
+Trong PowerShell, tại gốc repo:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Sửa `POSTGRES_PASSWORD` trong `.env` thành mật khẩu local của bạn. File `.env` đã được Git bỏ qua. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
+
+```powershell
+docker compose --env-file .env -f infrastructure/docker/compose.yaml up -d
+docker compose --env-file .env -f infrastructure/docker/compose.yaml ps
+docker compose --env-file .env -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose --env-file .env -f infrastructure/docker/compose.yaml exec redis redis-cli ping
+```
+
+`ps` cần hiển thị cả `postgres` và `redis` ở trạng thái `healthy`; lệnh Redis trả `PONG`. Dừng các container khi không dùng:
+
+```powershell
+docker compose --env-file .env -f infrastructure/docker/compose.yaml down
+```
+
+`down` giữ hai named volumes nên dữ liệu còn sau khi khởi động lại. Chỉ dùng `down --volumes` khi muốn xóa dữ liệu local.
+
 ---
 
 ## 6. Cấu trúc Thư mục Backend (Backend Structure)
