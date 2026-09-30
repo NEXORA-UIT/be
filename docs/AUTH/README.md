@@ -20,23 +20,24 @@ Tài liệu này là **đề xuất để review trước khi code**. Phạm vi 
 
 ## OAuth và liên kết tài khoản
 
-Xem [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước; **không tự liên kết tài khoản chỉ vì email trùng**. Người dùng đã có tài khoản phải đăng nhập tài khoản đó rồi chủ động liên kết với provider.
+Xem [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước. Với Google, lần đầu có thể tự liên kết vào `User` cùng email **chỉ khi Google xác nhận email đã được xác minh**; những lần sau nhận diện bằng Google `sub`. GitHub dùng chính sách liên kết chủ động riêng.
 
 Hợp đồng hiện có nhận `code` qua `POST /auth/oauth/google` hoặc `/github` và trả token trong JSON. Frontend nhận authorization code ở redirect URI của nó rồi gửi code về backend để đổi. Trước khi code OAuth, cần bổ sung cơ chế cấp/kiểm tra `state` dùng một lần trong Redis và giới hạn redirect URI vào allowlist; điều này là thay đổi hợp đồng cần frontend review.
 
-## Các lát triển khai để review riêng
+## Các bước triển khai để review riêng
 
-Mỗi lát là một branch `feature/...` từ `staging`, một PR vào `staging`, kèm test và cập nhật tài liệu tương ứng. Chỉ bắt đầu lát kế tiếp sau khi bro review lát trước.
+Mỗi bước là một branch `feature/...` từ `staging`, một PR vào `staging`, kèm test và cập nhật tài liệu tương ứng. Chỉ bắt đầu bước kế tiếp sau khi bro review bước trước.
 
-| Lát | Kết quả có thể review và test độc lập |
+| Bước | Kết quả có thể review và test độc lập |
 | --- | --- |
 | 0. Thiết kế AUTH | Tài liệu này, chính sách liên kết OAuth, ghi rõ khác biệt với API contract hiện có. |
-| 1. Docker và cấu hình | Compose cho API/PostgreSQL/Redis tại `infrastructure/docker/`; biến môi trường mẫu, health check và cách chạy local. |
-| 2. Dữ liệu AUTH | Prisma và migration ba bảng AUTH theo ERD; test ràng buộc unique và quan hệ. |
-| 3. Đăng ký/đăng nhập | Register, login, `me`, hash mật khẩu, validation, JWT access; test service và HTTP. |
-| 4. Phiên | Refresh rotation, logout phiên hiện tại/tất cả phiên, Redis thu hồi token; test replay và token hết hạn. |
-| 5. Mật khẩu | Change password, forgot/reset password, adapter mail; test token một lần và không lộ email. |
-| 6. Google OAuth | State, code exchange, đăng nhập/tạo tài khoản, chính sách email trùng và liên kết; test bằng provider giả. |
-| 7. GitHub OAuth | Cùng chính sách, xử lý email GitHub thiếu/chưa xác minh; test bằng provider giả. |
+| 1. Dịch vụ local | Compose cho PostgreSQL và Redis tại `infrastructure/docker/`; biến môi trường mẫu, health check và cách chạy local. [Plan bước 1](plans/01-local-services.md). |
+| 2. API container | Dockerfile cho API, nối API với hai dịch vụ qua Compose; smoke test HTTP. |
+| 3. Dữ liệu AUTH | Prisma và migration ba bảng AUTH theo ERD; test ràng buộc unique và quan hệ. |
+| 4. Đăng ký/đăng nhập | Register, login, `me`, hash mật khẩu, validation, JWT access; test service và HTTP. |
+| 5. Phiên | Refresh rotation, logout phiên hiện tại/tất cả phiên, Redis thu hồi token; test replay và token hết hạn. |
+| 6. Mật khẩu | Change password, forgot/reset password, adapter mail; test token một lần và không lộ email. |
+| 7. Google OAuth | State, code exchange, đăng nhập/tạo tài khoản, chính sách email trùng và liên kết; test bằng provider giả. |
+| 8. GitHub OAuth | Cùng chính sách, xử lý email GitHub thiếu/chưa xác minh; test bằng provider giả. |
 
-Trước lát 1, chốt hợp đồng API với frontend cho token transport, OAuth `state`, logout và reset password. Hiện README trên `staging` đã ghi **Prisma ORM** là công nghệ dự kiến; lát 2 nên dùng lựa chọn đó nếu nhóm không đổi quyết định.
+Trước khi triển khai endpoint AUTH, chốt hợp đồng API với frontend cho token transport, OAuth `state`, logout và reset password. Hiện README trên `staging` đã ghi **Prisma ORM** là công nghệ dự kiến; bước 3 nên dùng lựa chọn đó nếu nhóm không đổi quyết định.

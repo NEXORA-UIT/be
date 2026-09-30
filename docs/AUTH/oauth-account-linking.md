@@ -14,8 +14,9 @@
 1. Backend kiểm tra `state` một lần, đổi authorization code với đúng provider và đúng redirect URI được cho phép, rồi lấy provider account ID.
 2. Nếu `OAuthAccount` đã tồn tại: đăng nhập user đã liên kết, trừ khi user bị khóa.
 3. Nếu chưa tồn tại và email provider đã xác minh **chưa thuộc user nào**: tạo `User` và `OAuthAccount` trong cùng transaction, rồi cấp phiên.
-4. Nếu email đã thuộc user khác: trả lỗi xung đột `ACCOUNT_LINK_REQUIRED`, **không cấp token và không tự gộp tài khoản**. Frontend yêu cầu đăng nhập tài khoản hiện có rồi đi qua luồng liên kết chủ động.
-5. Nếu provider account ID đã liên kết với user khác: không chuyển quyền sở hữu bằng luồng đăng nhập hay liên kết; trả lỗi xung đột.
+4. **Google:** nếu Google trả email khớp `User` đã có và `email_verified = true`, liên kết Google `sub` vào user đó trong transaction rồi cấp phiên. Đây là phương án trải nghiệm bro vừa đề xuất; không dùng email làm khóa nhận diện cho các lần đăng nhập sau. Nếu email chưa xác minh, không tự liên kết.
+5. **GitHub:** nếu email đã thuộc `User` khác, trả lỗi `ACCOUNT_LINK_REQUIRED`, không cấp token. Frontend yêu cầu đăng nhập tài khoản hiện có rồi liên kết chủ động.
+6. Nếu provider account ID đã liên kết với user khác: không chuyển quyền sở hữu bằng luồng đăng nhập hay liên kết; trả lỗi xung đột.
 
 ## Liên kết chủ động
 
@@ -28,12 +29,13 @@
 
 - `docs/api/openapi.yaml` hiện có `POST /auth/oauth/google|github` nhận `code` và `redirectUri` tùy chọn, nhưng **chưa có `state` hoặc điểm khởi tạo OAuth**. Cần bổ sung bước cấp state trước khi code OAuth.
 - Bổ sung endpoint liên kết tài khoản có xác thực; xác định request/response và mã `ACCOUNT_LINK_REQUIRED`/conflict trong OpenAPI và endpoint matrix.
-- OpenAPI trước đây mô tả Google OAuth tự liên kết theo email. PR tài liệu này sửa mô tả và thêm phản hồi `409`; endpoint liên kết cụ thể vẫn cần một PR hợp đồng riêng để frontend review.
+- OpenAPI cần mô tả Google tự liên kết **chỉ với email đã xác minh**; GitHub cần liên kết chủ động khi email trùng. Endpoint liên kết GitHub cụ thể vẫn cần một PR hợp đồng riêng để frontend review.
 
 ## Test chấp nhận tối thiểu
 
 - Cùng provider ID đăng nhập lại đúng user, kể cả khi email provider thay đổi.
-- Email trùng với user cũ trả `ACCOUNT_LINK_REQUIRED`; không tạo thêm user, không cấp token.
+- Google có email đã xác minh trùng user cũ thì liên kết và cấp phiên đúng user; email chưa xác minh không được tự liên kết.
+- GitHub có email trùng user cũ trả `ACCOUNT_LINK_REQUIRED`; không tạo thêm user, không cấp token.
 - User đăng nhập và liên kết thành công với provider chưa gắn; liên kết vào user khác hoặc liên kết trùng bị từ chối.
 - State sai/hết hạn/đã dùng, redirect URI ngoài allowlist, code bị dùng lại và user bị khóa đều không cấp phiên.
 - GitHub thiếu email xác minh không tạo user mới; callback Google/GitHub không làm lộ token qua URL/log.

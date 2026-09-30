@@ -142,8 +142,8 @@ paths:
       tags:
       - Authentication
       summary: Authenticate with Google OAuth
-      description: Completes Google OAuth 2.0 Authorization Code exchange. Resolves an existing OAuthAccount by provider ID
-        or creates a user when a verified email is unclaimed. An email already owned by another user requires explicit account linking.
+      description: Completes Google OAuth 2.0 Authorization Code exchange. Resolves an existing OAuthAccount by Google sub.
+        On first login, a verified Google email matching an existing user is linked to that user; an unclaimed verified email creates a user.
       operationId: loginWithGoogle
       security: []
       requestBody:
