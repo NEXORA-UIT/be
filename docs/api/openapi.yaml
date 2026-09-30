@@ -142,8 +142,8 @@ paths:
       tags:
       - Authentication
       summary: Authenticate with Google OAuth
-      description: Completes Google OAuth 2.0 Authorization Code exchange. Links existing accounts by email or creates a new
-        active user.
+      description: Completes Google OAuth 2.0 Authorization Code exchange. Resolves an existing OAuthAccount by provider ID
+        or creates a user when a verified email is unclaimed. An email already owned by another user requires explicit account linking.
       operationId: loginWithGoogle
       security: []
       requestBody:
@@ -163,6 +163,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-scope: SRS-CORE
       x-related-use-cases:
       - UC-AUTH-03
@@ -171,8 +173,8 @@ paths:
       tags:
       - Authentication
       summary: Authenticate with GitHub OAuth
-      description: Completes GitHub OAuth single sign-on using minimal identity scopes (read:user, user:email). Distinct from
-        Board-level repository connector.
+      description: Completes GitHub OAuth single sign-on using minimal identity scopes (read:user, user:email). Resolves the
+        provider ID; an email already owned by another user requires explicit account linking. Distinct from the Board-level repository connector.
       operationId: loginWithGitHub
       security: []
       requestBody:
@@ -192,6 +194,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-scope: SRS-CORE
       x-related-use-cases:
       - UC-AUTH-04
