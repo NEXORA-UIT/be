@@ -40,4 +40,17 @@ export const authErrors = {
   refreshAlreadyUsed() {
     return new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh token đã được sử dụng');
   },
+  oauthNotConfigured() {
+    return new AppError(503, 'OAUTH_NOT_CONFIGURED', 'Google OAuth chưa được cấu hình');
+  },
+  invalidOAuthRedirectUri() {
+    return new AppError(400, 'INVALID_OAUTH_REDIRECT_URI', 'OAuth redirect URI không hợp lệ');
+  },
+  invalidOAuthState() {
+    return new AppError(
+      400,
+      'INVALID_OAUTH_STATE',
+      'OAuth login token không hợp lệ hoặc đã hết hạn',
+    );
+  },
 };

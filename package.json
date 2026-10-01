@@ -24,6 +24,7 @@
     "bcrypt": "^6.0.0",
     "dotenv": "^18.0.4",
     "express": "^5.1.0",
+    "google-auth-library": "^11.1.0",
     "jose": "^6.2.12",
     "nodemailer": "^10.0.12",
     "redis": "^6.2.1",

@@ -26,4 +26,10 @@ export const AUTH_CACHE_KEY = {
   reset: (hash: string) => `reset:${hash}`,
   loginAttempts: (ip: string) => `login-attempts:${ip}`,
   pendingRegistration: (tokenHash: string) => `pending-registration:${tokenHash}`,
+  oauthLogin: (tokenHash: string) => `oauth-login:${tokenHash}`,
+} as const;
+
+export const GOOGLE_OAUTH = {
+  provider: 'GOOGLE',
+  scopes: ['openid', 'email', 'profile'],
 } as const;
