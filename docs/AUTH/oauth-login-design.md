@@ -36,9 +36,11 @@ sequenceDiagram
 
     FE->>BE: Xin bắt đầu đăng nhập
     BE->>Redis: Lưu login token trong 10 phút
-    BE-->>FE: Trả authorization URL
+    BE-->>FE: Trả authorization URL + login token
+    FE->>FE: Giữ login token trong sessionStorage
     FE->>Provider: Mở URL và đăng nhập
     Provider-->>FE: Trả code + state
+    FE->>FE: So sánh state với login token đã giữ
     FE->>BE: Gửi code + state
     BE->>Redis: Kiểm tra rồi xóa login token
     BE->>Provider: Đổi code lấy danh tính
@@ -70,12 +72,15 @@ Response:
 {
   "success": true,
   "data": {
-    "authorizationUrl": "https://accounts.google.com/..."
+    "authorizationUrl": "https://accounts.google.com/...",
+    "loginToken": "random-login-token"
   }
 }
 ```
 
 Backend tạo login token, lưu bản hash trong Redis rồi đặt token thô vào tham số OAuth `state` của URL. Redis cũng giữ provider, redirect URI và mã PKCE trong tối đa 10 phút.
+
+Frontend giữ `loginToken` trong `sessionStorage` của tab đã bắt đầu đăng nhập. Khi Google/GitHub trả về, frontend phải so sánh `state` trên callback URL với token trong `sessionStorage`. Không khớp thì dừng ngay và không gọi backend.
 
 ### Hoàn tất đăng nhập
 
@@ -118,11 +123,19 @@ Quy tắc:
 
 - TTL 10 phút.
 - Chỉ dùng một lần bằng thao tác đọc rồi xóa.
+- Frontend phải giữ token trong `sessionStorage` để gắn flow với đúng browser/tab đã bắt đầu đăng nhập.
 - Google token không dùng được cho GitHub.
 - Redirect URI gửi lúc hoàn tất phải giống redirect URI lúc bắt đầu.
 - Chỉ chấp nhận redirect URI nằm trong danh sách cấu hình của Nexora.
 
 PKCE có thể hiểu là một chìa khóa phụ. Backend gửi ổ khóa cho provider lúc bắt đầu và giữ chìa khóa trong Redis. Khi đổi code, backend phải đưa đúng chìa khóa.
+
+Hai lớp kiểm tra có nhiệm vụ khác nhau:
+
+```text
+Frontend sessionStorage: đúng browser/tab đã bắt đầu đăng nhập chưa?
+Backend Redis: token có tồn tại, đúng provider, đúng redirect URI và chưa dùng chưa?
+```
 
 ## 5. Nhận diện tài khoản
 
