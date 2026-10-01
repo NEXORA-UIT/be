@@ -32,7 +32,7 @@ Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới ph
 
 ## OAuth và liên kết tài khoản
 
-Xem [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước. Với Google, lần đầu có thể tự liên kết vào `User` cùng email **chỉ khi Google xác nhận email đã được xác minh**; những lần sau nhận diện bằng Google `sub`. GitHub dùng chính sách liên kết chủ động riêng.
+Đọc [thiết kế flow OAuth](oauth-login-design.md) trước, sau đó xem chi tiết chính sách tại [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước. Với Google, lần đầu có thể tự liên kết vào `User` cùng email **chỉ khi Google xác nhận email đã được xác minh**; những lần sau nhận diện bằng Google `sub`. GitHub dùng chính sách liên kết chủ động riêng.
 
 Hợp đồng hiện có nhận `code` qua `POST /auth/oauth/google` hoặc `/github` và trả token trong JSON. Frontend nhận authorization code ở redirect URI của nó rồi gửi code về backend để đổi. Trước khi code OAuth, cần bổ sung cơ chế cấp/kiểm tra `state` dùng một lần trong Redis và giới hạn redirect URI vào allowlist; điều này là thay đổi hợp đồng cần frontend review.
 
