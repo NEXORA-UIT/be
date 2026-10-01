@@ -263,13 +263,44 @@ paths:
                 $ref: '#/components/schemas/EmptySuccessResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /auth/oauth/google/start:
+    post:
+      tags:
+      - Authentication
+      summary: Start Google OAuth login
+      description: Creates a one-time login token and PKCE verifier in Redis. The frontend stores loginToken in sessionStorage before opening authorizationUrl.
+      operationId: startGoogleOAuth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleOAuthStartRequest'
+      responses:
+        '200':
+          description: Google authorization URL and one-time login token created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleOAuthStartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          description: Google OAuth credentials are not configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-scope: PROPOSED
+      x-related-use-cases:
+      - UC-AUTH-03
   /auth/oauth/google:
     post:
       tags:
       - Authentication
       summary: Authenticate with Google OAuth
-      description: Completes Google OAuth 2.0 Authorization Code exchange. Resolves an existing OAuthAccount by Google sub.
-        On first login, a verified Google email matching an existing user is linked to that user; an unclaimed verified email creates a user.
+      description: Completes Google OAuth 2.0 Authorization Code exchange after validating the one-time state and PKCE verifier. Resolves an existing OAuthAccount by Google sub. On first login, a verified Google email matching an existing user is linked to that user; an unclaimed verified email creates a user.
       operationId: loginWithGoogle
       security: []
       requestBody:
@@ -3618,14 +3649,52 @@ components:
       type: object
       required:
       - code
+      - state
+      - redirectUri
+      additionalProperties: false
       properties:
         code:
           type: string
           description: Authorization code returned by provider callback.
+        state:
+          type: string
+          description: One-time login token returned unchanged by the provider. The frontend must compare it with the value kept in sessionStorage.
         redirectUri:
           type: string
           format: uri
-          description: Optional redirect URI configured for OAuth.
+          description: Exact redirect URI used when the login was started.
+    GoogleOAuthStartRequest:
+      type: object
+      required:
+      - redirectUri
+      additionalProperties: false
+      properties:
+        redirectUri:
+          type: string
+          format: uri
+          example: http://localhost:5173/oauth/callback/google
+    GoogleOAuthStartResponse:
+      type: object
+      required:
+      - success
+      - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+          - authorizationUrl
+          - loginToken
+          properties:
+            authorizationUrl:
+              type: string
+              format: uri
+              description: URL to open in the browser for Google login.
+            loginToken:
+              type: string
+              description: Raw one-time token. Frontend stores it in sessionStorage and compares it with callback state.
     UpdateProfileRequest:
       type: object
       properties:

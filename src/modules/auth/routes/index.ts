@@ -23,6 +23,7 @@ import {
 } from '../dto/auth.schema.js';
 import { requireAuth } from '../middlewares/require-auth.middleware.js';
 import { AUTH_ROUTE } from '../utils/auth.constants.js';
+import { googleOAuthRouter } from './google-oauth.routes.js';
 
 export const authRouter = Router();
 
@@ -55,3 +56,4 @@ authRouter.post(
 );
 authRouter.post(AUTH_ROUTE.forgotPassword, validateForgotPasswordBody, forgotPasswordController);
 authRouter.post(AUTH_ROUTE.resetPassword, validateResetPasswordBody, resetPasswordController);
+authRouter.use(AUTH_ROUTE.googleOAuth, googleOAuthRouter);

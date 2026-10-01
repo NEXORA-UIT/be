@@ -20,6 +20,8 @@ export const AUTH_ROUTE = {
   changePassword: '/change-password',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
+  googleOAuth: '/oauth/google',
+  googleOAuthStart: '/start',
 } as const;
 
 export const AUTH_CACHE_KEY = {

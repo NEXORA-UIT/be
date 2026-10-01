@@ -1,6 +1,6 @@
 # AUTH — thiết kế và thứ tự triển khai
 
-Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới phiên, đăng xuất, đổi mật khẩu, quên/đặt lại mật khẩu, `GET /auth/me`, và đăng nhập Google/GitHub. Không có tính năng “change account”. Frontend là ứng dụng riêng. Phần JWT đã có code và [hướng dẫn manual check](manual-jwt.md); Google/GitHub OAuth thuộc bước tiếp theo.
+Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới phiên, đăng xuất, đổi mật khẩu, quên/đặt lại mật khẩu, `GET /auth/me`, và đăng nhập Google/GitHub. Không có tính năng “change account”. Frontend là ứng dụng riêng. Phần JWT đã có code và [hướng dẫn manual check](manual-jwt.md). Google OAuth có [hướng dẫn test bằng Swagger](manual-google-oauth.md); GitHub OAuth thuộc bước tiếp theo.
 
 Đăng ký email/mật khẩu dùng [link xác nhận email](email-verification-registration.md). `POST /api/v1/auth/register` chỉ lưu đăng ký chờ trong Redis và gửi Gmail; frontend gửi token về `POST /api/v1/auth/verify-registration` để tạo `User` và nhận JWT. Khi chưa có frontend, lấy token trực tiếp từ URL trong Gmail để manual test.
 
@@ -34,7 +34,7 @@ Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới ph
 
 Đọc [thiết kế flow OAuth](oauth-login-design.md) trước, sau đó xem chi tiết chính sách tại [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước. Với Google, lần đầu có thể tự liên kết vào `User` cùng email **chỉ khi Google xác nhận email đã được xác minh**; những lần sau nhận diện bằng Google `sub`. GitHub dùng chính sách liên kết chủ động riêng.
 
-Hợp đồng hiện có nhận `code` qua `POST /auth/oauth/google` hoặc `/github` và trả token trong JSON. Frontend nhận authorization code ở redirect URI của nó rồi gửi code về backend để đổi. Trước khi code OAuth, cần bổ sung cơ chế cấp/kiểm tra `state` dùng một lần trong Redis và giới hạn redirect URI vào allowlist; điều này là thay đổi hợp đồng cần frontend review.
+Google OAuth bắt đầu tại `POST /auth/oauth/google/start`. Frontend giữ `loginToken` trong `sessionStorage`, mở `authorizationUrl`, so sánh callback `state` rồi gửi `code`, `state` và `redirectUri` tới `POST /auth/oauth/google`. Backend dùng state một lần trong Redis, PKCE và redirect allowlist trước khi cấp JWT Nexora. GitHub sẽ dùng cùng khung flow ở bước riêng.
 
 ## Các bước triển khai để review riêng
 
