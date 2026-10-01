@@ -15,7 +15,6 @@ app.use('/api/v1', apiRouter);
 
 app.get('/', (_request, response) => {
   response.type('text/plain').send('Hello World!');
-  console.log('DCM M');
 });
 
 app.use(errorMiddleware);
