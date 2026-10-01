@@ -1,0 +1,8 @@
+dist
+node_modules
+.local
+.superpowers
+pnpm-lock.yaml
+package-lock.json
+prisma/migrations
+docs/api
