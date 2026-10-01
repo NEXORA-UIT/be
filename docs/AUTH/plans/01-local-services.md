@@ -31,11 +31,13 @@
 ### Task 1: Compose PostgreSQL và Redis
 
 **Files:**
+
 - Create: `infrastructure/docker/compose.yaml`
 - Create: `.env.example`
 - Modify: `README.md` (thêm hướng dẫn chạy Docker local và lệnh manual check)
 
 **Interfaces:**
+
 - Consumes: `.env` ở gốc repo với `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `REDIS_PORT`.
 - Produces: PostgreSQL tại `localhost:${POSTGRES_PORT}` và Redis tại `localhost:${REDIS_PORT}` cho backend chạy trên host.
 

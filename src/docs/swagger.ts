@@ -28,7 +28,7 @@ function resolveOpenApiPath(): string {
       `Attempted resolution paths:\n` +
       `  1. ${candidateFromModule}\n` +
       `  2. ${candidateFromCwd}\n` +
-      `Please ensure that docs/api/openapi.yaml exists in the repository root.`
+      `Please ensure that docs/api/openapi.yaml exists in the repository root.`,
   );
 }
 
@@ -48,7 +48,7 @@ function loadOpenApiSpec(): { document: Record<string, unknown>; rawYaml: string
   } catch (error) {
     throw new Error(
       `[Swagger Initialization Error] Failed to read or parse OpenAPI specification at '${filePath}':\n` +
-        `${error instanceof Error ? error.message : String(error)}`
+        `${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
