@@ -8,7 +8,9 @@
 
 **Tech Stack:** Express 5, TypeScript, Zod, Prisma/PostgreSQL, Redis, Nodemailer adapter hiện có, Node test runner qua `tsx`.
 
-**Spec:** [Business rules](../business-rules.md), [quyết định hoãn hạ tầng](../deferred-infrastructure.md), [API contract](../../api/openapi.yaml), [endpoint matrix](../../api/endpoint-matrix.md), SRS UC-WS-06/07/08.
+**Implementation status (2026-10-07):** CRUD, archive/restore, paginated workspace/member lists, Owner transfer, member remove/leave, and the invitation lifecycle are implemented. Workspace metadata changes, Owner transfer, and member remove/leave recheck permissions and state inside serializable transactions. OpenAPI source is split under `docs/api/openapi/`. The Workspace integration suite passes 17/17 tests; typecheck still reports unresolved Prisma Client and Express typings in the local dependency setup. BullMQ and Socket.IO stay deferred as documented below.
+
+**Spec:** [Business rules](../business-rules.md), [quyết định hoãn hạ tầng](../deferred-infrastructure.md), [API contract](../../api/openapi/), [endpoint matrix](../../api/endpoint-matrix.md), SRS UC-WS-06/07/08.
 
 ## Global Constraints
 
@@ -22,7 +24,7 @@
 
 ## Hiện trạng đã có
 
-Đã có 10 route trong [Workspace router](../../../src/modules/workspaces/routes/index.ts): create, list, get, update, archive, restore, list members, transfer Owner, remove member, leave. Có Prisma model Workspace/WorkspaceMembership, authorization guard và integration test cơ bản. Đây là **nền đã chạy**, không đánh dấu các flow là hoàn chỉnh: chưa có invitation; Workspace thiếu field lĩnh vực; list chưa có pagination; transfer Owner chưa được kiểm tra race/target khóa; remove/leave đang hard-delete membership và chưa chặn PM; OpenAPI còn lệch route/role/response. Repository mới bao phủ create/list/get.
+Workspace routes gồm create/list/get/update/archive/restore, quản lý thành viên và toàn bộ vòng đời invitation. `domainCategory`, page/limit, kiểm tra tài khoản đích khi chuyển Owner, chặn gỡ/rời khi còn giữ PM, thu hồi Board access/assignment, và transaction serializable đã được bổ sung. Membership hiện bị hard-delete sau khi thu hồi quyền; nội dung và lịch sử dự án được giữ lại. Bảng kiểm tra chi tiết bên dưới ghi rõ các bước xác minh còn mở.
 
 ## Bản đồ file
 
@@ -32,7 +34,7 @@
 | HTTP và validation           | `src/modules/workspaces/routes/index.ts`, `controllers/workspace.controller.ts`, `dto/workspace.schema.ts`; tách `invitation.*` và `membership.*` khi flow mới làm file hiện tại quá lớn   |
 | Nghiệp vụ và persistence     | `services/workspace.service.ts`, `repository/workspace.repository.ts`; thêm `services/invitation.service.ts`, `repository/invitation.repository.ts`, `repository/membership.repository.ts` |
 | Token/email và quyền         | `src/modules/auth/utils/token.util.ts` nếu tái dùng được, `src/infrastructure/email/email.client.ts`, `src/shared/authorization/access.service.ts`                                         |
-| Contract và test             | `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/*.integration.test.ts`                                                                                           |
+| Contract và test             | `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `tests/workspaces/*.integration.test.ts`                                                                                           |
 
 ## Contract REST đích
 
@@ -64,7 +66,7 @@ Các route bổ sung cần được ghi vào OpenAPI và endpoint matrix cùng t
 
 ### Task 1: Chốt schema và contract Workspace còn thiếu
 
-**Files:** `prisma/schema.prisma`, migration mới, `src/modules/workspaces/dto/workspace.schema.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/workspace-http.integration.test.ts`.
+**Files:** `prisma/schema.prisma`, migration mới, `src/modules/workspaces/dto/workspace.schema.ts`, `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `tests/workspaces/workspace-http.integration.test.ts`.
 
 **Interfaces:** Giữ `createWorkspace`, `listWorkspaces`, `getWorkspace`, `updateWorkspace`, `archiveWorkspace`, `restoreWorkspace`; thêm `domainCategory`/tên field lĩnh vực theo contract cuối cùng, `page`/`limit` cho list nếu cần.
 
@@ -102,7 +104,7 @@ Các route bổ sung cần được ghi vào OpenAPI và endpoint matrix cùng t
 
 ### Task 4: Accept, reject, resend và cancel invitation
 
-**Files:** `src/modules/workspaces/{services,repository,controllers,dto}/invitation.*`, `routes/index.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/invitation-lifecycle.integration.test.ts`.
+**Files:** `src/modules/workspaces/{services,repository,controllers,dto}/invitation.*`, `routes/index.ts`, `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `tests/workspaces/invitation-lifecycle.integration.test.ts`.
 
 **Interfaces:** `acceptWorkspaceInvitation(userId, rawToken)`, `rejectWorkspaceInvitation(userId, rawToken)`, `resendWorkspaceInvitation(actorId, invitationId)`, `cancelWorkspaceInvitation(actorId, workspaceId, invitationId)`.
 
@@ -127,7 +129,7 @@ Các route bổ sung cần được ghi vào OpenAPI và endpoint matrix cùng t
 
 ### Task 6: Kiểm tra tích hợp và khép contract
 
-**Files:** `tests/workspaces/*.integration.test.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `docs/CORE/README.md`.
+**Files:** `tests/workspaces/*.integration.test.ts`, `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `docs/CORE/README.md`.
 
 - [ ] Viết test HTTP end-to-end cho create → invite → accept → list → transfer Owner → remove/leave và các trường hợp `401/403/404/409/410`; dùng fake mailer, DB/Redis test riêng.
 - [ ] Chạy `pnpm db:validate`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm format:check`; sửa lỗi phát sinh, ghi kết quả thực tế.

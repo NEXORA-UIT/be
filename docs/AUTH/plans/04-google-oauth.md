@@ -101,7 +101,7 @@
 - Create: `src/modules/auth/controllers/google-oauth.controller.ts`
 - Create: `src/modules/auth/routes/google-oauth.routes.ts`
 - Modify: `src/modules/auth/routes/index.ts`
-- Modify: `docs/api/openapi.yaml`
+- Modify: `docs/api/openapi/`
 - Modify: `docs/api/endpoint-matrix.md`
 - Create: `docs/AUTH/manual-google-oauth.md`
 - Test: `tests/auth/google-oauth-http.integration.test.ts`

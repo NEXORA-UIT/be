@@ -97,4 +97,4 @@ Nguồn: mục 4.2.1–4.2.2, trang 105.
 
 - API version `/api/v1`; envelope thành công `{ success: true, data: ... }`, thất bại `{ success: false, error: { code, message, details } }`.
 - Phân trang `page`/`limit`, không dùng cursor trong phạm vi đồ án.
-- Access token gửi qua Bearer header. SRS yêu cầu refresh token qua cookie HttpOnly, Secure, SameSite và không xuất hiện trong JSON response; code hiện tại có khác biệt, xem [initial-audit.md](initial-audit.md).
+- Access token gửi qua Bearer header. SRS yêu cầu refresh token qua cookie HttpOnly, Secure, SameSite và không xuất hiện trong JSON response. Backend hiện vẫn nhận refresh token trong JSON body và trả token trong JSON; cần đồng bộ transport giữa backend, frontend, OpenAPI và tests trước khi khép yêu cầu SRS này.

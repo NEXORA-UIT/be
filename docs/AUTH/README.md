@@ -9,7 +9,7 @@ Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới ph
 ## Hiện trạng và ranh giới
 
 - Backend là Express 5 + TypeScript strict. Router JWT đã gắn tại `/api/v1/auth`.
-- `docs/api/openapi.yaml` và `docs/api/endpoint-matrix.md` là hợp đồng API. Luồng JWT được bổ sung logout, forgot/reset password; liên kết OAuth sẽ cần cập nhật thêm trước bước OAuth.
+- `docs/api/openapi/` và `docs/api/endpoint-matrix.md` là hợp đồng API. Luồng JWT được bổ sung logout, forgot/reset password; liên kết OAuth sẽ cần cập nhật thêm trước bước OAuth.
 - ERD AUTH gồm `User`, `RefreshToken`, `OAuthAccount`. `OAuthAccount` dùng định danh ổn định `(provider, providerAccountId)`; email không phải định danh của OAuth.
 - `modules/auth` sở hữu nghiệp vụ; `src/config/auth.config.ts` chỉ chứa JWT secret và thời hạn token. PostgreSQL, Redis và email có các file `database/database.config.ts`, `redis/redis.config.ts`, `email/email.config.ts` riêng. `src/infrastructure/` chứa client kết nối. Compose ở `infrastructure/docker/` hiện chạy PostgreSQL và Redis, API chạy trên host. API container là bước sau.
 - Code JWT tách theo `src/modules/auth/routes/` (khai báo endpoint), `controllers/` (HTTP), `dto/` (Zod schema), `services/` (nghiệp vụ) và một thư mục `repository/` (Prisma và Redis). Guard JWT nằm trong module AUTH; validation và xử lý lỗi dùng chung nằm trong `src/shared/middlewares/`. `utils/token.util.ts` xử lý JWT/hash/random token; `utils/user.mapper.ts` chuyển dữ liệu user sang response. Nghiệp vụ reset mật khẩu nằm trong service AUTH, còn gửi Gmail nằm tại `src/infrastructure/email/email.client.ts`. `src/infrastructure/database/` và `redis/` chỉ tạo client kết nối.

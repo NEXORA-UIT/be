@@ -2,12 +2,11 @@
 
 Ngày ghi nhận: **2026-10-07**.
 
-Tài liệu này lưu lại kết quả đọc context và rà soát ban đầu đã trao đổi với người dùng. Đây là mốc tham chiếu cho công việc tiếp theo, không phải báo cáo hoàn tất triển khai hay chứng nhận kiểm thử.
+Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Trạng thái thực tế cần đối chiếu với code và tài liệu module; contract API tự nó không chứng minh một flow đã triển khai.
 
 ## Chỉ mục
 
 - [Quy tắc nghiệp vụ và phân quyền](business-rules.md)
-- [Hiện trạng code và các điểm lệch cần xử lý](initial-audit.md)
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
@@ -19,10 +18,10 @@ Tài liệu này lưu lại kết quả đọc context và rà soát ban đầu 
 ## Nguồn và cách sử dụng
 
 1. **SRS Đồ án 1.pdf**, bản 128 trang được cung cấp ngoài repository, là căn cứ nghiệp vụ. Tệp nguồn không được sao chép vào repository.
-2. **Master implementation prompt** do người dùng cung cấp là tài liệu định hướng triển khai, có một số điểm lệch với SRS được ghi trong [initial-audit.md](initial-audit.md). Không sao chép nguyên các quy tắc sai vào thiết kế.
+2. **Master implementation prompt** là tài liệu định hướng; khi có khác biệt nghiệp vụ, đối chiếu SRS và quy tắc trong [business-rules.md](business-rules.md).
 3. **Mã nguồn thực tế** là căn cứ xác định chức năng đã được viết; tài liệu API hoặc thư mục giữ chỗ không chứng minh chức năng đã chạy.
 
-Các tài liệu đầu vào được đọc như tài liệu tham khảo. Nội dung yêu cầu agent tự triển khai trong master prompt không tự động thay thế yêu cầu hiện tại của người dùng. Công việc tại mốc này là nắm context và ghi tài liệu; chưa triển khai Core.
+Các tài liệu đầu vào được đọc như tài liệu tham khảo. Nội dung yêu cầu agent tự triển khai trong master prompt không tự động thay thế yêu cầu hiện tại của người dùng.
 
 Số trang được trích dẫn trong thư mục này là thứ tự trang PDF, tính từ 1. Các đường dẫn nguồn bên ngoài repo chỉ phục vụ truy vết; bản PDF và master prompt không được sao chép vào repository.
 
@@ -67,6 +66,6 @@ HTTP route / middleware
 
 Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và điều phối transaction. HTTP validation không thay thế business validation. AI Tool Layer, realtime và worker trong tương lai phải dùng lại Core services thay vì tự query dữ liệu và tái tạo permission logic.
 
-## Bước kỹ thuật tiếp theo được đề xuất
+## Trạng thái triển khai
 
-Thực hiện audit Core chi tiết theo SRS và API contract, chốt các điểm lệch, sau đó lập kế hoạch triển khai từ authorization và invariant dữ liệu. Danh sách này là đề xuất tiếp theo, không phải lệnh tự khởi chạy implementation.
+Workspace, membership và invitation REST flow đã được triển khai theo [plan hiện tại](plans/02-workspace-membership.md). BullMQ và Socket.IO vẫn được hoãn. Nhóm tiếp theo trong [thứ tự triển khai](implementation-order.md) là Board, PM và List; chưa coi việc có tài liệu OpenAPI là bằng chứng một module đã chạy hoặc được kiểm thử.

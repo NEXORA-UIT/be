@@ -1,6 +1,6 @@
 # Thứ tự triển khai Project Management Core
 
-Ngày lập: **2026-10-07**. Đây là bản chia nhóm và thứ tự công việc để điều phối các session code. Nó dựa trên [bối cảnh](README.md), [quy tắc nghiệp vụ](business-rules.md), [rà soát ban đầu](initial-audit.md) và SRS. Đây chưa phải kế hoạch cấp file/hàm cho từng PR; trước khi code mỗi nhóm cần chốt API, schema liên quan và ca nghiệm thu cụ thể.
+Ngày lập: **2026-10-07**. Đây là bản chia nhóm và thứ tự công việc để điều phối các session code. Nó dựa trên [bối cảnh](README.md), [quy tắc nghiệp vụ](business-rules.md), tài liệu module hiện hành và SRS. Đây chưa phải kế hoạch cấp file/hàm cho từng PR; trước khi code mỗi nhóm cần chốt API, schema liên quan và ca nghiệm thu cụ thể.
 
 ## Nguyên tắc chia việc
 

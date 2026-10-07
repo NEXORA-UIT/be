@@ -112,7 +112,7 @@
 
 **Files:**
 
-- Modify: `docs/api/openapi.yaml`
+- Modify: `docs/api/openapi/`
 - Modify: `docs/api/endpoint-matrix.md`
 - Modify: `docs/AUTH/manual-jwt.md`
 - Verify: `docs/AUTH/email-verification-registration.md`
