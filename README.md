@@ -63,12 +63,12 @@ Quyết định triển khai chi tiết nằm trong [docs/CORE/deferred-infrastr
 | **TypeScript (~5.9)**            |   Đang sử dụng    | Ngôn ngữ lập trình chính với cấu hình tĩnh nghiêm ngặt (`strict: true`) |
 | **Express (5.1)**                |   Đang sử dụng    | Web framework nền tảng cho hệ thống REST API                            |
 | **Swagger UI Express (5.0)**     |   Đang sử dụng    | Giao diện hiển thị và tương tác trực quan với tài liệu OpenAPI          |
-| **YAML parser (2.9)**            |   Đang sử dụng    | Đọc và ghép các fragment OpenAPI khi server khởi động                    |
+| **YAML parser (2.9)**            |   Đang sử dụng    | Đọc và ghép các fragment OpenAPI khi server khởi động                   |
 | **tsx (4.20)**                   |   Đang sử dụng    | Công cụ thực thi TypeScript trực tiếp hỗ trợ hot reload khi phát triển  |
 | **PostgreSQL**                   |   Đang sử dụng    | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững              |
-| **Prisma ORM**                   |   Đang sử dụng    | Quản lý lược đồ dữ liệu, migration và truy vấn                           |
+| **Prisma ORM**                   |   Đang sử dụng    | Quản lý lược đồ dữ liệu, migration và truy vấn                          |
 | **pgvector**                     | Dự kiến (Planned) | Vector database mở rộng lưu trữ embedding cho hệ thống RAG              |
-| **Redis**                        |   Đang sử dụng    | Lưu token ngắn hạn, OAuth state và dữ liệu tạm                           |
+| **Redis**                        |   Đang sử dụng    | Lưu token ngắn hạn, OAuth state và dữ liệu tạm                          |
 | **BullMQ**                       | Dự kiến (Planned) | Hệ thống quản lý hàng đợi và tác vụ nền bất đồng bộ                     |
 | **Cloudinary / R2**              | Dự kiến (Planned) | Lưu trữ tệp đính kèm, ảnh đại diện và tài liệu Knowledge Base           |
 | **OAuth 2.0 (Google, GitHub)**   | Dự kiến (Planned) | Đăng nhập một chạm tiện lợi và bảo mật                                  |

@@ -1,6 +1,6 @@
 # REST Core completion plan
 
-Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **ba nhánh tích hợp** sau nhánh Workspace/authorization hiện tại. Các nhánh được xếp theo phụ thuộc; các session song song chỉ bắt đầu sau khi schema và API contract chung đã được khóa.
+Ngày rà soát: **2026-10-08**. Kế hoạch ban đầu gồm ba nhánh tích hợp sau Workspace/authorization. `feature/core-board-list` và `feature/core-card` đã hoàn tất theo phạm vi từng nhánh; `feature/core-rest-completion` là nhánh còn lại và bắt đầu từ Card Core đã review. Các lane song song của nhánh cuối chỉ bắt đầu sau khi schema và API contract chung đã được khóa.
 
 **Goal:** Hoàn thiện REST Core theo SRS, bảo đảm ranh giới Workspace/Board, tính nguyên tử của thay đổi, kiểm soát ghi đồng thời và bộ test xác nhận quyền trên mọi resource.
 
@@ -12,8 +12,8 @@ Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **
 
 ## Hiện trạng và scope
 
-- Nhánh hiện tại đã có AUTH, shared authorization, Workspace/membership/invitation REST và các test tương ứng. PostgreSQL schema đã có quan hệ nền cho Board, List, Card, Task, Assignment, Label, Comment và Attachment; routers `boards`, `cards`, `collaboration`, `planning` hiện chưa có endpoint nghiệp vụ.
-- Schema nền chưa đủ cho flow hoàn chỉnh: `List.statusGroup`, `BoardMembership.appointedBy`, Card fields/OCC và các model `CardLabel`, `CardDependency`, `ActivityLog`, `Notification`, `QuickNote` cần được đối chiếu/bổ sung theo từng nhánh. `ActivityLog` thuộc nhánh Card Core vì nhánh đó đã yêu cầu ghi lịch sử nguyên tử. `Card.archivedAt` là field nền tối thiểu ở nhánh Board/List để archive List có thể archive Cards theo lựa chọn của người dùng; Card CRUD và quy tắc archive/restore đầy đủ vẫn thuộc nhánh Card Core.
+- AUTH, shared authorization, Workspace/membership/invitation REST, Board/List REST và Card Core REST đã hoàn tất ở các nhánh trước. `feature/core-board-list` thêm `List.statusGroup`, `BoardMembership.appointedBy` và `Card.archivedAt`; `feature/core-card` bổ sung Card CRUD, cardKey, OCC, move/reorder, lifecycle, giới hạn Board và ActivityLog nguyên tử. Các năng lực collaboration/planning còn lại chưa hoàn tất.
+- Schema cần được hoàn thiện theo nhánh sở hữu: `CardLabel`, `CardDependency`, `Notification`, `QuickNote` cùng field/index liên quan ở nhánh REST completion. Không coi endpoint có trong OpenAPI là đã triển khai nếu route và test chưa tồn tại; các Task/Attachment operations hiện được ghi rõ là planned.
 - Trong SRS, Owner thuộc Workspace; PM thuộc từng Board. Không tạo `Workspace PM`. Chuyển Workspace Owner và chuyển Board PM luôn là hai nghiệp vụ riêng.
 - Phạm vi này gồm REST CRUD/query cho Workspace, Board (bao gồm xóa vĩnh viễn theo điều kiện SRS), List, Card, Task, assignment, label, comments, attachments, activity, dependency, notification center và QuickNote; gồm cả các use case mở rộng dependency/calendar/dashboard đã được chọn trong kế hoạch Core.
 - Loại khỏi plan: BullMQ (email và worker), Socket.IO/WebSocket delivery, AI, RAG, AI Agent/Tool Calling/Proposal và pipeline Knowledge Base. Card Attachment là luồng riêng; không tự đưa file sang Knowledge Base. Các thao tác REST vẫn phải đúng và bền vững dù chưa có push realtime.
@@ -21,11 +21,11 @@ Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **
 
 ## Thứ tự ba nhánh
 
-| Nhánh tích hợp                 | Phạm vi                                                                                                                                 | Phụ thuộc                                |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `feature/core-board-list`      | Board, PM, Board membership, List và invariant Workspace removal liên quan PM; hỗ trợ tối thiểu archive Card khi archive List           | Nhánh hiện tại                           |
-| `feature/core-card`            | Card CRUD, cardKey, status từ List, move/reorder, archive/restore, OCC và activity cơ bản                                               | Board/List đã tích hợp                   |
-| `feature/core-rest-completion` | Assignment/Label/Task, collaboration/Attachment, dependency, authorized Card queries/planning/dashboard, Notification REST và QuickNote | Card Core và schema/API contract đã khóa |
+| Nhánh tích hợp                 | Phạm vi                                                                                                                                 | Phụ thuộc                                | Trạng thái   |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------ |
+| `feature/core-board-list`      | Board, PM, Board membership, List và invariant Workspace removal liên quan PM; hỗ trợ tối thiểu archive Card khi archive List           | Workspace/authorization                  | Hoàn tất     |
+| `feature/core-card`            | Card CRUD, cardKey, status từ List, move/reorder, archive/restore, OCC và activity cơ bản                                               | Board/List đã tích hợp                   | Hoàn tất     |
+| `feature/core-rest-completion` | Assignment/Label/Task, collaboration/Attachment, dependency, authorized Card queries/planning/dashboard, Notification REST và QuickNote | Card Core và schema/API contract đã khóa | Chưa bắt đầu |
 
 Đây là ba nhánh/PR tích hợp. Trong nhánh ba, bốn session nghiệp vụ có thể code ở worktree riêng; chỉ người tích hợp sửa `schema.prisma`, migration, router tổng, shared authorization, OpenAPI dùng chung. Các session không commit trực tiếp lên cùng working tree.
 
@@ -60,7 +60,7 @@ Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **
 
 ### Phạm vi
 
-- Card create/list/get/update, move/reorder trong Board, archive/restore; kiểm tra Board/List cùng scope và active parent.
+- Card create/list/get/update, move/reorder trong Board, archive/restore và soft-delete; kiểm tra Board/List cùng scope và active parent.
 - Bổ sung `cardKey` duy nhất trong Board, description Markdown, start/due dates, priority và archive/concurrency fields theo SRS/contract. `startDate <= dueDate`; thời gian lưu UTC.
 - Trạng thái Card được suy ra từ `List.statusGroup`; không lưu một Card status độc lập gây lệch. Hoàn thành Task không tự chuyển Card sang Done.
 - Mọi update/move dùng OCC theo `updatedAt`: cập nhật có điều kiện trên giá trị client đã đọc; stale version trả `409 CARD_CONFLICT`, không ghi đè âm thầm.
@@ -79,7 +79,7 @@ Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **
 - Test status đổi theo List group sau khi move hoặc đổi `statusGroup`. Test Task completion chỉ đổi tiến độ Task thuộc gate nhánh 3, sau khi Task được triển khai.
 - Test hai cập nhật cùng `updatedAt`: đúng một request thành công, request stale nhận 409 và dữ liệu không mất.
 - Test move/reorder transaction rollback và thứ tự cuối cùng hợp lệ khi có request cạnh tranh.
-- Test archive giữ dữ liệu; restore chỉ thành công khi Board/Workspace cha hoạt động và actor có quyền.
+- Test archive giữ dữ liệu; restore chỉ thành công khi Board/Workspace cha hoạt động và actor có quyền. Soft-delete giữ child resources và ActivityLog, không cascade xóa lịch sử.
 
 ## Nhánh 3 — Core capabilities và tích hợp
 
@@ -114,9 +114,9 @@ Người tích hợp khóa schema, migration và API contract chung cho các mod
 
 ## Quản lý nhánh và quyền sở hữu file
 
-1. Tạo `feature/core-board-list` từ nhánh Workspace đã review; hoàn tất schema/API/migration và merge trước khi bắt đầu Card Core.
-2. Tạo `feature/core-card` từ Board/List đã tích hợp; giữ một owner cho Card fields, OCC, move/reorder và Activity Core.
-3. Tạo `feature/core-rest-completion` từ Card Core. Người tích hợp chốt migration/contracts đầu nhánh; bốn lane A–D triển khai trong worktree riêng, rồi merge từng lane vào nhánh ba.
+1. `feature/core-board-list` đã hoàn tất; dùng đây làm nền cho Card Core.
+2. `feature/core-card` đã hoàn tất trên nền Board/List; giữ một owner cho Card fields, OCC, move/reorder và Activity Core.
+3. Sau khi Card Core được review/tích hợp, tạo `feature/core-rest-completion` từ nhánh đó. Người tích hợp chốt migration/contracts đầu nhánh; bốn lane A–D triển khai trong worktree riêng, rồi merge từng lane vào nhánh ba.
 4. Mỗi nhánh là một đơn vị review/commit riêng. Không tạo branch song song cùng sửa Prisma, authorization chung hoặc Board/Card mutation path. Rebase/merge theo thứ tự; không giả định test của nhánh cha còn đủ sau khi tích hợp.
 
 ## Tài liệu SRS đã đối chiếu

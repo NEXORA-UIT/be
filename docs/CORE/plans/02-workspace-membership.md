@@ -34,7 +34,7 @@ Workspace routes gồm create/list/get/update/archive/restore, quản lý thành
 | HTTP và validation           | `src/modules/workspaces/routes/index.ts`, `controllers/workspace.controller.ts`, `dto/workspace.schema.ts`; tách `invitation.*` và `membership.*` khi flow mới làm file hiện tại quá lớn   |
 | Nghiệp vụ và persistence     | `services/workspace.service.ts`, `repository/workspace.repository.ts`; thêm `services/invitation.service.ts`, `repository/invitation.repository.ts`, `repository/membership.repository.ts` |
 | Token/email và quyền         | `src/modules/auth/utils/token.util.ts` nếu tái dùng được, `src/infrastructure/email/email.client.ts`, `src/shared/authorization/access.service.ts`                                         |
-| Contract và test             | `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `tests/workspaces/*.integration.test.ts`                                                                                           |
+| Contract và test             | `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `tests/workspaces/*.integration.test.ts`                                                                                               |
 
 ## Contract REST đích
 
