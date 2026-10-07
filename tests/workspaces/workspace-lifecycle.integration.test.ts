@@ -138,10 +138,20 @@ describe('Workspace HTTP lifecycle', () => {
     const listOne = await prisma.list.create({ data: { boardId: boardOne.id, name: 'To Do' } });
     const listTwo = await prisma.list.create({ data: { boardId: boardTwo.id, name: 'To Do' } });
     const cardOne = await prisma.card.create({
-      data: { boardId: boardOne.id, listId: listOne.id, title: 'Retained card' },
+      data: {
+        boardId: boardOne.id,
+        listId: listOne.id,
+        cardKey: 'CARD-001',
+        title: 'Retained card',
+      },
     });
     const cardTwo = await prisma.card.create({
-      data: { boardId: boardTwo.id, listId: listTwo.id, title: 'Second retained card' },
+      data: {
+        boardId: boardTwo.id,
+        listId: listTwo.id,
+        cardKey: 'CARD-001',
+        title: 'Second retained card',
+      },
     });
     await prisma.boardMembership.createMany({
       data: [

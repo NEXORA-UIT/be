@@ -15,7 +15,7 @@ export const apiRouter = Router();
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/workspaces', workspacesRouter);
 apiRouter.use('/', boardsRouter);
-apiRouter.use('/cards', cardsRouter);
+apiRouter.use('/', cardsRouter);
 apiRouter.use('/collaboration', collaborationRouter);
 apiRouter.use('/planning', planningRouter);
 apiRouter.use('/knowledge-base', knowledgeBaseRouter);

@@ -4,12 +4,27 @@ import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { ERROR_CODE } from '../../../shared/errors/error-code.js';
+import { nextMonotonicTimestamp } from '../../../shared/utils/timestamp.js';
 import type { ArchiveListDto, CreateListDto, UpdateListDto } from '../dto/board.schema.js';
 import { requireBoardManagementInTransaction } from './board.service.js';
 import { runBoardTransaction } from './board-transaction.service.js';
 
 const MAX_ACTIVE_LISTS_PER_BOARD = 30;
 const POSITION_STEP = 1024;
+
+function appendedPositions(lastPosition: number, count: number): number[] | null {
+  const positions: number[] = [];
+  let previousPosition = lastPosition;
+
+  for (let index = 0; index < count; index += 1) {
+    const position = previousPosition + POSITION_STEP;
+    if (!Number.isFinite(position) || position <= previousPosition) return null;
+    positions.push(position);
+    previousPosition = position;
+  }
+
+  return positions;
+}
 
 function listError(status: number, code: string, message: string) {
   return new AppError(status, code, message);
@@ -132,8 +147,9 @@ export async function archiveList(userId: string, listId: string, input: Archive
   return runBoardTransaction(async (transaction) => {
     const { list } = await requireWritableList(transaction, userId, listId);
     const activeCards = await transaction.card.findMany({
-      where: { listId, archivedAt: null },
-      select: { id: true },
+      where: { listId, archivedAt: null, deletedAt: null },
+      select: { id: true, position: true, updatedAt: true },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
     });
 
     if (activeCards.length > 0 && !input.archiveCards && !input.moveCardsToListId) {
@@ -152,15 +168,66 @@ export async function archiveList(userId: string, listId: string, input: Archive
       if (!target || target.boardId !== list.boardId || target.archivedAt || target.id === listId) {
         throw accessErrors.notFound('List đích');
       }
-      await transaction.card.updateMany({
-        where: { listId, archivedAt: null },
-        data: { listId: target.id },
+      const targetCards = await transaction.card.findMany({
+        where: { listId: target.id, archivedAt: null, deletedAt: null },
+        select: { id: true, position: true, updatedAt: true },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
       });
+      const lastPosition = targetCards.at(-1)?.position ?? 0;
+      let positions = appendedPositions(lastPosition, activeCards.length);
+      if (!positions) {
+        for (const [index, targetCard] of targetCards.entries()) {
+          const position = (index + 1) * POSITION_STEP;
+          if (targetCard.position !== position) {
+            await transaction.card.update({
+              where: { id: targetCard.id },
+              data: {
+                position,
+                updatedAt: nextMonotonicTimestamp(targetCard.updatedAt),
+              },
+            });
+          }
+        }
+        positions = appendedPositions(targetCards.length * POSITION_STEP, activeCards.length);
+      }
+      if (!positions) throw new Error('Unable to assign unique Card positions');
+
+      for (const [index, card] of activeCards.entries()) {
+        await transaction.card.update({
+          where: { id: card.id },
+          data: {
+            listId: target.id,
+            position: positions[index]!,
+            updatedAt: nextMonotonicTimestamp(card.updatedAt),
+          },
+        });
+        await transaction.activityLog.create({
+          data: {
+            boardId: list.boardId,
+            cardId: card.id,
+            actorId: userId,
+            action: 'CARD_MOVED',
+            details: { fromListId: listId, toListId: target.id, reason: 'LIST_ARCHIVED' },
+          },
+        });
+      }
     } else if (input.archiveCards && activeCards.length > 0) {
-      await transaction.card.updateMany({
-        where: { listId, archivedAt: null },
-        data: { archivedAt: new Date() },
-      });
+      const archivedAt = new Date();
+      for (const card of activeCards) {
+        await transaction.card.update({
+          where: { id: card.id },
+          data: { archivedAt, updatedAt: nextMonotonicTimestamp(card.updatedAt) },
+        });
+        await transaction.activityLog.create({
+          data: {
+            boardId: list.boardId,
+            cardId: card.id,
+            actorId: userId,
+            action: 'CARD_ARCHIVED',
+            details: { reason: 'LIST_ARCHIVED', listId },
+          },
+        });
+      }
     }
 
     const archived = await transaction.list.update({

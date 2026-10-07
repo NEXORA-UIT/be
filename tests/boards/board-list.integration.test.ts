@@ -257,6 +257,7 @@ describe('Board and List REST flows', () => {
       data: {
         boardId: board.id,
         listId: targetList.id,
+        cardKey: 'LEGACY-001',
         title: 'Keep this card archived with its list',
       },
     });
@@ -276,7 +277,15 @@ describe('Board and List REST flows', () => {
       archiveCards: true,
     });
     assert.equal(archived.status, 200);
-    assert.ok((await prisma.card.findUnique({ where: { id: card.id } }))?.archivedAt);
+    const archivedCard = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+    assert.ok(archivedCard.archivedAt);
+    assert.ok(archivedCard.updatedAt > card.updatedAt);
+    assert.equal(
+      await prisma.activityLog.count({
+        where: { cardId: card.id, action: 'CARD_ARCHIVED', actorId: owner.user.id },
+      }),
+      1,
+    );
     assert.ok((await prisma.list.findUnique({ where: { id: targetList.id } }))?.archivedAt);
 
     const restored = await call(`/lists/${targetList.id}/restore`, 'PATCH', owner.accessToken);
@@ -293,14 +302,57 @@ describe('Board and List REST flows', () => {
     });
     const moveSource = movedList.body.data as { id: string };
     const movedCard = await prisma.card.create({
-      data: { boardId: board.id, listId: moveSource.id, title: 'Move out of archived List' },
+      data: {
+        boardId: board.id,
+        listId: moveSource.id,
+        cardKey: 'LEGACY-002',
+        title: 'Move out of archived List',
+      },
+    });
+    const anotherMovedCard = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: moveSource.id,
+        cardKey: 'LEGACY-003',
+        title: 'Keep appended positions distinct',
+        position: 2_048,
+      },
+    });
+    const targetCard = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: target,
+        cardKey: 'LEGACY-004',
+        title: 'Reindex target before append',
+        position: 2 ** 63 + 2_048,
+      },
     });
     const movedArchive = await call(`/lists/${moveSource.id}/archive`, 'PATCH', owner.accessToken, {
       moveCardsToListId: target,
     });
     assert.equal(movedArchive.status, 200);
-    assert.equal((await prisma.card.findUnique({ where: { id: movedCard.id } }))?.listId, target);
-    assert.equal((await prisma.card.findUnique({ where: { id: movedCard.id } }))?.archivedAt, null);
+    const movedCardAfterArchive = await prisma.card.findUniqueOrThrow({
+      where: { id: movedCard.id },
+    });
+    assert.equal(movedCardAfterArchive.listId, target);
+    assert.equal(movedCardAfterArchive.archivedAt, null);
+    assert.ok(movedCardAfterArchive.updatedAt > movedCard.updatedAt);
+    const archivedListCards = await prisma.card.findMany({
+      where: { listId: target, archivedAt: null, deletedAt: null },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
+    assert.equal(new Set(archivedListCards.map((card) => card.position)).size, 3);
+    assert.ok(
+      (await prisma.card.findUniqueOrThrow({ where: { id: targetCard.id } })).updatedAt >
+        targetCard.updatedAt,
+    );
+    assert.ok(archivedListCards.some((card) => card.id === anotherMovedCard.id));
+    assert.equal(
+      await prisma.activityLog.count({
+        where: { cardId: movedCard.id, action: 'CARD_MOVED', actorId: owner.user.id },
+      }),
+      1,
+    );
   });
 
   it('enforces the 30 active List limit for creation and restoration', async () => {
@@ -490,7 +542,12 @@ describe('Board and List REST flows', () => {
       userId: member.user.id,
     });
     const card = await prisma.card.create({
-      data: { boardId: board.id, listId: list.id, title: 'Preserve history' },
+      data: {
+        boardId: board.id,
+        listId: list.id,
+        cardKey: 'LEGACY-001',
+        title: 'Preserve history',
+      },
     });
     const comment = await prisma.comment.create({
       data: { cardId: card.id, userId: member.user.id, content: 'Historical comment' },

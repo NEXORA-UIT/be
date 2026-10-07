@@ -214,6 +214,7 @@ describe('Core Authorization Schema & Invariants', () => {
         data: {
           boardId: board.id,
           listId: list.id,
+          cardKey: 'CARD-001',
           title: 'Implement Authorization Schema',
           position: 1000.0,
         },
