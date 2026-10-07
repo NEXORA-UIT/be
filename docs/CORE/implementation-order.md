@@ -1,6 +1,6 @@
 # REST Core completion plan
 
-Ngày rà soát: **2026-10-08**. Kế hoạch ban đầu gồm ba nhánh tích hợp sau Workspace/authorization. `feature/core-board-list` và `feature/core-card` đã hoàn tất theo phạm vi từng nhánh; `feature/core-rest-completion` là nhánh còn lại và bắt đầu từ Card Core đã review. Các lane song song của nhánh cuối chỉ bắt đầu sau khi schema và API contract chung đã được khóa.
+Ngày rà soát: **2026-10-08**. Kế hoạch gồm ba nhánh tích hợp sau Workspace/authorization. `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã hoàn tất phạm vi REST Core; bốn lane A–D, docs và OpenAPI đã tích hợp, các gate xác minh bên dưới đều pass.
 
 **Goal:** Hoàn thiện REST Core theo SRS, bảo đảm ranh giới Workspace/Board, tính nguyên tử của thay đổi, kiểm soát ghi đồng thời và bộ test xác nhận quyền trên mọi resource.
 
@@ -12,8 +12,8 @@ Ngày rà soát: **2026-10-08**. Kế hoạch ban đầu gồm ba nhánh tích h
 
 ## Hiện trạng và scope
 
-- AUTH, shared authorization, Workspace/membership/invitation REST, Board/List REST và Card Core REST đã hoàn tất ở các nhánh trước. `feature/core-board-list` thêm `List.statusGroup`, `BoardMembership.appointedBy` và `Card.archivedAt`; `feature/core-card` bổ sung Card CRUD, cardKey, OCC, move/reorder, lifecycle, giới hạn Board và ActivityLog nguyên tử. Các năng lực collaboration/planning còn lại chưa hoàn tất.
-- Schema cần được hoàn thiện theo nhánh sở hữu: `CardLabel`, `CardDependency`, `Notification`, `QuickNote` cùng field/index liên quan ở nhánh REST completion. Không coi endpoint có trong OpenAPI là đã triển khai nếu route và test chưa tồn tại; các Task/Attachment operations hiện được ghi rõ là planned.
+- AUTH, shared authorization, Workspace/membership/invitation REST, Board/List REST và Card Core REST đã hoàn tất. `feature/core-board-list` thêm `List.statusGroup`, `BoardMembership.appointedBy` và `Card.archivedAt`; `feature/core-card` bổ sung Card CRUD, cardKey, OCC, move/reorder, lifecycle, giới hạn Board và ActivityLog nguyên tử.
+- Schema/migration cho `CardLabel`, `CardDependency`, `Notification`, `QuickNote` và `PendingObjectCleanup` cùng field/index liên quan đã tích hợp ở nhánh REST completion. Task/Attachment operations có route và integration tests; OpenAPI đã được đối chiếu với các route Core.
 - Trong SRS, Owner thuộc Workspace; PM thuộc từng Board. Không tạo `Workspace PM`. Chuyển Workspace Owner và chuyển Board PM luôn là hai nghiệp vụ riêng.
 - Phạm vi này gồm REST CRUD/query cho Workspace, Board (bao gồm xóa vĩnh viễn theo điều kiện SRS), List, Card, Task, assignment, label, comments, attachments, activity, dependency, notification center và QuickNote; gồm cả các use case mở rộng dependency/calendar/dashboard đã được chọn trong kế hoạch Core.
 - Loại khỏi plan: BullMQ (email và worker), Socket.IO/WebSocket delivery, AI, RAG, AI Agent/Tool Calling/Proposal và pipeline Knowledge Base. Card Attachment là luồng riêng; không tự đưa file sang Knowledge Base. Các thao tác REST vẫn phải đúng và bền vững dù chưa có push realtime.
@@ -21,11 +21,11 @@ Ngày rà soát: **2026-10-08**. Kế hoạch ban đầu gồm ba nhánh tích h
 
 ## Thứ tự ba nhánh
 
-| Nhánh tích hợp                 | Phạm vi                                                                                                                                 | Phụ thuộc                                | Trạng thái   |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------ |
-| `feature/core-board-list`      | Board, PM, Board membership, List và invariant Workspace removal liên quan PM; hỗ trợ tối thiểu archive Card khi archive List           | Workspace/authorization                  | Hoàn tất     |
-| `feature/core-card`            | Card CRUD, cardKey, status từ List, move/reorder, archive/restore, OCC và activity cơ bản                                               | Board/List đã tích hợp                   | Hoàn tất     |
-| `feature/core-rest-completion` | Assignment/Label/Task, collaboration/Attachment, dependency, authorized Card queries/planning/dashboard, Notification REST và QuickNote | Card Core và schema/API contract đã khóa | Chưa bắt đầu |
+| Nhánh tích hợp                 | Phạm vi                                                                                                                                 | Phụ thuộc                                | Trạng thái           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------- |
+| `feature/core-board-list`      | Board, PM, Board membership, List và invariant Workspace removal liên quan PM; hỗ trợ tối thiểu archive Card khi archive List           | Workspace/authorization                  | Hoàn tất             |
+| `feature/core-card`            | Card CRUD, cardKey, status từ List, move/reorder, archive/restore, OCC và activity cơ bản                                               | Board/List đã tích hợp                   | Hoàn tất             |
+| `feature/core-rest-completion` | Assignment/Label/Task, collaboration/Attachment, dependency, authorized Card queries/planning/dashboard, Notification REST và QuickNote | Card Core và schema/API contract đã khóa | Hoàn tất; gates pass |
 
 Đây là ba nhánh/PR tích hợp. Trong nhánh ba, bốn session nghiệp vụ có thể code ở worktree riêng; chỉ người tích hợp sửa `schema.prisma`, migration, router tổng, shared authorization, OpenAPI dùng chung. Các session không commit trực tiếp lên cùng working tree.
 
@@ -83,9 +83,11 @@ Ngày rà soát: **2026-10-08**. Kế hoạch ban đầu gồm ba nhánh tích h
 
 ## Nhánh 3 — Core capabilities và tích hợp
 
-### Cổng trước khi chia session
+### Cổng contract trước khi chia session
 
 Người tích hợp khóa schema, migration và API contract chung cho các model còn thiếu (CardLabel, CardDependency, Notification, QuickNote) cùng field/index cần thiết; `ActivityLog` đã được tạo ở nhánh 2. Sau đó phân quyền file rõ ràng; các session song song không sửa `schema.prisma`, migration, shared access policy hoặc route aggregator. Mỗi session trả code, tests, OpenAPI fragment và danh sách quyết định cần tích hợp.
+
+**Trạng thái:** Cổng này đã qua; các lane A–D đã được tích hợp. Nội dung các lane bên dưới là phạm vi và tiêu chí nghiệm thu, không phải việc còn chờ bắt đầu.
 
 ### Bốn lane song song
 
@@ -106,11 +108,12 @@ Người tích hợp khóa schema, migration và API contract chung cho các mod
 
 ### Gate tích hợp cuối
 
-- Tích hợp từng lane lên nhánh ba; chạy test lane và full suite sau mỗi lần merge. Người tích hợp gắn Dependency guard vào Card move và thay đổi `List.statusGroup`, gắn Notification producer vào các event Assignment/Comment phù hợp, và gắn QuickNote conversion vào Card create qua cùng transaction boundary. Card query/filter, nếu cần endpoint server, cũng do người tích hợp nối vào Card router sau khi chốt contract. Người tích hợp hoàn thiện xóa vĩnh viễn Board: chỉ Owner, Board đã archive, xác nhận đúng tên; phối hợp Attachment lane để dọn object storage có thể retry an toàn trước khi xóa relational rows, không dựa vào BullMQ.
+- Đã tích hợp các lane lên nhánh ba: Dependency guard nằm trên Card move và đổi `List.statusGroup`; Assignment/Comment tạo Notification; QuickNote conversion dùng cùng transaction boundary với Card create; các Card query và Board hard-delete route đã được nối. Cleanup lỗi được lưu trong `PendingObjectCleanup` và retry idempotent; không dựa vào BullMQ.
 - Audit IDOR, nested-resource spoofing, Board membership revocation, locked user, Owner/PM transitions, archive/frozen parent, dependency cycle race, OCC race, notification isolation và data retention.
-- Test xóa vĩnh viễn Board theo SRS: từ chối Board chưa archive/sai actor/sai tên; không xóa relational rows khi cleanup object storage lỗi; cleanup có thể retry mà không tạo dữ liệu mồ côi.
+- Test xóa vĩnh viễn Board theo SRS: từ chối Board chưa archive/sai actor/sai tên; nếu Attachment thiếu `storageKey` hoặc cleanup object storage lỗi thì giữ nguyên relational rows và báo lỗi; cleanup phải idempotent để retry an toàn nếu lần xóa DB thất bại sau khi object đã được dọn.
+- Test upload khi ghi DB thất bại đồng thời xóa object cũng thất bại: phải lưu `storageKey` trong `PendingObjectCleanup` để lần upload sau hoặc tác vụ retry gọi service cleanup có thể thử lại; không chấp nhận nuốt lỗi rồi để object mồ côi không có đường khôi phục. Cơ chế retry này không yêu cầu BullMQ.
 - Đồng bộ OpenAPI/endpoint matrix với route chạy thật; endpoint tài liệu hóa không được xem là implementation.
-- Chạy `pnpm db:validate`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm format:check`; ghi nguyên kết quả. Chỉ hoàn tất REST Core khi các kiểm tra pass hoặc mọi ngoại lệ được nêu rõ, và các SRS gap bị loại (BullMQ, Socket.IO, AI/RAG/Agent, AUTH transport) được ghi là ngoài phạm vi chứ không tuyên bố đã hoàn thành toàn SRS.
+- Verification ngày 2026-10-08: Prisma validate pass; migration status up-to-date; TypeScript typecheck/build pass; `pnpm test` pass **82/82** tuần tự trên PostgreSQL Docker; Prettier check pass; OpenAPI loader hợp nhất **92 paths / 122 operations**. `prisma migrate dev` không qua shadow database do lỗi replay một migration cũ (P3006/P1014); migration mới được áp dụng bằng `migrate deploy` sau khi xác nhận chỉ có migration additive đang pending. BullMQ, Socket.IO, AI/RAG/Agent và AUTH transport vẫn được ghi rõ ngoài phạm vi, không tuyên bố hoàn thành toàn SRS.
 
 ## Quản lý nhánh và quyền sở hữu file
 

@@ -1,6 +1,6 @@
 # Nexora API contracts
 
-This directory contains the HTTP contract, endpoint mapping, shared conventions, and the planned realtime contract.
+This directory contains the HTTP contract, Core endpoint traceability, shared conventions, and the deferred realtime contract.
 
 ## OpenAPI source
 
@@ -15,5 +15,5 @@ The HTTP contract remains one OpenAPI 3.0.3 document for clients and tooling. Ke
 ## Supporting documents
 
 - [API conventions](conventions.md) defines HTTP behavior, envelopes, pagination, and error codes.
-- [Endpoint matrix](endpoint-matrix.md) maps API flows to SRS use cases.
+- [Endpoint matrix](endpoint-matrix.md) maps implemented REST Core flows to SRS use cases; OpenAPI remains the source of the exact HTTP contract.
 - [WebSocket contract](websocket.md) records the planned realtime protocol. Socket.IO implementation is deferred.
