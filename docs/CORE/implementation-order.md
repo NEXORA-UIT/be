@@ -1,72 +1,128 @@
-# Thứ tự triển khai Project Management Core
+# REST Core completion plan
 
-Ngày lập: **2026-10-07**. Đây là bản chia nhóm và thứ tự công việc để điều phối các session code. Nó dựa trên [bối cảnh](README.md), [quy tắc nghiệp vụ](business-rules.md), tài liệu module hiện hành và SRS. Đây chưa phải kế hoạch cấp file/hàm cho từng PR; trước khi code mỗi nhóm cần chốt API, schema liên quan và ca nghiệm thu cụ thể.
+Ngày rà soát: **2026-10-08**. Plan này chia phần Core còn lại thành **ba nhánh tích hợp** sau nhánh Workspace/authorization hiện tại. Các nhánh được xếp theo phụ thuộc; các session song song chỉ bắt đầu sau khi schema và API contract chung đã được khóa.
 
-## Nguyên tắc chia việc
+**Goal:** Hoàn thiện REST Core theo SRS, bảo đảm ranh giới Workspace/Board, tính nguyên tử của thay đổi, kiểm soát ghi đồng thời và bộ test xác nhận quyền trên mọi resource.
 
-- **Một nguồn sự thật cho quyền và invariant.** Workspace có một Owner; Board có một PM. Core service kiểm tra quyền và quy tắc, controller chỉ xử lý HTTP.
-- **Mỗi nhóm giao được một lát cắt chạy và kiểm thử được.** Không tách agent theo tầng `controller`/`service`/`repository` của cùng một tính năng; chúng cần được sửa và kiểm thử cùng nhau.
-- **Một người sở hữu file dùng chung tại một thời điểm.** Đặc biệt là `prisma/schema.prisma`, migration, router tổng, shared error/authorization và hợp đồng API. Các nhánh module khác đề xuất thay đổi vào hợp đồng; người điều phối tích hợp tuần tự.
-- **Giữ thay đổi AUTH hiện có.** Nhánh `feature/auth-oauth` đang có thay đổi chưa commit; cần chốt baseline trước khi tạo worktree chạy song song. Không để agent Core tự sửa file AUTH hoặc âm thầm giải quyết lệch refresh-token transport.
-- **Tách Core REST khỏi realtime/AI.** Theo [quyết định hiện tại](deferred-infrastructure.md), BullMQ cho email và Socket.IO được làm ở đợt riêng sau; flow Workspace dùng email adapter hiện có.
+**Architecture:** Tiếp tục modular monolith hiện có. Service sở hữu authorization, business rules và transaction; controller chỉ xử lý HTTP; repository truy cập persistence. HTTP/DB là nguồn sự thật; không thêm realtime hoặc worker trong ba nhánh này.
 
-## Các nhóm theo thứ tự phụ thuộc
+**Tech Stack:** Express 5, TypeScript, Zod, Prisma/PostgreSQL, Redis/email adapter hiện có, Node test runner qua `tsx`.
 
-| Nhóm                                  | Công việc và đầu ra kiểm tra được                                                                                                                                                                               | Điều kiện bắt đầu                                                           |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **0. Chốt nền và contract**           | Audit chi tiết SRS ↔ code ↔ OpenAPI; chốt bảng quyền Owner/PM/Member, trạng thái archive, contract API, phân loại phần Core và phần mở rộng được chọn; ghi các xung đột còn mở                                  | Bắt đầu ngay, chỉ đọc và tài liệu                                           |
-| **1. Dữ liệu và authorization chung** | Prisma models/migration cho toàn Core; constraint, index, quan hệ; helper kiểm tra Workspace/Board/nested resource, active/archived/frozen; test cô lập dữ liệu                                                 | Sau nhóm 0                                                                  |
-| **2. Workspace và membership**        | Tạo/list/get/update/archive/restore Workspace; Owner invariant và chuyển Owner; member list/remove/leave; Invitation gồm trạng thái bền vững, chấp nhận/từ chối, token/email trực tiếp trong giai đoạn hiện tại | Sau nhóm 1                                                                  |
-| **3. Board, PM và List**              | Board CRUD/archive/restore; tạo Board + PM + List mặc định nguyên tử; thêm/xóa Board member; chuyển PM; List CRUD/reorder/statusGroup/archive                                                                   | Sau nhóm 2 cho quyền Workspace; dùng schema nhóm 1                          |
-| **4. Card nền tảng**                  | Card create/get/update/move/reorder/archive/restore; cardKey; ngày giờ/OCC; trạng thái suy ra từ List; thứ tự và Activity cơ bản trong transaction                                                              | Sau nhóm 3                                                                  |
-| **5A. Thành phần Card**               | Assignment, Label/CardLabel và Task; kiểm tra cùng Board, cleanup assignment, tiến độ Task; không tự chuyển Card sang Done                                                                                      | Sau nhóm 4                                                                  |
-| **5B. Cộng tác Card**                 | Comment, Attachment và truy vấn Activity; quyền tác giả, giữ lịch sử, không đưa attachment vào Knowledge Base                                                                                                   | Sau nhóm 4                                                                  |
-| **5C. Dependency**                    | Tạo/xóa/xem dependency; kiểm tra cùng Board, trùng, self-loop, cycle; chặn chuyển Done khi blocker chưa Done                                                                                                    | Sau nhóm 4; cần tích hợp với move Card của nhóm 4                           |
-| **5D. Truy vấn và tiến độ**           | Search/filter Card, overdue, danh sách phục vụ Calendar/List View và Dashboard cơ bản theo phạm vi Board/quyền                                                                                                  | Sau nhóm 4; có thể tận dụng kết quả 5A/5C nếu filter assignee/label/blocked |
-| **6. Kiểm tra tích hợp và hardening** | Rà IDOR, nested-resource spoofing, race condition, archive, transaction, OCC, thứ tự, permission âm tính; đồng bộ OpenAPI/docs và chạy các checks repo có thật                                                  | Sau khi các nhánh 5 đã tích hợp                                             |
+**Spec:** [Business rules](business-rules.md), [Workspace plan và trạng thái](plans/02-workspace-membership.md), [API contract](../api/README.md), SRS mục 2.4–2.5 và use cases UC-Board-09, UC-List-10, UC-Card-12/13, UC-COL-16–19, UC-PLAN-01/03/04.
 
-Nhóm 5A–5D **có thể bắt đầu song song** sau khi contract Card ổn định. Một số phần của 5D phụ thuộc 5A/5C, nên phần query nền và dashboard trạng thái có thể làm trước; filter assignee/label/blocked được hoàn thiện khi quan hệ tương ứng đã tích hợp. Nhóm 5C cần phối hợp rõ với chủ sở hữu Card move để không có hai session cùng sửa logic chuyển sang Done.
+## Hiện trạng và scope
 
-## Cách phân chia session hiệu quả
+- Nhánh hiện tại đã có AUTH, shared authorization, Workspace/membership/invitation REST và các test tương ứng. PostgreSQL schema đã có quan hệ nền cho Board, List, Card, Task, Assignment, Label, Comment và Attachment; routers `boards`, `cards`, `collaboration`, `planning` hiện chưa có endpoint nghiệp vụ.
+- Schema nền chưa đủ cho flow hoàn chỉnh: `List.statusGroup`, `BoardMembership.appointedBy`, Card fields/OCC và các model `CardLabel`, `CardDependency`, `ActivityLog`, `Notification`, `QuickNote` cần được đối chiếu/bổ sung theo từng nhánh. `ActivityLog` thuộc nhánh Card Core vì nhánh đó đã yêu cầu ghi lịch sử nguyên tử. `Card.archivedAt` là field nền tối thiểu ở nhánh Board/List để archive List có thể archive Cards theo lựa chọn của người dùng; Card CRUD và quy tắc archive/restore đầy đủ vẫn thuộc nhánh Card Core.
+- Trong SRS, Owner thuộc Workspace; PM thuộc từng Board. Không tạo `Workspace PM`. Chuyển Workspace Owner và chuyển Board PM luôn là hai nghiệp vụ riêng.
+- Phạm vi này gồm REST CRUD/query cho Workspace, Board (bao gồm xóa vĩnh viễn theo điều kiện SRS), List, Card, Task, assignment, label, comments, attachments, activity, dependency, notification center và QuickNote; gồm cả các use case mở rộng dependency/calendar/dashboard đã được chọn trong kế hoạch Core.
+- Loại khỏi plan: BullMQ (email và worker), Socket.IO/WebSocket delivery, AI, RAG, AI Agent/Tool Calling/Proposal và pipeline Knowledge Base. Card Attachment là luồng riêng; không tự đưa file sang Knowledge Base. Các thao tác REST vẫn phải đúng và bền vững dù chưa có push realtime.
+- AUTH refresh-token transport, GitHub connector và module System Administration không thuộc ba nhánh Core này.
 
-### Làn chính do người điều phối giữ
+## Thứ tự ba nhánh
 
-Nhóm 0–4 theo thứ tự. Giai đoạn này nên ưu tiên **một người tích hợp schema/authorization và một lát cắt nghiệp vụ tại một thời điểm**; thêm nhiều session cùng viết domain foundation sẽ tăng xung đột hơn là tăng tốc.
+| Nhánh tích hợp                 | Phạm vi                                                                                                                                 | Phụ thuộc                                |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `feature/core-board-list`      | Board, PM, Board membership, List và invariant Workspace removal liên quan PM; hỗ trợ tối thiểu archive Card khi archive List           | Nhánh hiện tại                           |
+| `feature/core-card`            | Card CRUD, cardKey, status từ List, move/reorder, archive/restore, OCC và activity cơ bản                                               | Board/List đã tích hợp                   |
+| `feature/core-rest-completion` | Assignment/Label/Task, collaboration/Attachment, dependency, authorized Card queries/planning/dashboard, Notification REST và QuickNote | Card Core và schema/API contract đã khóa |
 
-### Làn song song sau Card Core
+Đây là ba nhánh/PR tích hợp. Trong nhánh ba, bốn session nghiệp vụ có thể code ở worktree riêng; chỉ người tích hợp sửa `schema.prisma`, migration, router tổng, shared authorization, OpenAPI dùng chung. Các session không commit trực tiếp lên cùng working tree.
 
-| Session | Phạm vi code sở hữu                                                                | Không tự sửa                                                                           |
-| ------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| A       | `modules/cards` cho Assignment/Label/Task và tests tương ứng                       | Schema/migration chung, Auth, Card move                                                |
-| B       | `modules/collaboration` cho Comment/Activity read, adapter Attachment và tests     | Auth, schema/migration chung, Card service lõi                                         |
-| C       | `modules/planning` cho Dependency và tests                                         | Auth, schema/migration chung; thay đổi guard Done đề xuất để tích hợp tại Card service |
-| D       | Query service/Dashboard và tests trong phạm vi module được chốt trước khi dispatch | Auth, schema/migration chung, các endpoint module khác                                 |
+## Nhánh 1 — Board, PM và List
 
-Nếu có giới hạn số session, ưu tiên A, B, C trước; D có thể chạy sau hoặc chỉ làm phần query nền. Mỗi session dùng worktree/branch riêng trên cùng baseline đã chốt, có danh sách file sở hữu, contract đầu vào/đầu ra và test mục tiêu. Không dùng chung một working tree cho nhiều writer. Người điều phối review từng kết quả, tích hợp tuần tự và chạy bộ test chung sau mỗi lần tích hợp.
+### Phạm vi
 
-## Cổng nghiệm thu giữa các nhóm
+- Tạo/xem/cập nhật/archive/restore Board và quản lý Board membership.
+- Chưa mở endpoint xóa vĩnh viễn ở nhánh này; nhánh 3 chỉ thêm sau khi có quy trình dọn object storage an toàn, có thể retry.
+- Tạo Board, BoardMembership(PM) và ba List mặc định To Do, In Progress, Done trong cùng transaction. Nếu Owner không chỉ định PM khác thì Owner đồng thời làm PM mặc định.
+- Chỉ Workspace Owner phân công/chuyển PM. Người được chọn phải là user ACTIVE và là thành viên Workspace; ghi `appointedBy`. Chuyển PM nguyên tử trên đúng Board: PM cũ thành MEMBER, PM mới thành PM; không đổi Workspace membership hoặc Board khác.
+- Owner đọc/quản trị mọi Board trong Workspace; PM chỉ Board được giao; Member chỉ Board có membership. System Admin không có quyền đọc nội dung theo vai trò admin.
+- List có `statusGroup = TODO | IN_PROGRESS | DONE` tách khỏi tên hiển thị; nhiều List có thể thuộc cùng group. Thêm, đổi tên, đổi `statusGroup`, reorder và archive List; position/re-index được ghi nguyên tử.
+- Khi archive List có Cards, request phải chọn đúng một cách xử lý: archive toàn bộ Cards trong List hoặc chuyển chúng sang một List đang hoạt động cùng Board. Không hard-delete; restore List không tự restore Cards đã archive. Đây là hỗ trợ archive tối thiểu, không kéo Card CRUD/OCC sang nhánh này.
+- Trước khi xóa/rời Workspace member, phải chuyển mọi Board PM mà người đó đang giữ; Owner phải chuyển quyền Workspace riêng và xử lý các PM assignment của mình. Sau khi rời, thu hồi Board membership/assignment nhưng giữ Card, Comment, Attachment và lịch sử.
 
-| Sau nhóm | Bằng chứng tối thiểu trước khi mở nhóm tiếp                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0        | Ma trận quyền và phạm vi được ghi rõ; xung đột master prompt `Workspace PM` đã được sửa theo SRS                                           |
-| 1        | Migration áp dụng được; constraint một Owner/một PM và các khóa quan hệ được kiểm tra; guard chặn truy cập chéo                            |
-| 2        | Tạo Workspace tạo đúng Owner; chuyển Owner nguyên tử; rời/xóa giữ lịch sử và xử lý PM; lời mời không cấp quyền Board tự động               |
-| 3        | Tạo Board luôn có một PM; PM chỉ quản lý Board được giao; Member không đọc Board chưa tham gia; List có statusGroup hợp lệ                 |
-| 4        | Move/reorder không hỏng thứ tự; Card status suy ra từ List; OCC trả 409 khi stale; archive/restore tôn trọng cha                           |
-| 5        | Mỗi module có test quyền và quan hệ chéo Board; dependency không cycle; truy vấn overdue/dashboard chỉ trả dữ liệu trong quyền             |
-| 6        | Test tích hợp và kiểm tra thủ công các invariant chính; kết quả thực tế của typecheck, test, build, format và Prisma validate được báo cáo |
+### Schema/API sở hữu
 
-Các script hiện có trong `package.json` là `typecheck`, `test`, `build`, `format:check`, `db:validate`. Repo **chưa có script `lint`** tại thời điểm lập bảng này. Không thay thế kết quả chạy thực tế bằng checklist hoặc trạng thái tài liệu.
+- Bổ sung các field thiếu cho Board/List/BoardMembership và `Card.archivedAt` tối thiểu, theo contract được chốt trước migration. Migration phải backfill dữ liệu hiện có và kiểm tra invariant PM; không gán giả lịch sử `appointedBy` nếu không thể xác định người bổ nhiệm.
+- Giữ unique constraint/index hiện có cho tối đa một Owner mỗi Workspace và tối đa một PM mỗi Board. Bảo đảm tối thiểu một Owner/PM qua transaction tạo/chuyển và kiểm tra invariant; unique index đơn lẻ không bảo đảm có ít nhất một.
+- Sửa `src/modules/boards/routes/index.ts`; tạo controller/service/repository/DTO và test Board/List tương ứng; mở rộng `src/shared/authorization/access.service.ts` chỉ khi test chỉ ra policy thiếu.
+- OpenAPI và endpoint matrix cập nhật cùng nhánh; không đổi AUTH.
 
-## Các việc cần chốt riêng trước khi code phần liên quan
+### Gate
 
-1. **AUTH transport:** SRS yêu cầu refresh token qua cookie, code hiện tại dùng JSON. Đây là một thay đổi hợp đồng AUTH riêng; cần kiểm tra client và OpenAPI khi chọn thời điểm sửa, không để agent Core tự sửa ngầm.
-2. **Phạm vi mở rộng:** Dependency, Calendar/List View và Dashboard thuộc `[E]` trong SRS nhưng được master prompt chọn cho đợt Core. QuickNote/Inbox chưa được chọn rõ; không đưa vào đợt này nếu chưa có quyết định phạm vi.
-3. **Attachment storage:** Chốt nơi lưu, giới hạn và API upload thực tế trước khi session B viết adapter; Card Attachment phải tách khỏi Knowledge Base Document.
-4. **Invitation delivery:** SRS yêu cầu BullMQ cho email mời. Giai đoạn này dùng email adapter trực tiếp theo [quyết định hoãn](deferred-infrastructure.md); queue/worker là phần việc sau Workspace REST.
-5. **Chiến lược invariant DB:** “Đúng một Owner/PM” cần xem xét cả constraint/migration lẫn transaction khi chuyển vai trò; application check đơn thuần có race condition.
-6. **Search/filter:** UC-Card-13 mô tả lọc tức thời trên dữ liệu client đã tải; master prompt yêu cầu thêm truy vấn server-side. Cần giữ API vừa đủ cho paging và planning, không nhân đôi endpoint thiếu lý do.
+- Test Board create rollback nếu không thể tạo PM/default Lists; Board mới luôn có đúng một PM.
+- Test transfer PM đồng thời không tạo 0/2 PM; `appointedBy` đúng; chuyển role không làm đổi membership Workspace hay Board khác. Chốt cơ chế serialize/retry cho hai request chuyển PM trên cùng Board thay vì chỉ dựa vào kiểm tra trước khi ghi.
+- Test Owner/PM/Member/System Admin theo SRS, bao gồm ID Board và List chéo scope.
+- Test List statusGroup, giới hạn 30 Lists/Board, reorder concurrent/re-index, hai nhánh xử lý Cards khi archive List và restore List không tự restore Card. Test migrate dữ liệu cũ và giữ nguyên dữ liệu; không cascade hard-delete.
 
-## Định nghĩa xong cho đợt REST Core
+## Nhánh 2 — Card Core
 
-Chỉ gọi đợt này hoàn tất khi các nhóm trong phạm vi đã có code, migration, test nghiệp vụ/quyền, tài liệu API khớp code và kết quả kiểm tra thực tế. Những mục phải hoãn hoặc chưa hoàn tất được nêu riêng. Realtime, RAG, AI Agent, Tool Calling, AI Proposal/phê duyệt và GitHub connector không thuộc điều kiện hoàn tất của đợt này.
+### Phạm vi
+
+- Card create/list/get/update, move/reorder trong Board, archive/restore; kiểm tra Board/List cùng scope và active parent.
+- Bổ sung `cardKey` duy nhất trong Board, description Markdown, start/due dates, priority và archive/concurrency fields theo SRS/contract. `startDate <= dueDate`; thời gian lưu UTC.
+- Trạng thái Card được suy ra từ `List.statusGroup`; không lưu một Card status độc lập gây lệch. Hoàn thành Task không tự chuyển Card sang Done.
+- Mọi update/move dùng OCC theo `updatedAt`: cập nhật có điều kiện trên giá trị client đã đọc; stale version trả `409 CARD_CONFLICT`, không ghi đè âm thầm.
+- Move/reorder kiểm tra Board/List đích, cập nhật position và Card trong transaction. Dependency blocker sẽ được gắn vào guard Done ở nhánh 3 sau khi dependency service có contract.
+- Tạo `ActivityLog` và ghi Activity cơ bản cho tạo/sửa/move/archive trong cùng transaction; thay đổi nghiệp vụ và activity phải cùng thành công/thất bại. Nhánh 3 chỉ thêm event cho các năng lực mới.
+
+### Schema/API sở hữu
+
+- Bổ sung Card fields/indexes và `ActivityLog` còn thiếu; xác nhận định danh `cardKey` và uniqueness `(boardId, cardKey)`.
+- Sửa `src/modules/cards/routes/index.ts`; xây Card controller/service/repository/DTO; giữ các thao tác ghi trong service để các module sau tái sử dụng.
+- Dùng `updatedAt` làm OCC token theo `docs/api/conventions.md`; bảo đảm token thay đổi sau mọi lần ghi kể cả các request sát nhau. Nếu timestamp không bảo đảm điều đó, chốt token phiên bản riêng và đồng bộ OpenAPI trước khi triển khai client-facing route.
+
+### Gate
+
+- Test CRUD, IDOR/nested scope, giới hạn Card/Board, cardKey uniqueness và ngày bắt đầu/hạn chót.
+- Test status đổi theo List group sau khi move hoặc đổi `statusGroup`. Test Task completion chỉ đổi tiến độ Task thuộc gate nhánh 3, sau khi Task được triển khai.
+- Test hai cập nhật cùng `updatedAt`: đúng một request thành công, request stale nhận 409 và dữ liệu không mất.
+- Test move/reorder transaction rollback và thứ tự cuối cùng hợp lệ khi có request cạnh tranh.
+- Test archive giữ dữ liệu; restore chỉ thành công khi Board/Workspace cha hoạt động và actor có quyền.
+
+## Nhánh 3 — Core capabilities và tích hợp
+
+### Cổng trước khi chia session
+
+Người tích hợp khóa schema, migration và API contract chung cho các model còn thiếu (CardLabel, CardDependency, Notification, QuickNote) cùng field/index cần thiết; `ActivityLog` đã được tạo ở nhánh 2. Sau đó phân quyền file rõ ràng; các session song song không sửa `schema.prisma`, migration, shared access policy hoặc route aggregator. Mỗi session trả code, tests, OpenAPI fragment và danh sách quyết định cần tích hợp.
+
+### Bốn lane song song
+
+| Lane                             | Phạm vi sở hữu                                                                                                                                 | Invariants nghiệm thu                                                                                                                                                                                                                        |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Assignment, Label, Task**   | Card child-resource services/controllers/tests; không sửa Card mutation service lõi                                                            | Assignee có quyền trên Board; Assignment/Label/CardLabel không trùng; Label cùng Board; tối đa 50 Tasks/Card; hoàn tất Task chỉ cập nhật tiến độ, không đổi Card sang Done.                                                                  |
+| **B. Collaboration và tệp Card** | Comment/Activity-query/Attachment services/controllers/tests và object-storage cleanup service; không sửa Card mutation service lõi            | Comment theo quyền tác giả; activity phân trang mới nhất trước; Attachment chỉ thuộc Card, không phải Knowledge Base; upload kiểm tra quyền, MIME/dung lượng và metadata; cleanup object có thể retry; không xóa lịch sử khi membership rời. |
+| **C. Dependency**                | Dependency services/controllers/tests trong khu vực riêng của `modules/planning`; đề xuất guard cho người tích hợp                             | Cùng Board, active, không self/duplicate/cycle; thao tác cạnh tranh không tạo cycle; move Card hoặc đổi List group làm Card vào DONE bị chặn khi prerequisite chưa DONE.                                                                     |
+| **D. Read models và cá nhân**    | Calendar/dashboard queries trong khu vực riêng của `modules/planning`; Notification và QuickNote services/controllers/tests trong module riêng | Calendar/overdue/Dashboard chỉ đọc Board được phép; status lấy từ List; Board rỗng trả zero; Notification list/read-all/delete chỉ thuộc user hiện tại; QuickNote CRUD và convert-to-Card không mất note khi tạo Card thất bại.              |
+
+### Chốt ranh giới SRS
+
+- UC-Card-13 mô tả filter tức thời trên dữ liệu Board đã tải ở client. Giữ hành vi đó làm mặc định; không thêm search endpoint server-side trùng lặp nếu chưa có tiêu chí paging/dữ liệu lớn và contract được duyệt. Query Board server vẫn phải lọc theo quyền và trả đủ dữ liệu hợp lệ.
+- Calendar/List View, Dependency và Dashboard thuộc nhóm mở rộng `[E]` trong SRS nhưng được đưa vào plan này theo phạm vi Core bro đã chọn.
+- UC-COL-18 Notification Center và UC-COL-19 QuickNote có REST trong plan. Không gửi WebSocket push hoặc email queue; ghi rõ phần delivery còn thiếu do đã loại Socket.IO/BullMQ.
+- Card Attachment tách khỏi Knowledge Base Document/RAG. SRS có xung đột giới hạn tệp (25 MB trong UC-Card-12 so với 5/15 MB ở mục giới hạn); dùng mức 25 MB theo API convention hiện tại và giữ cờ cần xác minh, không coi đây là quyết định SRS cuối cùng.
+- Xử lý archive không đồng nghĩa xóa. Nested resources luôn kiểm tra Board cha; khi xóa membership thu hồi access/assignment nhưng giữ nội dung và lịch sử.
+
+### Gate tích hợp cuối
+
+- Tích hợp từng lane lên nhánh ba; chạy test lane và full suite sau mỗi lần merge. Người tích hợp gắn Dependency guard vào Card move và thay đổi `List.statusGroup`, gắn Notification producer vào các event Assignment/Comment phù hợp, và gắn QuickNote conversion vào Card create qua cùng transaction boundary. Card query/filter, nếu cần endpoint server, cũng do người tích hợp nối vào Card router sau khi chốt contract. Người tích hợp hoàn thiện xóa vĩnh viễn Board: chỉ Owner, Board đã archive, xác nhận đúng tên; phối hợp Attachment lane để dọn object storage có thể retry an toàn trước khi xóa relational rows, không dựa vào BullMQ.
+- Audit IDOR, nested-resource spoofing, Board membership revocation, locked user, Owner/PM transitions, archive/frozen parent, dependency cycle race, OCC race, notification isolation và data retention.
+- Test xóa vĩnh viễn Board theo SRS: từ chối Board chưa archive/sai actor/sai tên; không xóa relational rows khi cleanup object storage lỗi; cleanup có thể retry mà không tạo dữ liệu mồ côi.
+- Đồng bộ OpenAPI/endpoint matrix với route chạy thật; endpoint tài liệu hóa không được xem là implementation.
+- Chạy `pnpm db:validate`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm format:check`; ghi nguyên kết quả. Chỉ hoàn tất REST Core khi các kiểm tra pass hoặc mọi ngoại lệ được nêu rõ, và các SRS gap bị loại (BullMQ, Socket.IO, AI/RAG/Agent, AUTH transport) được ghi là ngoài phạm vi chứ không tuyên bố đã hoàn thành toàn SRS.
+
+## Quản lý nhánh và quyền sở hữu file
+
+1. Tạo `feature/core-board-list` từ nhánh Workspace đã review; hoàn tất schema/API/migration và merge trước khi bắt đầu Card Core.
+2. Tạo `feature/core-card` từ Board/List đã tích hợp; giữ một owner cho Card fields, OCC, move/reorder và Activity Core.
+3. Tạo `feature/core-rest-completion` từ Card Core. Người tích hợp chốt migration/contracts đầu nhánh; bốn lane A–D triển khai trong worktree riêng, rồi merge từng lane vào nhánh ba.
+4. Mỗi nhánh là một đơn vị review/commit riêng. Không tạo branch song song cùng sửa Prisma, authorization chung hoặc Board/Card mutation path. Rebase/merge theo thứ tự; không giả định test của nhánh cha còn đủ sau khi tích hợp.
+
+## Tài liệu SRS đã đối chiếu
+
+- Phân quyền, Owner/PM, Board access, Card/Task, member lifecycle, archive và UTC: mục 2.4.1–2.4.10, PDF trang 21–25.
+- Quan hệ Core và invariant dữ liệu: mục 2.5.1 và 2.5.4, PDF trang 26 và 29.
+- Use cases: UC-WS-06/07/08 (trang 48–53), UC-Board-09/UC-List-10 (trang 53–57), UC-Card-12/13 (trang 57–61), UC-COL-15–19 (trang 61–68), UC-PLAN-01/03/04 (trang 69–75).
+
+SRS yêu cầu email lời mời qua BullMQ; dùng adapter gửi trực tiếp hiện tại là quyết định hoãn có ghi nhận tại [deferred-infrastructure.md](deferred-infrastructure.md), không phải tuyên bố đáp ứng đủ yêu cầu SRS đó.

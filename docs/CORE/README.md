@@ -1,6 +1,6 @@
 # Project Management Core — Context và phạm vi
 
-Ngày ghi nhận: **2026-10-07**.
+Ngày ghi nhận: **2026-10-08**.
 
 Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Trạng thái thực tế cần đối chiếu với code và tài liệu module; contract API tự nó không chứng minh một flow đã triển khai.
 
@@ -35,20 +35,18 @@ Workspace → Board → List → Card → Task
 
 Board đại diện cho một dự án. Task là đầu việc con/checklist của Card. Không tự bổ sung thực thể Milestone hoặc Phase khi chưa có yêu cầu và căn cứ phù hợp.
 
-## Phạm vi đợt triển khai dự kiến
+## Phạm vi REST Core dự kiến
 
-Theo master prompt, đợt tiếp theo tập trung REST API Core:
+Kế hoạch hoàn thiện REST Core được chia thành ba nhánh tích hợp trong [implementation-order.md](implementation-order.md):
 
-- Workspace, WorkspaceMembership và Invitation.
-- Board, BoardMembership và List.
-- Card, di chuyển/sắp xếp, CardAssignment, Label/CardLabel và Task.
-- Comment, Attachment và Activity.
-- CardDependency, tìm kiếm/lọc, truy vấn phục vụ lập kế hoạch và Dashboard cơ bản.
+- Board, BoardMembership/PM và List.
+- Card Core: CRUD, status theo List, move/reorder, archive/restore, OCC và Activity cơ bản.
+- Assignment, Label, Task, Comment, Card Attachment, Activity query, Dependency, truy vấn Calendar/List View/Dashboard, Notification Center REST và QuickNote.
 - Phân quyền, cô lập dữ liệu, vòng đời archive, transaction và kiểm thử nghiệp vụ.
 
-Đây là phạm vi đợt triển khai, không đồng nghĩa toàn bộ các mục đều được SRS phân loại là Core: Calendar/List View, dependency và dashboard xuất hiện trong nhóm mở rộng `[E]` tại mục 3.7. QuickNote/Inbox cũng có trong SRS nhưng chưa được master prompt đưa rõ vào danh sách triển khai; cần ghi nhận riêng khi chốt phạm vi, không tự coi là đã làm hoặc tự mở rộng.
+Calendar/List View, Dependency và Dashboard được ghi là nhóm mở rộng `[E]` trong SRS, nhưng nằm trong phạm vi REST Core đã chọn cho kế hoạch này. Notification Center và QuickNote được đưa vào vì là use case REST trong SRS; phần realtime delivery vẫn bị loại.
 
-Các phần hoãn theo master prompt: WebSocket/realtime, RAG/embedding/Tika, AI Chat/Agent, Tool Calling, AI Proposal/phê duyệt, GitHub connector, quản trị quota AI nâng cao, thông báo phức tạp và analytics nâng cao. Các thành phần đã tồn tại cần được xem xét và giữ nguyên khi phù hợp.
+Ngoài kế hoạch: BullMQ/email queue, Socket.IO/WebSocket delivery, AI, RAG/embedding/Tika, AI Agent/Tool Calling/Proposal, pipeline tài liệu Knowledge Base, GitHub connector và quản trị quota AI nâng cao. Card Attachment vẫn là luồng riêng, không tự trở thành tài liệu Knowledge Base. Các gap SRS bị loại phải được ghi nhận, không tuyên bố đã hoàn thành toàn bộ SRS.
 
 SRS yêu cầu email lời mời đi qua hàng đợi. Theo quyết định triển khai hiện tại, [BullMQ được hoãn](deferred-infrastructure.md) cùng đợt realtime Socket.IO; flow Workspace REST trước mắt dùng email adapter hiện có.
 
@@ -68,4 +66,4 @@ Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và đ
 
 ## Trạng thái triển khai
 
-Workspace, membership và invitation REST flow đã được triển khai theo [plan hiện tại](plans/02-workspace-membership.md). BullMQ và Socket.IO vẫn được hoãn. Nhóm tiếp theo trong [thứ tự triển khai](implementation-order.md) là Board, PM và List; chưa coi việc có tài liệu OpenAPI là bằng chứng một module đã chạy hoặc được kiểm thử.
+Workspace, membership và invitation REST flow đã được triển khai theo [plan hiện tại](plans/02-workspace-membership.md). Nhánh `feature/core-board-list` đã triển khai Board, PM và List theo [thứ tự triển khai](implementation-order.md); full test suite chạy trên PostgreSQL/Redis Docker đạt 58/58, cùng Prisma validate, typecheck, build và OpenAPI loader. Bước tiếp theo là Card Core. BullMQ và Socket.IO vẫn được hoãn. OpenAPI mô tả contract, còn trạng thái hoàn thành phải dựa trên code và kết quả kiểm thử thực tế.
