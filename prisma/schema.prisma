@@ -27,6 +27,14 @@ enum BoardRole {
   MEMBER
 }
 
+enum WorkspaceInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELED
+}
+
 model User {
   id                   String                @id @default(uuid()) @db.Uuid
   email                String                @unique
@@ -43,6 +51,7 @@ model User {
   cardAssignments      CardAssignment[]
   comments             Comment[]
   attachments          Attachment[]
+  sentWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
 }
 
 model RefreshToken {
@@ -75,12 +84,14 @@ model Workspace {
   id          String                @id @default(uuid()) @db.Uuid
   name        String
   description String?
+  domainCategory String?
   isFrozen    Boolean               @default(false)
   archivedAt  DateTime?             @db.Timestamptz(3)
   createdAt   DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
   memberships WorkspaceMembership[]
   boards      Board[]
+  invitations WorkspaceInvitation[]
 }
 
 model WorkspaceMembership {
@@ -96,6 +107,27 @@ model WorkspaceMembership {
   @@unique([workspaceId, userId])
   @@index([workspaceId])
   @@index([userId])
+}
+
+model WorkspaceInvitation {
+  id          String                    @id @default(uuid()) @db.Uuid
+  workspaceId String                    @db.Uuid
+  inviterId   String                    @db.Uuid
+  email       String
+  tokenHash   String                    @unique
+  status      WorkspaceInvitationStatus @default(PENDING)
+  expiresAt   DateTime                  @db.Timestamptz(3)
+  acceptedAt  DateTime?                 @db.Timestamptz(3)
+  rejectedAt  DateTime?                 @db.Timestamptz(3)
+  canceledAt  DateTime?                 @db.Timestamptz(3)
+  createdAt   DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                  @updatedAt
+  workspace   Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter     User                      @relation("WorkspaceInvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([email, status])
+  @@index([expiresAt])
 }
 
 model Board {

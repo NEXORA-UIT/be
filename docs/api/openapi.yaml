@@ -614,6 +614,34 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
       - UC-WS-06
+    get:
+      tags:
+      - Members
+      summary: List pending workspace invitations
+      description: Lists pending invitations for a workspace. Requires Workspace Owner role.
+      operationId: listWorkspaceInvitations
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceIdPath'
+      responses:
+        '200':
+          description: Pending workspace invitations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceInvitationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-scope: SRS-CORE
+      x-related-use-cases:
+      - UC-WS-06
   /workspaces/invitations/{token}/accept:
     post:
       tags:
@@ -643,6 +671,41 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+      x-scope: SRS-CORE
+      x-related-use-cases:
+      - UC-WS-06
+  /workspaces/invitations/{token}/reject:
+    post:
+      tags:
+      - Members
+      summary: Reject workspace invitation
+      description: Rejects a pending invitation for the authenticated user without creating membership.
+      operationId: rejectWorkspaceInvitation
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Invitation rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
       x-scope: SRS-CORE
       x-related-use-cases:
       - UC-WS-06
@@ -676,6 +739,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+      x-scope: SRS-CORE
+      x-related-use-cases:
+      - UC-WS-06
+  /workspaces/{id}/invitations/{invitationId}:
+    delete:
+      tags:
+      - Members
+      summary: Cancel workspace invitation
+      description: Cancels a pending invitation. Requires Workspace Owner role.
+      operationId: cancelWorkspaceInvitation
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceIdPath'
+      - name: invitationId
+        in: path
+        required: true
+        description: Unique UUID of the invitation record.
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Invitation canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceInvitationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-scope: SRS-CORE
       x-related-use-cases:
       - UC-WS-06

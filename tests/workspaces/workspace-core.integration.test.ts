@@ -102,4 +102,29 @@ describe('Workspace and authorization core', () => {
     await prisma.workspace.delete({ where: { id: workspace.id } });
     await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
   });
+
+  it('does not allow a Board PM to leave before a replacement is assigned', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `pm-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const pm = await prisma.user.create({
+      data: { email: `pm-user-${randomUUID()}@test.local`, fullName: 'PM' },
+    });
+    const workspace = await createWorkspace(owner.id, { name: 'PM Workspace' });
+    const board = await prisma.board.create({
+      data: { workspaceId: workspace.id, name: 'Managed Board' },
+    });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: pm.id, role: 'MEMBER' },
+    });
+    await prisma.boardMembership.create({ data: { boardId: board.id, userId: pm.id, role: 'PM' } });
+
+    await assert.rejects(
+      () => leaveWorkspace(pm.id, workspace.id),
+      (error: any) => error.status === 403,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, pm.id] } } });
+  });
 });

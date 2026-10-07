@@ -70,6 +70,10 @@ export async function removeWorkspaceMember(
   });
   if (!target) throw accessErrors.notFound('Thành viên');
   if (target.role === 'OWNER') throw accessErrors.forbidden();
+  const managedBoard = await prisma.boardMembership.findFirst({
+    where: { userId: targetUserId, role: 'PM', board: { workspaceId } },
+  });
+  if (managedBoard) throw accessErrors.forbidden();
   return prisma.$transaction(async (tx) => {
     const boards = await tx.board.findMany({ where: { workspaceId }, select: { id: true } });
     const boardIds = boards.map((board) => board.id);
@@ -91,6 +95,10 @@ export async function leaveWorkspace(userId: string, workspaceId: string) {
     where: { workspaceId_userId: { workspaceId, userId } },
   });
   if (!target) throw accessErrors.notFound('Thành viên');
+  const managedBoard = await prisma.boardMembership.findFirst({
+    where: { userId, role: 'PM', board: { workspaceId } },
+  });
+  if (managedBoard) throw accessErrors.forbidden();
   return prisma.$transaction(async (tx) => {
     const boards = await tx.board.findMany({ where: { workspaceId }, select: { id: true } });
     const boardIds = boards.map((board) => board.id);

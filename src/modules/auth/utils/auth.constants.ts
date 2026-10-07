@@ -30,6 +30,7 @@ export const AUTH_CACHE_KEY = {
   loginAttempts: (ip: string) => `login-attempts:${ip}`,
   pendingRegistration: (tokenHash: string) => `pending-registration:${tokenHash}`,
   oauthLogin: (tokenHash: string) => `oauth-login:${tokenHash}`,
+  workspaceInvitation: (tokenHash: string) => `workspace-invitation:${tokenHash}`,
 } as const;
 
 export const GOOGLE_OAUTH = {
