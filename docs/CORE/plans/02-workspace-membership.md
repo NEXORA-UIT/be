@@ -1,98 +1,140 @@
-# Workspace và Membership — Implementation Plan
+# Workspace Flows Implementation Plan
 
-> **For implementers:** Hoàn thành contract/schema và các helper authorization trong [plan 01](01-authorization.md) trước khi nối route. Viết test nghiệp vụ/quyền trước từng luồng, review sau mỗi task.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Người dùng tạo/quản lý Workspace theo vai trò Owner, mời thành viên, chuyển Owner và rời/xóa thành viên mà vẫn giữ đúng một Owner và không mất lịch sử dự án.
+**Goal:** Hoàn thiện mọi flow REST ở phạm vi Workspace: quản lý Workspace, lời mời và vòng đời thành viên, với phân quyền, transaction và contract khớp code.
 
-**Architecture:** Module `workspaces` sở hữu routes/controllers/DTO/services/repository. Mỗi service gọi access service của plan 01. PostgreSQL giữ business state và transaction; Redis giữ token lời mời ngắn hạn; BullMQ xử lý email mời. AUTH chỉ cung cấp `request.auth.userId`, không bị sửa trong plan này.
+**Architecture:** Giữ module `src/modules/workspaces` và access service dùng chung. PostgreSQL giữ Workspace, membership và trạng thái invitation; Redis giữ tra cứu token mời với TTL 7 ngày; email đi qua `sendEmail` hiện có. Mỗi thao tác nghiệp vụ kiểm quyền tại service, controller chỉ chuyển HTTP. Board API và realtime thuộc nhóm khác.
 
-**Tech stack:** Express 5, TypeScript strict, Prisma/PostgreSQL, Redis, BullMQ cho email, Zod, `tsx --test`.
+**Tech Stack:** Express 5, TypeScript, Zod, Prisma/PostgreSQL, Redis, Nodemailer adapter hiện có, Node test runner qua `tsx`.
 
-**Spec:** [Business rules](../business-rules.md), [initial audit](../initial-audit.md), SRS PDF mục 2.4.2, 2.4.6–2.4.7, 2.5.4, UC-WS-08/06/07, trang PDF 21–24, 29, 48–53; [API contract](../../api/openapi.yaml).
+**Spec:** [Business rules](../business-rules.md), [quyết định hoãn hạ tầng](../deferred-infrastructure.md), [API contract](../../api/openapi.yaml), [endpoint matrix](../../api/endpoint-matrix.md), SRS UC-WS-06/07/08.
 
-## Phụ thuộc từ plan 01
+## Global Constraints
 
-Sử dụng `requireWorkspaceAccess`, `requireWorkspaceOwner`, `requireWorkspaceWriteAccess` và các role/model đã chốt. Workspace plan **không** tự tạo bộ role/policy thứ hai. Trước khi thêm Board service, plan này có thể triển khai chức năng remove/leave với truy vấn BoardMembership nếu model Board đã sẵn; hoạt động phải được test trên Workspace có nhiều Board.
+- Workspace role chỉ có `OWNER | MEMBER`; mỗi Workspace phải có đúng một Owner. Board role `PM | MEMBER` là phạm vi riêng.
+- Chỉ người nhận đúng email mới nhận lời mời; nhận lời mời tạo WorkspaceMembership, không tự tạo BoardMembership.
+- Token lời mời tồn tại tối đa **7 ngày**, raw token chỉ có trong email, không ghi log/response/DB.
+- AUTH đang gửi mail trực tiếp. Workspace dùng cùng adapter; **BullMQ và Socket.IO làm sau**. Không dùng lời hứa “queued” trong API hiện tại.
+- Giữ tên theo [naming conventions](../naming-conventions.md); HTTP path có prefix `/api/v1/workspaces`.
+- Không xóa Card, Comment, Attachment hay lịch sử khi thành viên rời/bị gỡ. Member đang giữ PM phải chuyển PM trước.
+- Chỉ sửa schema/API contract cùng lúc với task sở hữu thay đổi; không âm thầm đổi AUTH hoặc Board CRUD.
 
-## API contract cần đối chiếu trước code
+## Hiện trạng đã có
 
-Giữ endpoint hiện có trong OpenAPI: `POST/GET /workspaces`, `GET/PATCH /workspaces/{id}`, `PATCH /workspaces/{id}/archive`, invitations create/accept/resend, `GET /workspaces/{id}/members`, `PATCH/DELETE /workspaces/{id}/members/{userId}`.
+Đã có 10 route trong [Workspace router](../../../src/modules/workspaces/routes/index.ts): create, list, get, update, archive, restore, list members, transfer Owner, remove member, leave. Có Prisma model Workspace/WorkspaceMembership, authorization guard và integration test cơ bản. Đây là **nền đã chạy**, không đánh dấu các flow là hoàn chỉnh: chưa có invitation; Workspace thiếu field lĩnh vực; list chưa có pagination; transfer Owner chưa được kiểm tra race/target khóa; remove/leave đang hard-delete membership và chưa chặn PM; OpenAPI còn lệch route/role/response. Repository mới bao phủ create/list/get.
 
-Đề xuất bổ sung contract rõ ràng cho `PATCH /workspaces/{id}/unarchive`, `POST /workspaces/{id}/leave`, `POST /workspaces/invitations/{token}/reject` và `GET /workspaces/{id}/invitations` nếu giao diện cần danh sách lời mời đang chờ. Endpoint role update hiện có chỉ cho phép **chuyển Owner nguyên tử** bằng `role: OWNER`; không hỗ trợ `role: MEMBER` độc lập vì có thể bỏ Workspace không có Owner. Nếu frontend đã dùng endpoint khác, chốt contract với frontend trước khi thay đổi đường dẫn. Không trả token mời hoặc token hash trong danh sách/response quản trị.
+## Bản đồ file
 
-## Task 1 — Hoàn thiện schema Workspace và invitation
+| Trách nhiệm                  | File chính                                                                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Model, migration, constraint | `prisma/schema.prisma`, `prisma/migrations/<new>/migration.sql`                                                                                                                            |
+| HTTP và validation           | `src/modules/workspaces/routes/index.ts`, `controllers/workspace.controller.ts`, `dto/workspace.schema.ts`; tách `invitation.*` và `membership.*` khi flow mới làm file hiện tại quá lớn   |
+| Nghiệp vụ và persistence     | `services/workspace.service.ts`, `repository/workspace.repository.ts`; thêm `services/invitation.service.ts`, `repository/invitation.repository.ts`, `repository/membership.repository.ts` |
+| Token/email và quyền         | `src/modules/auth/utils/token.util.ts` nếu tái dùng được, `src/infrastructure/email/email.client.ts`, `src/shared/authorization/access.service.ts`                                         |
+| Contract và test             | `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/*.integration.test.ts`                                                                                           |
 
-**Files:** `prisma/schema.prisma`; migration mới trong `prisma/migrations/`; `tests/workspaces/schema.integration.test.ts`.
+## Contract REST đích
 
-- [ ] Viết test constraint membership unique, chỉ `OWNER/MEMBER`, một Owner tối đa, invitation status/lifetime, quan hệ với Workspace/User. Kiểm tra migration không tác động bảng AUTH.
-- [ ] Hoàn thiện field Workspace từ API contract/SRS (`name`, `description`, lĩnh vực, `archivedAt`, timestamps; trạng thái frozen đã chốt ở plan 01), soft-delete marker cho membership theo UC-WS-07 hoặc cơ chế active flag thống nhất. `WorkspaceInvitation` có `workspaceId`, email chuẩn hóa, người mời, business status `PENDING/ACCEPTED/REJECTED/EXPIRED`, expiry và timestamps; raw token không lưu PostgreSQL.
-- [ ] Chốt `onDelete` để không cascade xóa Card/Comment/Activity khi membership bị gỡ. Thêm index cho `workspaceId`, email/status/expiry theo truy vấn thật.
-- [ ] Chạy Prisma validate/generate và áp dụng migration trên DB test. Nếu có dữ liệu cũ, migration phải có đường đi không mất dữ liệu.
+| Method          | Path sau `/api/v1/workspaces`                              | Flow                                   |
+| --------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `POST` / `GET`  | `/`                                                        | Tạo / liệt kê Workspace của tôi        |
+| `GET` / `PATCH` | `/:id`                                                     | Xem / cập nhật Workspace               |
+| `PATCH`         | `/:id/archive`, `/:id/unarchive`                           | Archive / restore                      |
+| `GET`           | `/:id/members`                                             | Liệt kê thành viên có phân trang       |
+| `PATCH`         | `/:id/members/:userId`                                     | Chuyển Owner với `{ "role": "OWNER" }` |
+| `DELETE`        | `/:id/members/:userId`                                     | Gỡ thành viên                          |
+| `POST`          | `/:id/leave`                                               | Tự rời Workspace                       |
+| `POST` / `GET`  | `/:id/invitations`                                         | Mời / xem lời mời đang chờ (Owner)     |
+| `POST`          | `/invitations/:token/accept`, `/invitations/:token/reject` | Nhận / từ chối lời mời (đăng nhập)     |
+| `POST`          | `/invitations/:id/resend`                                  | Gửi lại lời mời (Owner)                |
+| `DELETE`        | `/:id/invitations/:invitationId`                           | Hủy lời mời (Owner)                    |
 
-**Gate:** Schema hỗ trợ giữ lịch sử và business state invitation bền vững.
+Các route bổ sung cần được ghi vào OpenAPI và endpoint matrix cùng task triển khai. Route tĩnh `/invitations/...` phải đứng trước `/:id` để tránh bắt nhầm. `PATCH members` chỉ dùng chuyển Owner, không nhận role `MANAGER` vốn không tồn tại ở Workspace. Chốt shape pagination theo `page`/`limit` và envelope chung trước khi đổi response đang trả array; ghi rõ thay đổi contract cho frontend.
 
-## Task 2 — Tạo, đọc, cập nhật và archive/restore Workspace
+## Review Focus
 
-**Files:** `src/modules/workspaces/dto/workspace.schema.ts`, `repository/workspace.repository.ts`, `services/workspace.service.ts`, `controllers/workspace.controller.ts`, `routes/index.ts`; `tests/workspaces/workspace.integration.test.ts`.
+1. Hai request chuyển Owner đồng thời: DB luôn còn đúng một Owner; task 2 có test concurrency.
+2. Resend trong lúc accept token cũ: chỉ một trạng thái thắng; task 4 có test transaction/race.
+3. Mail gửi lỗi hoặc Redis lỗi: không có lời mời/token mới có thể accept; task 3 và 4 có test fake sender/failure.
+4. Người bị gỡ là PM trên một hay nhiều Board: từ chối cho đến khi PM được chuyển; task 5 có test nhiều Board.
+5. Workspace archive/frozen hoặc account locked: không thể tạo/gửi lại lời mời hay thay đổi thành viên; task 3–5 có test quyền và trạng thái.
 
-**Interfaces:** `createWorkspace(userId, input)`, `listMyWorkspaces(userId, query)`, `getWorkspace(userId, id)`, `updateWorkspace(userId, id, input)`, `archiveWorkspace(userId, id)`, `restoreWorkspace(userId, id)`.
+---
 
-- [ ] Test tạo Workspace + membership OWNER trong cùng transaction, rollback khi một phần lỗi; User khác không sửa; list chỉ trả Workspace mình tham gia.
-- [ ] Implement các service và API theo envelope có sẵn. Read cho member hợp lệ; update/archive/restore chỉ Owner. Archive chuyển Board con sang trạng thái **chỉ đọc theo quyền cha**, không tự gắn `archivedAt` riêng lên mọi Board nếu SRS không yêu cầu.
-- [ ] Test archive chặn mutation thường; restore Workspace không tự restore Board đã archive độc lập. Chạy test và typecheck.
+### Task 1: Chốt schema và contract Workspace còn thiếu
 
-**Gate:** Không thể tạo Workspace hợp lệ mà thiếu Owner; trạng thái cha chi phối các Board con.
+**Files:** `prisma/schema.prisma`, migration mới, `src/modules/workspaces/dto/workspace.schema.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/workspace-http.integration.test.ts`.
 
-## Task 3 — Xem thành viên và chuyển Owner nguyên tử
+**Interfaces:** Giữ `createWorkspace`, `listWorkspaces`, `getWorkspace`, `updateWorkspace`, `archiveWorkspace`, `restoreWorkspace`; thêm `domainCategory`/tên field lĩnh vực theo contract cuối cùng, `page`/`limit` cho list nếu cần.
 
-**Files:** `src/modules/workspaces/dto/member.schema.ts`, `repository/membership.repository.ts`, `services/membership.service.ts`, `controllers/membership.controller.ts`, `routes/index.ts`; `tests/workspaces/ownership.integration.test.ts`.
+- [ ] Viết test HTTP fail cho create/update field lĩnh vực, validate UUID/body rỗng, pagination list chỉ trả Workspace đang tham gia, `401/403/404` đúng scope.
+- [ ] Chạy test mục tiêu để xác nhận fail; thêm schema/migration/DTO và cập nhật service/repository tối thiểu; giữ tạo Workspace + Owner trong một transaction.
+- [ ] Test archive làm Board con chỉ đọc theo quyền cha, restore Workspace không tự restore Board đã archive riêng, frozen chặn mutation; chạy test mục tiêu và typecheck.
+- [ ] Đồng bộ OpenAPI/endpoint matrix cho route đã có và response thật; chạy Prisma validate/generate, migration trên DB test, test mục tiêu; commit riêng.
+
+**Gate:** CRUD/archive/restore đúng quyền và contract, không có Workspace thiếu Owner.
+
+### Task 2: Cứng hóa membership và chuyển Owner
+
+**Files:** `src/modules/workspaces/services/workspace.service.ts`, `repository/membership.repository.ts` nếu tách, `src/shared/authorization/access.service.ts`, migration/index nếu cần, `tests/workspaces/ownership.integration.test.ts`.
 
 **Interfaces:** `listWorkspaceMembers(userId, workspaceId, query)`, `transferWorkspaceOwner(actorId, workspaceId, targetUserId)`.
 
-- [ ] Test Owner hiện tại chuyển cho một MEMBER active trong cùng Workspace; người khác bị 403; target ngoài Workspace/locked bị từ chối; duplicate/retry không làm có 0 hoặc 2 Owner.
-- [ ] Implement transaction chuyển Owner: khóa/serialize theo Workspace (row lock hoặc isolation `Serializable` + retry có giới hạn), hạ Owner cũ về MEMBER, nâng target lên OWNER; unique partial index chặn 2 Owner. Ghi actor trong Activity/Audit khi module log đã sẵn; không tạo lịch sử giả ở client.
-- [ ] Dùng endpoint `PATCH /workspaces/{id}/members/{userId}` với body `role: OWNER` sau khi cập nhật OpenAPI. Trả lỗi cho `role: MEMBER` trực tiếp hoặc mục tiêu không hợp lệ. Chạy DB integration và test quyền.
+- [ ] Viết test fail: target không thuộc Workspace/đã khóa, actor không phải Owner, chuyển cho chính mình, hai request transfer đồng thời, list member có `page`/`limit` ổn định.
+- [ ] Chạy test mục tiêu để xác nhận fail; triển khai transaction với khóa Workspace hoặc isolation `Serializable` và retry giới hạn; giữ unique partial index Owner hiện có làm chốt DB.
+- [ ] Chạy test race nhiều lần; xác minh đúng một Owner sau thành công/lỗi, response/contract `PATCH` chỉ nhận `{ "role": "OWNER" }`; commit riêng.
 
-**Gate:** Sau mọi transaction thành công, Workspace vẫn đúng một Owner; lỗi giữa chừng rollback hoàn toàn.
+**Gate:** Không thể có 0 hoặc 2 Owner sau request đồng thời.
 
-## Task 4 — Mời, nhận, từ chối và gửi lại lời mời
+### Task 3: Tạo lời mời và gửi email trực tiếp
 
-**Files:** `src/modules/workspaces/dto/invitation.schema.ts`, `repository/invitation.repository.ts`, `services/invitation.service.ts`, `controllers/invitation.controller.ts`, `routes/index.ts`; `src/infrastructure/bullmq/` email producer/worker và cấu hình tối thiểu; `tests/workspaces/invitation.integration.test.ts`.
+**Files:** `prisma/schema.prisma`, migration mới, `src/modules/workspaces/dto/invitation.schema.ts`, `repository/invitation.repository.ts`, `services/invitation.service.ts`, `controllers/invitation.controller.ts`, `routes/index.ts`, `tests/workspaces/invitation-create.integration.test.ts`.
 
-**Interfaces:** `inviteMember(actorId, workspaceId, email)`, `acceptInvitation(userId, rawToken)`, `rejectInvitation(userId, rawToken)`, `resendInvitation(actorId, invitationId)`.
+**Interfaces:** `inviteWorkspaceMember(actorId, workspaceId, email)`, `listWorkspaceInvitations(actorId, workspaceId, query)`; dependency gửi mail có thể inject `typeof sendEmail` để test không gửi mail thật.
 
-- [ ] Test email đã là member, invitation PENDING trùng, email nhận không khớp User đăng nhập, token sai/hết hạn/đã dùng, concurrent accept, resend hủy token cũ. Accept tạo MEMBER và đổi invitation sang ACCEPTED trong một DB transaction; không cấp BoardMembership.
-- [ ] PostgreSQL lưu invitation/status/expiry; Redis lưu token hash hoặc key tra cứu với TTL **7 ngày** theo UC-WS-06. Raw token chỉ ở email, không trả trong API/list/log. Quy định cách xử lý Redis và DB lệch trạng thái: không đánh dấu đã gửi nếu token/job chưa sẵn; có retry/compensation và thông báo lỗi rõ.
-- [ ] Thêm BullMQ producer/worker gửi email mời dùng email adapter hiện có; job retry và idempotency tối thiểu. Không gửi email đồng bộ trong request, không mở rộng sang notification/realtime.
-- [ ] Test worker bằng fake adapter/queue, integration PostgreSQL/Redis trên môi trường test riêng; cập nhật OpenAPI cho các endpoint thêm và error cases.
+- [ ] Viết test fail cho chỉ Owner được mời/xem, Workspace archive/frozen, email normalize, email đã là member, lời mời pending trùng, email không được cấu hình/gửi lỗi, token không lộ trong API/log.
+- [ ] Chạy test mục tiêu để xác nhận fail; thêm `WorkspaceInvitation` với workspace/email/inviter/status/expiry/delivery state/timestamps, unique/index phục vụ pending. Token ngẫu nhiên chỉ gửi qua mail; Redis giữ token hash/lookup với TTL **7 ngày**.
+- [ ] Gửi qua email adapter trực tiếp. Chỉ đánh dấu invitation có thể accept sau khi mail gửi thành công; khi Redis/mail lỗi, thu hồi token mới và ghi trạng thái thất bại để có thể retry, không trả `201` giả. Không đưa network call vào DB transaction dài.
+- [ ] Chạy test DB/Redis với fake mailer, cập nhật API contract và kiểm tra response không chứa token/hash; commit riêng.
 
-**Gate:** Lời mời hết hạn/đã dùng không tạo membership; lỗi worker không tạo trạng thái “đã gửi” giả.
+**Gate:** Mail thất bại không cấp một lời mời có thể accept; thành công có token 7 ngày gửi tới đúng email.
 
-## Task 5 — Xóa thành viên và rời Workspace
+### Task 4: Accept, reject, resend và cancel invitation
 
-**Files:** `src/modules/workspaces/services/membership.service.ts`, `repository/membership.repository.ts`, `controllers/membership.controller.ts`, `routes/index.ts`; `tests/workspaces/member-lifecycle.integration.test.ts`.
+**Files:** `src/modules/workspaces/{services,repository,controllers,dto}/invitation.*`, `routes/index.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `tests/workspaces/invitation-lifecycle.integration.test.ts`.
+
+**Interfaces:** `acceptWorkspaceInvitation(userId, rawToken)`, `rejectWorkspaceInvitation(userId, rawToken)`, `resendWorkspaceInvitation(actorId, invitationId)`, `cancelWorkspaceInvitation(actorId, workspaceId, invitationId)`.
+
+- [ ] Viết test fail cho token sai/hết hạn/dùng lại, email user không khớp, user locked, invitation đã reject/cancel, Workspace archive/frozen, accept hai lần đồng thời.
+- [ ] Chạy test mục tiêu để xác nhận fail; triển khai accept/reject bằng chuyển status có điều kiện trong transaction; accept tạo `WorkspaceMembership(MEMBER)` đúng một lần, không cấp BoardMembership.
+- [ ] Viết test fail cho resend/cancel: chỉ Owner, token cũ hết hiệu lực sau resend thành công, email lỗi không kích hoạt token mới, accept đồng thời với resend không tạo trạng thái mâu thuẫn.
+- [ ] Triển khai resend/cancel với version/status có điều kiện và thu hồi token Redis. Nếu email đã gửi nhưng bước commit sau đó lỗi, báo lỗi và lưu trạng thái cho phép gửi lại; link lỗi không được accept. Cập nhật contract, chạy test; commit riêng.
+
+**Gate:** Token một lần, không vượt 7 ngày; invitation state và membership khớp nhau kể cả request đồng thời.
+
+### Task 5: Remove member và leave Workspace an toàn
+
+**Files:** `src/modules/workspaces/services/workspace.service.ts`, `repository/membership.repository.ts` nếu tách, `src/shared/authorization/access.service.ts`, migration nếu chọn marker inactive, `tests/workspaces/member-lifecycle.integration.test.ts`, API contract.
 
 **Interfaces:** `removeWorkspaceMember(actorId, workspaceId, targetUserId)`, `leaveWorkspace(userId, workspaceId)`.
 
-- [ ] Test Owner không thể rời/xóa chính mình khi còn Owner; member đang là PM của bất kỳ Board nào phải chuyển PM trước; non-Owner không xóa người khác; member ngoài Workspace không bị tác động.
-- [ ] Trong một transaction, thu hồi BoardMembership của mọi Board trong Workspace, gỡ CardAssignment đang hiệu lực, đánh dấu WorkspaceMembership inactive/removed; giữ Card, Comment, Attachment, Activity và thông tin tác giả. Test nhiều Board và lỗi giữa chừng rollback.
-- [ ] Test access token cũ mất quyền ngay; tham gia lại không tự khôi phục BoardMembership hoặc assignment; các lời mời cũ không cấp lại quyền ngoài ý muốn.
-- [ ] Đồng bộ OpenAPI cho leave và role/error behavior, chạy test tích hợp.
+- [ ] Viết test fail cho Owner tự rời/xóa mình, non-Owner xóa người khác, target không thuộc Workspace, member đang là PM trên nhiều Board, concurrent remove/transfer.
+- [ ] Chạy test mục tiêu để xác nhận fail; trong transaction kiểm tra PM rồi thu hồi BoardMembership và CardAssignment thuộc Workspace, vô hiệu WorkspaceMembership; giữ Card/Comment/Attachment và tác giả. Chọn marker inactive hoặc hard-delete membership sau khi kiểm tra yêu cầu lịch sử, rồi đồng bộ guard/list/unique constraint theo lựa chọn đó.
+- [ ] Test access token còn hạn mất quyền ngay sau remove/leave; tham gia lại không tự khôi phục quyền Board/assignment; rollback sạch khi một bước thất bại. Cập nhật docs contract; commit riêng.
 
-**Gate:** Không còn quyền hoặc phân công đang hiệu lực sau remove/leave; lịch sử vẫn truy vết được.
+**Gate:** Không thể bỏ Board thiếu PM; người rời/bị gỡ mất mọi quyền hiện hành nhưng lịch sử còn nguyên.
 
-## Review focus
+### Task 6: Kiểm tra tích hợp và khép contract
 
-1. Owner transfer dưới hai request đồng thời và retry cùng target.
-2. Member bị xóa đang PM trên nhiều Board; mọi Board vẫn có PM.
-3. Invitation accept với email User khác, token cũ sau resend và token dùng lại.
-4. Redis/queue lỗi sau khi DB đã tạo invitation; trạng thái API và email phải nhất quán hoặc có đường retry rõ.
-5. Workspace archive/restore khi Board con đã archive độc lập.
+**Files:** `tests/workspaces/*.integration.test.ts`, `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `docs/CORE/README.md`.
 
-## Verification khi plan được thực thi
+- [ ] Viết test HTTP end-to-end cho create → invite → accept → list → transfer Owner → remove/leave và các trường hợp `401/403/404/409/410`; dùng fake mailer, DB/Redis test riêng.
+- [ ] Chạy `pnpm db:validate`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm format:check`; sửa lỗi phát sinh, ghi kết quả thực tế.
+- [ ] Rà OpenAPI so với route/service, xác minh không còn `MANAGER`, “queued”, route thiếu hoặc response giả; commit phần còn lại.
 
-Chạy test từng task và toàn bộ `pnpm test`; `pnpm db:validate`, `pnpm typecheck`, `pnpm build`, `pnpm format:check`. Migration và tests DB/Redis/BullMQ chạy trên môi trường test tách dữ liệu demo. Repo hiện chưa có script `lint`. Báo kết quả lệnh thực tế và mọi Core gap còn lại.
+**Gate:** Toàn bộ Workspace REST flow và kiểm thử chạy qua; danh sách phần hoãn vẫn nêu BullMQ/Socket.IO và khoảng cách SRS tương ứng.
 
-## Ranh giới sau plan này
+## Thứ tự thực hiện
 
-Board CRUD, chuyển PM, List/Card và AI/realtime ở nhóm sau. Plan này chỉ dùng model Board/BoardMembership để bảo vệ invariant khi thành viên rời Workspace; không tự xây Board API.
+Task 1 → 2 → 3 → 4 → 5 → 6. Sau Task 2, phần test/schema của Task 5 có thể chuẩn bị song song với Task 3, nhưng migration, router và shared authorization chỉ có một người tích hợp tại một thời điểm. Mỗi task có commit và review riêng. Không tính Board CRUD, Board PM transfer, Socket.IO hay BullMQ vào phạm vi hoàn tất của plan này.

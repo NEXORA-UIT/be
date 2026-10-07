@@ -6,19 +6,19 @@ Ngày ghi nhận: **2026-10-07**. Phạm vi: đọc SRS liên quan Core, master 
 
 ## 1. Hiện trạng quan sát được
 
-| Thành phần | Kết quả đọc code |
-| --- | --- |
-| Backend | Express 5, TypeScript strict/ESM, cấu trúc modular monolith |
-| Dữ liệu | Prisma/PostgreSQL; schema hiện có User, RefreshToken, OAuthAccount |
-| Migration | Có migration `20260930162541_auth_core` |
-| AUTH | Có route/service cho đăng ký, xác nhận email, login, refresh, logout/logout-all, me, đổi/quên/reset mật khẩu |
-| Google OAuth | Có route, controller, service, state handling và tests |
-| GitHub OAuth / cập nhật profile | Tài liệu AUTH ghi là phần tiếp theo/chưa triển khai tương ứng; enum GITHUB không chứng minh flow đã có |
-| Redis / email | Có client và cấu hình; AUTH có repository cache/state |
-| Workspace, Board, Card | Các router đã gắn vào API nhưng file route kiểm tra vẫn rỗng; schema chưa có model Core |
-| Collaboration / Planning | Các router kiểm tra vẫn rỗng; chưa có nghiệp vụ Core tương ứng trong cây source đã rà |
-| Tests | Có tests AUTH và error middleware; chưa thấy bộ tests Core trong danh sách đã kiểm tra |
-| API docs | Có OpenAPI, endpoint matrix, conventions và tài liệu WebSocket; đây là contract, không phải bằng chứng runtime |
+| Thành phần                      | Kết quả đọc code                                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Backend                         | Express 5, TypeScript strict/ESM, cấu trúc modular monolith                                                    |
+| Dữ liệu                         | Prisma/PostgreSQL; schema hiện có User, RefreshToken, OAuthAccount                                             |
+| Migration                       | Có migration `20260930162541_auth_core`                                                                        |
+| AUTH                            | Có route/service cho đăng ký, xác nhận email, login, refresh, logout/logout-all, me, đổi/quên/reset mật khẩu   |
+| Google OAuth                    | Có route, controller, service, state handling và tests                                                         |
+| GitHub OAuth / cập nhật profile | Tài liệu AUTH ghi là phần tiếp theo/chưa triển khai tương ứng; enum GITHUB không chứng minh flow đã có         |
+| Redis / email                   | Có client và cấu hình; AUTH có repository cache/state                                                          |
+| Workspace, Board, Card          | Các router đã gắn vào API nhưng file route kiểm tra vẫn rỗng; schema chưa có model Core                        |
+| Collaboration / Planning        | Các router kiểm tra vẫn rỗng; chưa có nghiệp vụ Core tương ứng trong cây source đã rà                          |
+| Tests                           | Có tests AUTH và error middleware; chưa thấy bộ tests Core trong danh sách đã kiểm tra                         |
+| API docs                        | Có OpenAPI, endpoint matrix, conventions và tài liệu WebSocket; đây là contract, không phải bằng chứng runtime |
 
 ## 2. Bằng chứng trong repository
 
@@ -32,12 +32,12 @@ Ngày ghi nhận: **2026-10-07**. Phạm vi: đọc SRS liên quan Core, master 
 
 ## 3. Xung đột quan trọng: Owner và PM
 
-| Master prompt | SRS hiện tại |
-| --- | --- |
-| Workspace có đúng một PM | Workspace có đúng một OWNER |
-| Người tạo Workspace là PM | Người tạo Workspace là Owner |
-| PM truy cập mọi Board trong Workspace | Owner có quyền này; PM chỉ quản lý Board được phân công |
-| Transfer PM ở Workspace | Chuyển Owner tại Workspace; phân công/chuyển PM tại Board là nghiệp vụ riêng |
+| Master prompt                         | SRS hiện tại                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| Workspace có đúng một PM              | Workspace có đúng một OWNER                                                  |
+| Người tạo Workspace là PM             | Người tạo Workspace là Owner                                                 |
+| PM truy cập mọi Board trong Workspace | Owner có quyền này; PM chỉ quản lý Board được phân công                      |
+| Transfer PM ở Workspace               | Chuyển Owner tại Workspace; phân công/chuyển PM tại Board là nghiệp vụ riêng |
 
 Nguồn SRS: mục 2.4.2–2.4.3, 2.5.1, 2.5.4, trang 21–22, 26, 29; use case Workspace/Board trang 51–55.
 
@@ -69,7 +69,7 @@ Khi đánh giá tiến độ, ưu tiên đọc code và tài liệu AUTH chi ti�
 - OCC, cardKey, ngày giờ, overdue, query/filter và dashboard.
 - Kiểm thử âm tính: IDOR, truy cập Board chưa tham gia, quan hệ chéo Board/Workspace, mutation tài nguyên archive, dependency cycle, request đồng thời.
 - Đối chiếu phạm vi mở rộng của SRS với scope master prompt; không tự coi QuickNote hoặc mọi yêu cầu AI/realtime là phần phải triển khai ngay.
-- Xác định phần email queue cần cho lời mời; không bỏ yêu cầu BullMQ chỉ vì đợt hiện tại tập trung REST Core.
+- Xác định phần email queue cần cho lời mời. Theo [quyết định mới](deferred-infrastructure.md), BullMQ được hoãn đến đợt riêng; đây vẫn là khoảng cách với SRS cần khép lại sau.
 
 Đây chưa phải bảng audit DONE/PARTIAL/MISSING/BROKEN đầy đủ cho mọi yêu cầu. Những nội dung chưa đọc hoặc chưa chạy phải tiếp tục được đánh dấu chưa xác minh.
 

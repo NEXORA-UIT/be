@@ -6,15 +6,15 @@ Căn cứ: SRS được ghi trong [README](README.md). Các mục dưới đây 
 
 Nguồn: SRS mục 2.4.1–2.4.4, 2.5.1 và 2.5.4, trang 21–22, 26, 29.
 
-| Phạm vi / vai trò | Quy tắc |
-| --- | --- |
-| WorkspaceMembership | Chỉ có OWNER hoặc MEMBER; mỗi Workspace đúng một Owner |
-| Người tạo Workspace | Trở thành Owner trong cùng transaction tạo Workspace |
-| BoardMembership | PM hoặc MEMBER; mỗi Board đúng một PM |
-| Owner | Quản trị Workspace, truy cập mọi Board, phân công/chuyển PM |
-| PM | Quản lý Board được phân công; không mặc nhiên quản trị Workspace hay Board khác |
-| Member | Chỉ truy cập Board được cấp membership tương ứng |
-| System Admin | Quản trị vận hành; không tự có quyền đọc nội dung dự án |
+| Phạm vi / vai trò   | Quy tắc                                                                         |
+| ------------------- | ------------------------------------------------------------------------------- |
+| WorkspaceMembership | Chỉ có OWNER hoặc MEMBER; mỗi Workspace đúng một Owner                          |
+| Người tạo Workspace | Trở thành Owner trong cùng transaction tạo Workspace                            |
+| BoardMembership     | PM hoặc MEMBER; mỗi Board đúng một PM                                           |
+| Owner               | Quản trị Workspace, truy cập mọi Board, phân công/chuyển PM                     |
+| PM                  | Quản lý Board được phân công; không mặc nhiên quản trị Workspace hay Board khác |
+| Member              | Chỉ truy cập Board được cấp membership tương ứng                                |
+| System Admin        | Quản trị vận hành; không tự có quyền đọc nội dung dự án                         |
 
 Owner có thể đồng thời là PM của một hoặc nhiều Board. Tạo Board và BoardMembership(PM) phải nguyên tử; nếu không chọn PM khác, Owner là PM mặc định. Ghi nhận người phân công qua `appointedBy` hoặc nhật ký tương đương. Board mới có các List mặc định To Do, In Progress, Done (UC-Board-09, trang 53).
 
@@ -27,7 +27,7 @@ Mọi kiểm tra quyền phải diễn ra ở backend, bao gồm xác minh chu�
 Nguồn: mục 2.4.6, 2.5.4, UC-WS-06 và UC-WS-07, trang 23, 29, 49–53.
 
 - Chấp nhận lời mời hợp lệ mới tạo membership Workspace; quyền Board cấp riêng.
-- WorkspaceInvitation lưu business state trong PostgreSQL; token ngắn hạn ở Redis, TTL 7 ngày theo UC-WS-06. Email lời mời xử lý nền qua BullMQ.
+- WorkspaceInvitation lưu business state trong PostgreSQL; token ngắn hạn ở Redis, TTL 7 ngày theo UC-WS-06. SRS yêu cầu email lời mời xử lý nền qua BullMQ; [quyết định triển khai hiện tại](deferred-infrastructure.md) hoãn BullMQ và dùng email adapter trực tiếp trong giai đoạn Workspace REST.
 - Rời/xóa thành viên phải thu hồi quyền Board và gỡ phân công còn hiệu lực trong phạm vi tương ứng.
 - Nếu thành viên đang là PM, phải có người thay thế trên từng Board trước khi hoàn tất rời/xóa.
 - Owner phải chuyển quyền Owner trước khi rời Workspace, đồng thời xử lý những Board mình đang giữ PM.

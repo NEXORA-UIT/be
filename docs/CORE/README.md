@@ -11,6 +11,7 @@ Tài liệu này lưu lại kết quả đọc context và rà soát ban đầu 
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
+- [Quyết định hoãn BullMQ và Socket.IO](deferred-infrastructure.md)
 - [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)
 - [Hợp đồng API hiện có](../api/README.md)
@@ -50,7 +51,7 @@ Theo master prompt, đợt tiếp theo tập trung REST API Core:
 
 Các phần hoãn theo master prompt: WebSocket/realtime, RAG/embedding/Tika, AI Chat/Agent, Tool Calling, AI Proposal/phê duyệt, GitHub connector, quản trị quota AI nâng cao, thông báo phức tạp và analytics nâng cao. Các thành phần đã tồn tại cần được xem xét và giữ nguyên khi phù hợp.
 
-REST Core không đồng nghĩa cấm mọi xử lý nền: SRS vẫn yêu cầu email lời mời đi qua hàng đợi. Cần tách yêu cầu này khỏi phần realtime/AI được hoãn.
+SRS yêu cầu email lời mời đi qua hàng đợi. Theo quyết định triển khai hiện tại, [BullMQ được hoãn](deferred-infrastructure.md) cùng đợt realtime Socket.IO; flow Workspace REST trước mắt dùng email adapter hiện có.
 
 ## Kiến trúc định hướng
 

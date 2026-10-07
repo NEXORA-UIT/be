@@ -581,7 +581,7 @@ paths:
       tags:
       - Members
       summary: Invite member to workspace
-      description: Creates an invitation with a secure token valid for 7 days and enqueues an email dispatch job via BullMQ.
+      description: Creates an invitation with a secure token valid for 7 days and sends an email through the current mail adapter.
         Requires Workspace Owner role.
       operationId: inviteWorkspaceMember
       security:
@@ -596,7 +596,7 @@ paths:
               $ref: '#/components/schemas/InviteMemberRequest'
       responses:
         '201':
-          description: Invitation generated and email job enqueued.
+          description: Invitation generated and email sent.
           content:
             application/json:
               schema:
@@ -651,7 +651,7 @@ paths:
       tags:
       - Members
       summary: Resend workspace invitation
-      description: Invalidates the previous invitation token, issues a fresh 7-day token, and queues a new email delivery.
+      description: Invalidates the previous invitation token, issues a fresh 7-day token, and sends a new email.
       operationId: resendWorkspaceInvitation
       security:
       - bearerAuth: []
@@ -665,7 +665,7 @@ paths:
           format: uuid
       responses:
         '200':
-          description: New invitation token issued and email queued.
+          description: New invitation token issued and email sent.
           content:
             application/json:
               schema:
@@ -711,8 +711,7 @@ paths:
       tags:
       - Members
       summary: Update member role
-      description: Modifies internal RBAC role of a workspace member (MANAGER or MEMBER). Only the Workspace Owner may perform
-        this action.
+      description: Transfers Workspace Owner role to an existing member. Only the current Workspace Owner may perform this action.
       operationId: updateWorkspaceMemberRole
       security:
       - bearerAuth: []
@@ -3818,25 +3817,17 @@ components:
       type: object
       required:
       - email
-      - role
       properties:
         email:
           type: string
           format: email
           example: colleague@university.edu.vn
-        role:
-          type: string
-          enum:
-          - MANAGER
-          - MEMBER
-          example: MEMBER
     WorkspaceInvitation:
       type: object
       required:
       - id
       - workspaceId
       - email
-      - role
       - status
       - expiresAt
       - createdAt
@@ -3851,18 +3842,14 @@ components:
         email:
           type: string
           format: email
-        role:
-          type: string
-          enum:
-          - MANAGER
-          - MEMBER
         status:
           type: string
           enum:
           - PENDING
           - ACCEPTED
+          - REJECTED
           - EXPIRED
-          - REVOKED
+          - CANCELED
         expiresAt:
           type: string
           format: date-time
@@ -3893,7 +3880,6 @@ components:
           type: string
           enum:
           - OWNER
-          - MANAGER
           - MEMBER
           example: MEMBER
         joinedAt:
@@ -3909,8 +3895,7 @@ components:
         role:
           type: string
           enum:
-          - MANAGER
-          - MEMBER
+          - OWNER
     Board:
       type: object
       required:
