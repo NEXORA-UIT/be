@@ -1,0 +1,10 @@
+components:
+  schemas:
+    CreateDependencyRequest:
+      type: object
+      required:
+        - dependsOnCardId
+      properties:
+        dependsOnCardId:
+          type: string
+          format: uuid

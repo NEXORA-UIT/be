@@ -1,0 +1,84 @@
+components:
+  schemas:
+    QuickNote:
+      type: object
+      required:
+        - id
+        - userId
+        - content
+        - createdAt
+        - updatedAt
+      description: Personal scratchpad note independent of project boards.
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          example: Cần tích hợp Apache Tika trong docker compose
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateQuickNoteRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: "Ý tưởng: bổ sung thanh tiến độ checklist"
+    UpdateQuickNoteRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+    ConvertQuickNoteToCardRequest:
+      type: object
+      required:
+        - boardId
+        - listId
+      description: Parameters to convert a personal quick note into a board card.
+      properties:
+        boardId:
+          type: string
+          format: uuid
+          description: Target board UUID.
+        listId:
+          type: string
+          format: uuid
+          description: Target list UUID within board.
+        position:
+          type: number
+          description: Optional position index inside list.
+    QuickNoteResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/QuickNote"
+    QuickNoteListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuickNote"

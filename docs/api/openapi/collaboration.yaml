@@ -1,0 +1,173 @@
+paths:
+  /realtime:
+    get:
+      tags:
+        - Collaboration
+      summary: Realtime board synchronization (WebSocket Handshake)
+      description: Establishes WebSocket connection for real-time collaborative updates (CARD_CREATED, CARD_UPDATED, CARD_MOVED, etc.). Requires handshake authentication token. Target synchronization latency < 500ms.
+      operationId: connectRealtimeWebSocket
+      security:
+        - bearerAuth: []
+      responses:
+        "101":
+          description: Switching Protocols - WebSocket connection established and upgraded successfully.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-15
+  /cards/{id}/comments:
+    post:
+      tags:
+        - Collaboration
+      summary: Create card comment
+      description: Appends a Markdown comment to the card. Automatically extracts @mention tokens, creating notification records and queuing email alerts via BullMQ.
+      operationId: createCardComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: Comment saved and notifications dispatched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+    get:
+      tags:
+        - Collaboration
+      summary: List card comments
+      description: Retrieves discussion comments ordered chronologically for rendering in the card modal timeline.
+      operationId: listCardComments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: List of comments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-COL-16
+  /comments/{id}:
+    patch:
+      tags:
+        - Collaboration
+      summary: Edit card comment
+      description: "Updates comment text. Enforces authorization: only the original comment author may modify their text."
+      operationId: updateComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentRequest"
+      responses:
+        "200":
+          description: Comment edited successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+    delete:
+      tags:
+        - Collaboration
+      summary: Delete card comment
+      description: Soft-deletes a comment. Permitted for the comment author or the Board PM.
+      operationId: deleteComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentIdPath"
+      responses:
+        "200":
+          description: Comment deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+  /cards/{id}/activities:
+    get:
+      tags:
+        - Collaboration
+      summary: List card activity history
+      description: Retrieves the audit trail of modifications (status transitions, assignees, dates) for a card. Paginated with default 20 records, ordered descending by time.
+      operationId: listCardActivities
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Paginated activity events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityLogPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-17

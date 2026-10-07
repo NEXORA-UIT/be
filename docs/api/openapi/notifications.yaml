@@ -1,0 +1,114 @@
+paths:
+  /users/me/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List user notifications
+      description: Retrieves notifications for the authenticated user regarding task assignments, due dates, and mentions.
+      operationId: listUserNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Notification items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-18
+  /users/me/notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: Sets isRead = true for a notification, reducing the unread badge count.
+      operationId: markNotificationAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked as read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-18
+  /users/me/notifications/read-all:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      description: Batch marks all unread notifications of the current user as read.
+      operationId: markAllNotificationsAsRead
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All notifications marked as read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-18
+  /users/me/notifications/{id}:
+    delete:
+      tags:
+        - Notifications
+      summary: Delete notification
+      description: Deletes a notification record from the user's inbox.
+      operationId: deleteNotification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-18

@@ -1,0 +1,126 @@
+components:
+  schemas:
+    KnowledgeBaseDocument:
+      type: object
+      required:
+        - id
+        - boardId
+        - fileName
+        - fileUrl
+        - fileSize
+        - status
+        - uploadedBy
+        - createdAt
+        - updatedAt
+      description: Knowledge Base document record.
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          example: Software_Architecture_Doc.pdf
+        fileUrl:
+          type: string
+          format: uri
+        fileSize:
+          type: integer
+          example: 2048500
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PROCESSING
+            - READY
+            - FAILED
+          example: READY
+        uploadedBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RAGQueryRequest:
+      type: object
+      required:
+        - question
+      properties:
+        question:
+          type: string
+          example: Tiêu chuẩn nén tệp đính kèm được quy định thế nào trong tài liệu?
+    RAGCitation:
+      type: object
+      required:
+        - documentId
+        - documentName
+        - pageNumber
+        - snippet
+      description: Source citation grounding an AI response.
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        documentName:
+          type: string
+          example: Tài liệu SRS Đồ án 1.pdf
+        pageNumber:
+          type: integer
+          example: 57
+        snippet:
+          type: string
+          example: Dung lượng tệp đính kèm tối đa là 25MB...
+    RAGAnswer:
+      type: object
+      required:
+        - answer
+        - citations
+      description: Grounded answer synthesized with source citations.
+      properties:
+        answer:
+          type: string
+          example: Theo tài liệu SRS trang 57, tệp đính kèm có dung lượng tối đa 25MB.
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RAGCitation"
+    KnowledgeBaseDocumentResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/KnowledgeBaseDocument"
+    KnowledgeBaseDocumentListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeBaseDocument"
+    RAGAnswerResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/RAGAnswer"

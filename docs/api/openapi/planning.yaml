@@ -1,0 +1,142 @@
+paths:
+  /cards/{id}/dependencies:
+    post:
+      tags:
+        - Planning
+      summary: Declare card dependency
+      description: Establishes a prerequisite relationship where card `{id}` cannot be moved to DONE until `dependsOnCardId` is completed. Rejects circular dependencies.
+      operationId: createCardDependency
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDependencyRequest"
+      responses:
+        "201":
+          description: Dependency created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardDependencyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-11
+  /cards/{id}/dependencies/{dependencyId}:
+    delete:
+      tags:
+        - Planning
+      summary: Remove card dependency
+      description: Removes a prerequisite relationship between two cards.
+      operationId: deleteCardDependency
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: dependencyId
+          in: path
+          required: true
+          description: Unique UUID of the dependency record.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Dependency removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-11
+  /boards/{id}/calendar:
+    get:
+      tags:
+        - Planning
+      summary: Get board calendar schedule
+      description: Retrieves cards with start and due dates formatted for display in FullCalendar views.
+      operationId: getBoardCalendar
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Interval start in UTC.
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Interval end in UTC.
+      responses:
+        "200":
+          description: Cards scheduled within the date window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-14
+  /boards/{id}/dashboard:
+    get:
+      tags:
+        - Planning
+      summary: Get board progress dashboard (Supporting Proposed API)
+      description: Retrieves traditional aggregated board metrics and progress statistics (task completion rate, lead time, bottleneck list). Supporting/proposed dashboard API for UC-PLAN-23; the direct SRS-CORE AI summary behavior is POST /boards/{id}/ai/summarize-progress.
+      operationId: getBoardDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Progress statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardDashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-PLAN-23

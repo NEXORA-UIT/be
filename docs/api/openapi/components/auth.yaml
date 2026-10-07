@@ -1,0 +1,233 @@
+components:
+  schemas:
+    UserSummary:
+      type: object
+      required:
+        - id
+        - fullName
+        - email
+      description: Lightweight summary of a user account.
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          example: Phan Gia Đạt
+        email:
+          type: string
+          format: email
+          example: datphan@university.edu.vn
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://res.cloudinary.com/nexora/image/upload/avatar.jpg
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - status
+        - createdAt
+        - updatedAt
+      description: Full profile representation of the authenticated user.
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - LOCKED
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AuthTokens:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - expiresIn
+        - user
+      description: Authentication token pair returned in response body upon successful authentication.
+      properties:
+        accessToken:
+          type: string
+          description: JWT Access Token (15-minute lifetime).
+        refreshToken:
+          type: string
+          description: Refresh Token (7-day lifetime).
+        expiresIn:
+          type: integer
+          example: 900
+          description: Access token lifetime in seconds.
+        user:
+          $ref: "#/components/schemas/UserProfile"
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - fullName
+      properties:
+        email:
+          type: string
+          format: email
+          example: student@university.edu.vn
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: Secret123!
+        fullName:
+          type: string
+          example: Phan Gia Đạt
+    VerifyRegistrationRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: One-time token from the Gmail verification link.
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: student@university.edu.vn
+        password:
+          type: string
+          format: password
+          example: Secret123!
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: 7-day refresh token returned upon login.
+    OAuthExchangeRequest:
+      type: object
+      required:
+        - code
+        - state
+        - redirectUri
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: Authorization code returned by provider callback.
+        state:
+          type: string
+          description: One-time login token returned unchanged by the provider. The frontend must compare it with the value kept in sessionStorage.
+        redirectUri:
+          type: string
+          format: uri
+          description: Redirect URI used when starting the provider flow.
+    GoogleOAuthCallbackRequest:
+      type: object
+      required:
+        - code
+        - state
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: Authorization code returned by Google.
+        state:
+          type: string
+          description: One-time Google login token returned unchanged by Google.
+    GoogleOAuthStartRequest:
+      type: object
+      additionalProperties: false
+      description: Empty body. The backend reads the fixed redirect URI from its environment configuration.
+    GoogleOAuthStartResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - authorizationUrl
+            - loginToken
+          properties:
+            authorizationUrl:
+              type: string
+              format: uri
+              description: URL to open in the browser for Google login.
+            loginToken:
+              type: string
+              description: Raw one-time token. Frontend stores it in sessionStorage and compares it with callback state.
+    UpdateProfileRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: Phan Gia Đạt
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://res.cloudinary.com/nexora/image/upload/avatar.jpg
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+    AuthTokensResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/AuthTokens"
+    UserProfileResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/UserProfile"

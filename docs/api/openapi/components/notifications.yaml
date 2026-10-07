@@ -1,0 +1,56 @@
+components:
+  schemas:
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - content
+        - isRead
+        - createdAt
+      description: User notification item.
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Bạn được phân công vào thẻ mới
+        content:
+          type: string
+          example: Phan Gia Đạt đã gán bạn vào thẻ 'Thiết kế API Contract'
+        linkUrl:
+          type: string
+          nullable: true
+          example: /boards/123/cards/456
+        isRead:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+    NotificationPaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Notification"
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"

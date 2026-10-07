@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: Nexora Core API Specification
+  version: 1.0.0
+  description: |-
+    Production-grade RESTful API contract for **Nexora** (Intelligent Project Management System Integrated with AI Agents).
+
+    Built directly upon the Software Requirements Specification (SRS) and the approved Endpoint Matrix, this contract specifies all data transfer objects, security policies, Optimistic Concurrency Control (OCC), Human-in-the-Loop constraints, and role-based access rules across all 10 functional modules.
+  contact:
+    name: Nexora Engineering Team
+    email: dev@nexora.local
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local Development Server
+tags:
+  - name: Authentication
+    description: Local registration, password login, token refresh, and OAuth flows.
+  - name: Profile
+    description: Authenticated user profile management and credential updates.
+  - name: Workspaces
+    description: Workspace boundaries, organization settings, and archiving.
+  - name: Members
+    description: Workspace and Board membership management and role assignments.
+  - name: Boards
+    description: Project board lifecycle, visual customization, archiving, and deletion.
+  - name: Lists
+    description: Workflow stage columns, status groupings, and position reordering.
+  - name: Cards
+    description: Work item cards, attributes, movement, checklist tasks, and attachments.
+  - name: Tasks
+    description: Checklist sub-tasks within cards.
+  - name: Planning
+    description: Card dependencies, timeline calendar view, and progress dashboards.
+  - name: Collaboration
+    description: Card discussion comments and activity audit logs.
+  - name: Notifications
+    description: In-app notification center for assignments, mentions, and due dates.
+  - name: Quick Notes
+    description: Personal scratchpad notes and direct conversion into board cards.
+  - name: Knowledge Base
+    description: Project document storage, asynchronous Tika ingestion, and semantic RAG retrieval.
+  - name: AI
+    description: Contextual AI assistant, progress summarization, and human-in-the-loop proposals.
+  - name: GitHub
+    description: Optional technical repository connector and webhook event processing.
+  - name: System Administration
+    description: Platform administration, user locks, workspace freezes, AI quotas, kill switch, queues, and audit logs.

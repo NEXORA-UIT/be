@@ -1,0 +1,160 @@
+paths:
+  /users/me/quick-notes:
+    get:
+      tags:
+        - Quick Notes
+      summary: List personal quick notes
+      description: Retrieves the authenticated user's personal scratchpad notes, independent of project workspaces.
+      operationId: listQuickNotes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Personal quick notes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuickNoteListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-19
+    post:
+      tags:
+        - Quick Notes
+      summary: Create personal quick note
+      description: Captures a quick idea or personal draft note.
+      operationId: createQuickNote
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuickNoteRequest"
+      responses:
+        "201":
+          description: Quick note saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuickNoteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-19
+  /users/me/quick-notes/{id}:
+    patch:
+      tags:
+        - Quick Notes
+      summary: Update quick note
+      description: Updates text content of an existing quick note.
+      operationId: updateQuickNote
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Quick note UUID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuickNoteRequest"
+      responses:
+        "200":
+          description: Quick note updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuickNoteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-19
+    delete:
+      tags:
+        - Quick Notes
+      summary: Delete quick note
+      description: Permanently deletes a personal scratchpad note.
+      operationId: deleteQuickNote
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Quick note UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Quick note deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-19
+  /users/me/quick-notes/{id}/convert-to-card:
+    post:
+      tags:
+        - Quick Notes
+      summary: Convert quick note to Kanban card
+      description: Converts a personal quick note into an official work item card placed within the designated board and list column. Broadcasts CARD_CREATED over WebSocket.
+      operationId: convertQuickNoteToCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Quick note UUID.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertQuickNoteToCardRequest"
+      responses:
+        "201":
+          description: Card created from note.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-19

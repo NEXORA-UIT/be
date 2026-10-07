@@ -1,0 +1,108 @@
+components:
+  schemas:
+    GitHubConfiguration:
+      type: object
+      required:
+        - boardId
+        - repositoryName
+        - webhookUrl
+        - isActive
+        - createdAt
+        - updatedAt
+      description: GitHub repository integration metadata for a board.
+      properties:
+        boardId:
+          type: string
+          format: uuid
+        repositoryName:
+          type: string
+          example: nexora-org/nexora-backend
+        webhookUrl:
+          type: string
+          format: uri
+          example: https://api.nexora.local/api/v1/github/webhooks
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    GitHubConfigRequest:
+      type: object
+      required:
+        - repositoryName
+        - webhookSecret
+      properties:
+        repositoryName:
+          type: string
+          example: nexora-org/nexora-backend
+        webhookSecret:
+          type: string
+          format: password
+          description: Secret key used for HMAC signature validation.
+    GitActivityItem:
+      type: object
+      required:
+        - id
+        - cardId
+        - type
+        - identifier
+        - message
+        - author
+        - url
+        - timestamp
+      description: Technical code activity item linked to a card.
+      properties:
+        id:
+          type: string
+        cardId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - COMMIT
+            - PULL_REQUEST
+          example: COMMIT
+        identifier:
+          type: string
+          example: 7d70105
+        message:
+          type: string
+          example: "feat: implement card drag and drop #CARD-12"
+        author:
+          type: string
+          example: datphan
+        url:
+          type: string
+          format: uri
+        timestamp:
+          type: string
+          format: date-time
+    GitHubConfigurationResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/GitHubConfiguration"
+    GitActivityListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitActivityItem"

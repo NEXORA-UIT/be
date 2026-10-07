@@ -1,0 +1,488 @@
+paths:
+  /workspaces:
+    post:
+      tags:
+        - Workspaces
+      summary: Create workspace
+      description: Initializes a top-level workspace representing an organization or department. Automatically designates the authenticated creator as the sole Workspace Owner.
+      operationId: createWorkspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+      responses:
+        "201":
+          description: Workspace created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+    get:
+      tags:
+        - Workspaces
+      summary: List user workspaces
+      description: Retrieves workspaces where the authenticated user has current membership, including archived or frozen workspaces and pagination metadata.
+      operationId: listWorkspaces
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of accessible workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-08
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+  /workspaces/{id}:
+    get:
+      tags:
+        - Workspaces
+      summary: Get workspace details
+      description: Retrieves detailed information and membership settings for a specific workspace.
+      operationId: getWorkspaceById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Workspace details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-08
+    patch:
+      tags:
+        - Workspaces
+      summary: Update workspace
+      description: Updates workspace name, description, or domain category. Requires Workspace Owner role.
+      operationId: updateWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkspaceRequest"
+      responses:
+        "200":
+          description: Workspace updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/archive:
+    patch:
+      tags:
+        - Workspaces
+      summary: Archive workspace
+      description: Places the workspace into archived state, setting all nested project boards to read-only mode and halting automated AI background jobs.
+      operationId: archiveWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Workspace archived successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/invitations:
+    post:
+      tags:
+        - Members
+      summary: Invite member to workspace
+      description: Creates an invitation with a secure token valid for 7 days and sends an email through the current mail adapter. Requires Workspace Owner role.
+      operationId: inviteWorkspaceMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteMemberRequest"
+      responses:
+        "201":
+          description: Invitation generated and email sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+    get:
+      tags:
+        - Members
+      summary: List pending workspace invitations
+      description: Lists pending invitations for a workspace. Requires Workspace Owner role.
+      operationId: listWorkspaceInvitations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Pending workspace invitations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{token}/accept:
+    post:
+      tags:
+        - Members
+      summary: Accept workspace invitation
+      description: Accepts an invitation using the unique 7-day token, granting the authenticated user membership in the workspace.
+      operationId: acceptWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Secure invitation token received via email.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation accepted; membership activated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{token}/reject:
+    post:
+      tags:
+        - Members
+      summary: Reject workspace invitation
+      description: Rejects a pending invitation for the authenticated user without creating membership.
+      operationId: rejectWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{id}/resend:
+    post:
+      tags:
+        - Members
+      summary: Resend workspace invitation
+      description: Invalidates the previous invitation token, issues a fresh 7-day token, and sends a new email.
+      operationId: resendWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique UUID of the invitation record.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: New invitation token issued and email sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/{id}/invitations/{invitationId}:
+    delete:
+      tags:
+        - Members
+      summary: Cancel workspace invitation
+      description: Cancels a pending invitation. Requires Workspace Owner role.
+      operationId: cancelWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - name: invitationId
+          in: path
+          required: true
+          description: Unique UUID of the invitation record.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Invitation canceled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/{id}/members:
+    get:
+      tags:
+        - Members
+      summary: List workspace members
+      description: Retrieves the list of active members and their assigned workspace roles.
+      operationId: listWorkspaceMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: List of workspace members.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMemberListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-07
+  /workspaces/{id}/members/{userId}:
+    patch:
+      tags:
+        - Members
+      summary: Update member role
+      description: Transfers Workspace Owner role to an existing member. Only the current Workspace Owner may perform this action.
+      operationId: updateWorkspaceMemberRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleRequest"
+      responses:
+        "200":
+          description: Member role updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07
+    delete:
+      tags:
+        - Members
+      summary: Remove member from workspace
+      description: Removes the membership and revokes the member's active Board access and assignments while preserving project content and history. The current Workspace Owner or a Board PM cannot be removed until responsibilities are transferred.
+      operationId: removeWorkspaceMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "200":
+          description: Member removed and board permissions revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07
+  /workspaces/{id}/unarchive:
+    patch:
+      tags:
+        - Workspaces
+      summary: Restore workspace
+      description: Restores an archived workspace. A frozen workspace must first be unfrozen by a system administrator.
+      operationId: restoreWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Workspace restored successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/leave:
+    post:
+      tags:
+        - Members
+      summary: Leave workspace
+      description: Removes the authenticated member from the workspace and revokes active Board access. Owners must transfer ownership first; a current Board PM must be replaced first.
+      operationId: leaveWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Workspace membership removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07

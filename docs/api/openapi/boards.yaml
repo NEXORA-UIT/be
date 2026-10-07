@@ -1,0 +1,573 @@
+paths:
+  /workspaces/{id}/boards:
+    post:
+      tags:
+        - Boards
+      summary: Create project board
+      description: Creates an independent project board within the workspace, assigns exactly one Project Manager (PM), and automatically generates the default Kanban columns (To Do, In Progress, Done).
+      operationId: createBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBoardRequest"
+      responses:
+        "201":
+          description: Board created with default Kanban columns.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+    get:
+      tags:
+        - Boards
+      summary: List boards in workspace
+      description: Retrieves active boards in the workspace accessible to the authenticated member.
+      operationId: listWorkspaceBoards
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Flag to include archived boards.
+      responses:
+        "200":
+          description: List of accessible boards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}:
+    get:
+      tags:
+        - Boards
+      summary: Get board details
+      description: Retrieves board metadata, settings, and Project Manager identifier.
+      operationId: getBoardById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Board details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Board-09
+    patch:
+      tags:
+        - Boards
+      summary: Update board metadata
+      description: Updates board name, description, background color, or header banner image.
+      operationId: updateBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBoardRequest"
+      responses:
+        "200":
+          description: Board updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+    delete:
+      tags:
+        - Boards
+      summary: Permanently delete board
+      description: "Permanently deletes a board and cleans up associated Cloudflare R2 files. Enforces the strict archive-first lifecycle rule: rejects deletion with 400 Bad Request (BOARD_NOT_ARCHIVED) if the board is still active. Requires typing the exact board name to confirm."
+      operationId: deleteBoardPermanently
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmDeleteBoardRequest"
+      responses:
+        "200":
+          description: Board permanently deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/archive:
+    patch:
+      tags:
+        - Boards
+      summary: Archive board
+      description: Archives the specified board, setting project content to read-only and removing it from the active dashboard view.
+      operationId: archiveBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Board archived successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/unarchive:
+    patch:
+      tags:
+        - Boards
+      summary: Restore archived board
+      description: Restores an archived board to active status, re-enabling regular Kanban editing.
+      operationId: unarchiveBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Board restored to active status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/pm:
+    patch:
+      tags:
+        - Boards
+      summary: Assign or change board PM
+      description: Transfers Project Manager responsibilities for this board to another active workspace member. Enforces the invariant that each board has exactly one PM at all times.
+      operationId: assignBoardPm
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignBoardPmRequest"
+      responses:
+        "200":
+          description: Board PM reassigned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/members:
+    get:
+      tags:
+        - Boards
+      summary: List board members
+      description: Retrieves the list of members explicitly assigned to participate in this project board.
+      operationId: listBoardMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: List of board members.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardMemberListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Board-09
+    post:
+      tags:
+        - Boards
+      summary: Add member to board
+      description: Adds an active workspace member to this specific project board. Member must already belong to the parent workspace.
+      operationId: addBoardMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddBoardMemberRequest"
+      responses:
+        "201":
+          description: Member added to board.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardMemberResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/members/{userId}:
+    delete:
+      tags:
+        - Boards
+      summary: Remove member from board
+      description: Revokes board access for the target user and unassigns them from all active cards within this board.
+      operationId: removeBoardMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "200":
+          description: Member removed from board and assignments cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
+  /boards/{id}/labels:
+    get:
+      tags:
+        - Boards
+      summary: List board labels
+      description: Retrieves the color-coded classification labels managed within this board.
+      operationId: listBoardLabels
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: List of board labels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardLabelListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Card-12
+    post:
+      tags:
+        - Boards
+      summary: Create board label
+      description: Creates a new color-coded tag label belonging to this board.
+      operationId: createBoardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLabelRequest"
+      responses:
+        "201":
+          description: Label created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardLabelResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Card-12
+  /boards/{id}/lists:
+    post:
+      tags:
+        - Lists
+      summary: Create Kanban list column
+      description: Creates a new workflow stage column in the board. Must be explicitly categorized as TODO, IN_PROGRESS, or DONE. Max 30 lists per board.
+      operationId: createList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateListRequest"
+      responses:
+        "201":
+          description: List created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-List-10
+    get:
+      tags:
+        - Lists
+      summary: List board columns with cards
+      description: Retrieves all active columns and nested cards for rendering the complete Kanban board view.
+      operationId: listBoardLists
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Kanban columns and card tree.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-List-10
+  /lists/{id}:
+    patch:
+      tags:
+        - Lists
+      summary: Update list column
+      description: Updates the title or status category grouping of a list.
+      operationId: updateList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ListIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateListRequest"
+      responses:
+        "200":
+          description: List updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-List-10
+  /lists/{id}/position:
+    patch:
+      tags:
+        - Lists
+      summary: Reorder list position
+      description: Updates the horizontal position index of the column and broadcasts the event over WebSocket to all active board viewers.
+      operationId: reorderListPosition
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ListIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderListRequest"
+      responses:
+        "200":
+          description: List position updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-List-10
+  /lists/{id}/archive:
+    patch:
+      tags:
+        - Lists
+      summary: Archive or delete list column
+      description: Archives the column. Allows optionally moving nested cards to another active column before closing.
+      operationId: archiveList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ListIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArchiveListRequest"
+      responses:
+        "200":
+          description: List archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-List-10

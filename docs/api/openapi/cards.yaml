@@ -1,0 +1,426 @@
+paths:
+  /lists/{id}/cards:
+    post:
+      tags:
+        - Cards
+      summary: Create work item card
+      description: Creates a new card in the specified list, writes an entry to ActivityLog, and broadcasts CARD_CREATED over WebSocket. Enforces max 2,000 cards per board.
+      operationId: createCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ListIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCardRequest"
+      responses:
+        "201":
+          description: Card created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}:
+    get:
+      tags:
+        - Cards
+      summary: Get card details
+      description: Retrieves comprehensive card details including checklist tasks, attachments, assignees, labels, and Markdown description.
+      operationId: getCardById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Full card details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    patch:
+      tags:
+        - Cards
+      summary: Update card details
+      description: "Updates card properties. Enforces Optimistic Concurrency Control (OCC): the client must supply its current `updatedAt` value. If outdated, the server rejects with 409 Conflict (CARD_CONFLICT). Enforces startDate <= dueDate."
+      operationId: updateCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCardRequest"
+      responses:
+        "200":
+          description: Card updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    delete:
+      tags:
+        - Cards
+      summary: Delete card
+      description: Performs soft deletion of the card record in the database and broadcasts removal to all board viewers.
+      operationId: deleteCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Card deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/move:
+    patch:
+      tags:
+        - Cards
+      summary: Move card position or list
+      description: "Moves a card within a list or across lists. Enforces OCC via `updatedAt` and verifies prerequisite dependencies: if target column is category DONE, all prerequisite cards must already be completed, otherwise rejects with 409 Conflict (DEPENDENCY_UNRESOLVED)."
+      operationId: moveCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveCardRequest"
+      responses:
+        "200":
+          description: Card moved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/archive:
+    patch:
+      tags:
+        - Cards
+      summary: Archive card
+      description: Removes the card from active board display while keeping historical comments, activity logs, and attachments intact.
+      operationId: archiveCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Card archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/tasks:
+    post:
+      tags:
+        - Tasks
+      summary: Add checklist task to card
+      description: Adds an atomic checklist sub-task to the card. Enforces a hard limit of max 50 checklist tasks per card.
+      operationId: createCardTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /tasks/{id}:
+    patch:
+      tags:
+        - Tasks
+      summary: Update checklist task
+      description: Updates task title or completion status. Completing tasks automatically recalculates card progress without moving the card to Done.
+      operationId: updateTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Task updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    delete:
+      tags:
+        - Tasks
+      summary: Delete checklist task
+      description: Removes a checklist item from the card.
+      operationId: deleteTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPath"
+      responses:
+        "200":
+          description: Task removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/attachments:
+    post:
+      tags:
+        - Cards
+      summary: Upload card attachment
+      description: Uploads a binary work file associated with the card (stored on Cloudflare R2). Enforces a 25MB ceiling (or 5MB for images / 15MB for docs). Card attachments do NOT automatically become Knowledge Base documents.
+      operationId: uploadCardAttachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Binary attachment file.
+      responses:
+        "201":
+          description: Attachment uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardAttachmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/attachments/{attachmentId}:
+    delete:
+      tags:
+        - Cards
+      summary: Delete card attachment
+      description: Removes an attachment record from the card and purges the file from Cloudflare R2 storage.
+      operationId: deleteCardAttachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: attachmentId
+          in: path
+          required: true
+          description: Attachment UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Attachment deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /boards/{id}/cards/search:
+    get:
+      tags:
+        - Cards
+      summary: Search and filter cards
+      description: Multi-dimensional card search within a board by keyword, status category, assignee, label, and overdue criteria.
+      operationId: searchCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Text search query.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - TODO
+              - IN_PROGRESS
+              - DONE
+        - name: assigneeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: labelId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: due
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - OVERDUE
+              - TODAY
+              - THIS_WEEK
+      responses:
+        "200":
+          description: Search results matching query filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-13

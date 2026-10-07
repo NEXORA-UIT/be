@@ -1,0 +1,186 @@
+paths:
+  /boards/{id}/ai/conversations:
+    post:
+      tags:
+        - AI
+      summary: Send message to AI Agent
+      description: Interacts with the AI Agent in the context of the active board. The Agent selects allowed tools (getCards, searchDocuments, etc.) under least-privilege security. Max steps = 5, timeout 45s. Streaming protocol is handled via HTTP stream or SSE.
+      operationId: chatWithAiAgent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIChatMessageRequest"
+      responses:
+        "200":
+          description: AI response with citations and possible structured Action Proposals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIChatResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AI-22
+  /boards/{id}/ai/conversations/{conversationId}:
+    get:
+      tags:
+        - AI
+      summary: Get AI conversation history
+      description: Retrieves previous message history, citations, and proposals from a specific AI conversation session.
+      operationId: getAiConversationHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - name: conversationId
+          in: path
+          required: true
+          description: Conversation UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIChatResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-AI-22
+  /boards/{id}/ai/summarize-progress:
+    post:
+      tags:
+        - AI
+      summary: AI progress summary and bottleneck analysis
+      description: Triggers the AI Agent to scan overdue cards, dependencies, and bottleneck stages to generate an executive progress summary report.
+      operationId: summarizeBoardProgressAi
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AISummarizeProgressRequest"
+      responses:
+        "200":
+          description: Progress summary and recommendations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AISummarizeProgressResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-23
+  /boards/{id}/ai/proposals:
+    get:
+      tags:
+        - AI
+      summary: List pending AI Action Proposals
+      description: Retrieves AI-generated action proposals (e.g. reschedule card, reassign card) awaiting Project Manager approval. Proposals have a 24-hour TTL.
+      operationId: listAiProposals
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING
+              - APPROVED
+              - REJECTED
+              - EXPIRED
+            default: PENDING
+      responses:
+        "200":
+          description: Action card proposals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIProposalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-AI-24
+  /boards/{id}/ai/proposals/{proposalId}/decide:
+    post:
+      tags:
+        - AI
+      summary: Approve or reject AI proposal (Human-in-the-loop)
+      description: Allows the Project Manager to approve or reject an AI-generated Action Card. Enforces mandatory `Idempotency-Key` header to prevent duplicate execution and verifies OCC timestamps on the target entity.
+      operationId: decideAiProposal
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - $ref: "#/components/parameters/ProposalIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalDecisionRequest"
+      responses:
+        "200":
+          description: Proposal decision executed and recorded in audit log.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AI-25

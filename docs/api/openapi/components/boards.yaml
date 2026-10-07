@@ -1,0 +1,369 @@
+components:
+  schemas:
+    Board:
+      type: object
+      required:
+        - id
+        - workspaceId
+        - name
+        - status
+        - pmId
+        - createdAt
+        - updatedAt
+      description: Project Board representing an independent project space with dedicated Kanban lists and Knowledge Base.
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Sprint 1 - Core Development
+        description:
+          type: string
+          nullable: true
+        coverColor:
+          type: string
+          nullable: true
+          example: "#0079BF"
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+          example: ACTIVE
+        pmId:
+          type: string
+          format: uuid
+          description: Single Project Manager assigned to the Board.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateBoardRequest:
+      type: object
+      required:
+        - name
+        - pmId
+      properties:
+        name:
+          type: string
+          example: Sprint 1 - Core Development
+        description:
+          type: string
+        coverColor:
+          type: string
+          example: "#026AA7"
+        pmId:
+          type: string
+          format: uuid
+          description: UUID of active Workspace member assigned as PM.
+    UpdateBoardRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        coverColor:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+    AssignBoardPmRequest:
+      type: object
+      required:
+        - pmId
+      properties:
+        pmId:
+          type: string
+          format: uuid
+          description: New Project Manager UUID.
+    ConfirmDeleteBoardRequest:
+      type: object
+      required:
+        - confirmationName
+      properties:
+        confirmationName:
+          type: string
+          description: Exact Board name required to confirm permanent deletion.
+    BoardMember:
+      type: object
+      required:
+        - boardId
+        - userId
+        - role
+        - user
+      description: Membership association between a user and a board.
+      properties:
+        boardId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - PM
+            - MEMBER
+          example: MEMBER
+        user:
+          $ref: "#/components/schemas/UserSummary"
+    BoardLabel:
+      type: object
+      required:
+        - id
+        - boardId
+        - name
+        - color
+      description: Classification label scoped to a project board.
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Backend
+        color:
+          type: string
+          example: "#61BD4F"
+    List:
+      type: object
+      required:
+        - id
+        - boardId
+        - name
+        - category
+        - position
+        - status
+        - createdAt
+        - updatedAt
+      description: Kanban workflow column.
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: In Progress
+        category:
+          type: string
+          enum:
+            - TODO
+            - IN_PROGRESS
+            - DONE
+          example: IN_PROGRESS
+        position:
+          type: number
+          example: 2048
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateListRequest:
+      type: object
+      required:
+        - name
+        - category
+      properties:
+        name:
+          type: string
+          example: Code Review
+        category:
+          type: string
+          enum:
+            - TODO
+            - IN_PROGRESS
+            - DONE
+          example: IN_PROGRESS
+    UpdateListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: QA Testing
+        category:
+          type: string
+          enum:
+            - TODO
+            - IN_PROGRESS
+            - DONE
+    ReorderListRequest:
+      type: object
+      required:
+        - position
+      properties:
+        position:
+          type: number
+          description: New position coordinate calculated by client.
+          example: 3072
+    ArchiveListRequest:
+      type: object
+      properties:
+        moveCardsToListId:
+          type: string
+          format: uuid
+          description: Optional target List to transfer active cards before archiving.
+    BoardDashboard:
+      type: object
+      required:
+        - totalCards
+        - completedCards
+        - inProgressCards
+        - todoCards
+        - overdueCards
+        - completionRate
+      description: Aggregated statistical metrics of a project board.
+      properties:
+        totalCards:
+          type: integer
+          example: 24
+        completedCards:
+          type: integer
+          example: 10
+        inProgressCards:
+          type: integer
+          example: 8
+        todoCards:
+          type: integer
+          example: 6
+        overdueCards:
+          type: integer
+          example: 2
+        completionRate:
+          type: number
+          format: float
+          example: 41.67
+    BoardResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Board"
+    BoardListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Board"
+    BoardMemberResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/BoardMember"
+    BoardMemberListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoardMember"
+    BoardLabelResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/BoardLabel"
+    BoardLabelListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoardLabel"
+    ListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/List"
+    ListListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/List"
+    BoardDashboardResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/BoardDashboard"
