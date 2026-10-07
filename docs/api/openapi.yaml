@@ -268,7 +268,7 @@ paths:
       tags:
       - Authentication
       summary: Start Google OAuth login
-      description: Creates a one-time login token and PKCE verifier in Redis. The frontend stores loginToken in sessionStorage before opening authorizationUrl.
+      description: Uses the environment's fixed Google redirect URI and creates a one-time login token plus PKCE verifier in Redis. The frontend stores loginToken in sessionStorage before opening authorizationUrl.
       operationId: startGoogleOAuth
       security: []
       requestBody:
@@ -295,7 +295,7 @@ paths:
       x-scope: PROPOSED
       x-related-use-cases:
       - UC-AUTH-03
-  /auth/oauth/google:
+  /auth/oauth/google/callback:
     post:
       tags:
       - Authentication
@@ -308,7 +308,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OAuthExchangeRequest'
+              $ref: '#/components/schemas/GoogleOAuthCallbackRequest'
       responses:
         '200':
           description: Google authentication successful.
@@ -3662,17 +3662,24 @@ components:
         redirectUri:
           type: string
           format: uri
-          description: Exact redirect URI used when the login was started.
-    GoogleOAuthStartRequest:
+          description: Redirect URI used when starting the provider flow.
+    GoogleOAuthCallbackRequest:
       type: object
       required:
-      - redirectUri
+      - code
+      - state
       additionalProperties: false
       properties:
-        redirectUri:
+        code:
           type: string
-          format: uri
-          example: http://localhost:5173/oauth/callback/google
+          description: Authorization code returned by Google.
+        state:
+          type: string
+          description: One-time Google login token returned unchanged by Google.
+    GoogleOAuthStartRequest:
+      type: object
+      additionalProperties: false
+      description: Empty body. The backend reads the fixed redirect URI from its environment configuration.
     GoogleOAuthStartResponse:
       type: object
       required:

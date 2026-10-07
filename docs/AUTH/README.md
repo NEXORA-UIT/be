@@ -34,7 +34,7 @@ Phạm vi AUTH gồm đăng ký, đăng nhập email/mật khẩu, làm mới ph
 
 Đọc [thiết kế flow OAuth](oauth-login-design.md) trước, sau đó xem chi tiết chính sách tại [oauth-account-linking.md](oauth-account-linking.md). Quy tắc chính: tìm theo `(provider, providerAccountId)` trước. Với Google, lần đầu có thể tự liên kết vào `User` cùng email **chỉ khi Google xác nhận email đã được xác minh**; những lần sau nhận diện bằng Google `sub`. GitHub dùng chính sách liên kết chủ động riêng.
 
-Google OAuth bắt đầu tại `POST /auth/oauth/google/start`. Frontend giữ `loginToken` trong `sessionStorage`, mở `authorizationUrl`, so sánh callback `state` rồi gửi `code`, `state` và `redirectUri` tới `POST /auth/oauth/google`. Backend dùng state một lần trong Redis, PKCE và redirect allowlist trước khi cấp JWT Nexora. GitHub sẽ dùng cùng khung flow ở bước riêng.
+Google OAuth bắt đầu tại `POST /auth/oauth/google/start`. Frontend giữ `loginToken` trong `sessionStorage`, mở `authorizationUrl`, so sánh callback `state` rồi chỉ gửi `code` và `state` tới `POST /auth/oauth/google/callback`. Backend lấy redirect URI cố định từ file môi trường, dùng state một lần trong Redis và kiểm tra PKCE trước khi cấp JWT Nexora. GitHub sẽ dùng cùng khung flow ở bước riêng.
 
 ## Các bước triển khai để review riêng
 

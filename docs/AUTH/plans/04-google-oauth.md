@@ -4,7 +4,7 @@
 
 **Goal:** Cho phép người dùng đăng nhập Nexora bằng Google Authorization Code flow, có login token dùng một lần, PKCE, liên kết email đã xác minh và cấp JWT Nexora.
 
-**Architecture:** Frontend xin authorization URL từ backend, giữ login token trong `sessionStorage`, rồi mở trang Google. Sau callback, frontend gửi `code`, `state` và `redirectUri` về backend; backend kiểm tra Redis, đổi code bằng thư viện chính thức của Google, tìm hoặc tạo `OAuthAccount`, rồi dùng `issueTokens()` hiện có.
+**Architecture:** Frontend xin authorization URL từ backend, giữ login token trong `sessionStorage`, rồi mở trang Google. Sau callback, frontend gửi `code` và `state` về backend; backend lấy redirect URI cố định từ config môi trường, kiểm tra Redis, đổi code bằng thư viện chính thức của Google, tìm hoặc tạo `OAuthAccount`, rồi dùng `issueTokens()` hiện có.
 
 **Tech Stack:** Express 5, TypeScript, Zod, Prisma/PostgreSQL, Redis, `google-auth-library`, Node test runner, Swagger/OpenAPI.
 
@@ -17,7 +17,7 @@
 - OAuth query vẫn dùng tên chuẩn `state` và `code`; biến nội bộ dùng `loginToken` và `authorizationCode`.
 - Login token có TTL 600 giây, lưu hash trong Redis và chỉ dùng một lần.
 - Frontend giữ login token thô trong `sessionStorage` và tự so sánh với callback `state` trước khi gọi backend.
-- Chỉ chấp nhận redirect URI có trong `OAUTH_ALLOWED_REDIRECT_URIS`.
+- Redirect URI cố định theo môi trường qua `GOOGLE_REDIRECT_URI`; frontend không gửi giá trị này.
 - Google identity dùng `sub`; email chỉ dùng lần đầu và phải có `email_verified = true`.
 - Không lưu Google access token, refresh token hoặc ID token.
 - Chỉ xin quyền `openid email profile`; không yêu cầu offline access nên Google không cấp refresh token cho Nexora.
@@ -30,7 +30,7 @@
 
 - Callback có `state` hợp lệ trong Redis nhưng không khớp `sessionStorage`: frontend phải dừng trước khi gọi backend; manual guide phải chỉ rõ bước này.
 - Hai request dùng cùng login token: chỉ request đầu được đổi code; request sau trả `INVALID_OAUTH_STATE`.
-- `redirectUri` khác dù chỉ khác path hoặc dấu `/`: backend từ chối trước khi gọi Google.
+- Authorization URL và bước đổi code luôn dùng cùng `GOOGLE_REDIRECT_URI`.
 - Google trả ID token đúng chữ ký nhưng sai audience hoặc hết hạn: không tạo/liên kết user và không cấp JWT.
 - Hai lần đăng nhập Google đầu tiên chạy đồng thời với cùng email/sub: unique constraint và transaction không được tạo user hoặc liên kết trùng.
 
@@ -42,7 +42,8 @@
 
 - Modify: `package.json`
 - Modify: `pnpm-lock.yaml`
-- Modify: `.env.example`
+- Modify: `.env.local.example`
+- Modify: `.env.production.example`
 - Create: `src/config/oauth.config.ts`
 - Modify: `src/modules/auth/utils/auth.constants.ts`
 - Modify: `src/modules/auth/utils/auth.errors.ts`
@@ -53,15 +54,15 @@
 
 **Interfaces:**
 
-- Produces: `startGoogleLogin(redirectUri: string): Promise<{ authorizationUrl: string; loginToken: string }>`.
-- Produces: `consumeGoogleLogin(loginToken: string, redirectUri: string): Promise<{ codeVerifier: string }>`.
+- Produces: `startGoogleLogin(): Promise<{ authorizationUrl: string; loginToken: string }>`.
+- Produces: `consumeGoogleLogin(loginToken: string): Promise<{ codeVerifier: string }>`.
 - Produces: `googleOAuthClient.exchangeCode(input: { authorizationCode: string; redirectUri: string; codeVerifier: string }): Promise<GoogleProfile>` for Task 2.
 - `GoogleProfile` chỉ gồm `{ providerAccountId, email, emailVerified, fullName, avatarUrl }`.
 
-- [ ] **Step 1: Add the failing state lifecycle tests.** Assert that start returns an authorization URL containing `state`, stores only the token hash with TTL 600, records Google/redirect URI/PKCE verifier, rejects a redirect outside the allowlist, consumes once and rejects reuse or a different redirect URI.
+- [ ] **Step 1: Add the failing state lifecycle tests.** Assert that start returns an authorization URL containing `state` and the configured redirect URI, stores only the token hash with TTL 600, records Google/PKCE verifier, consumes once and rejects reuse.
 - [ ] **Step 2: Run `node .\node_modules\tsx\dist\cli.mjs --test tests\auth\google-oauth-state.integration.test.ts`.** Expected: FAIL because the OAuth state service does not exist.
-- [ ] **Step 3: Install `google-auth-library` and add config.** Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `OAUTH_ALLOWED_REDIRECT_URIS` and `OAUTH_STATE_TTL_SECONDS=600` to `.env.example`; keep real secrets out of Git and let the JWT server start before these optional values are configured.
-- [ ] **Step 4: Implement the Redis repository and state service.** Hash the login token, use one Redis key, save JSON with TTL and consume using `GETDEL`; compare provider and redirect URI after parsing.
+- [ ] **Step 3: Install `google-auth-library` and add config.** Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` and `OAUTH_STATE_TTL_SECONDS=600` to the environment examples; keep real secrets out of Git and let the JWT server start before these optional values are configured.
+- [ ] **Step 4: Implement the Redis repository and state service.** Hash the login token, use one Redis key, save JSON with TTL and consume using `GETDEL`; verify the provider after parsing.
 - [ ] **Step 5: Implement the Google client wrapper.** Use `OAuth2Client.generateCodeVerifierAsync()`, `generateAuthUrl()`, `getToken()` and `verifyIdToken()`; request only `openid email profile` and return a small `GoogleProfile` instead of raw provider tokens.
 - [ ] **Step 6: Run the focused test and `pnpm build`.** Expected: PASS.
 - [ ] **Step 7: Commit the task.** Commit message: `feat(auth): add Google OAuth login state`.
@@ -80,7 +81,7 @@
 **Interfaces:**
 
 - Consumes: `consumeGoogleLogin()` and `googleOAuthClient.exchangeCode()` from Task 1.
-- Produces: `loginWithGoogle(input: { code: string; state: string; redirectUri: string }, client?): Promise<AuthTokens>`.
+- Produces: `loginWithGoogle(input: { code: string; state: string }, client?): Promise<AuthTokens>`.
 
 - [ ] **Step 1: Add failing identity tests with a fake Google client and real PostgreSQL/Redis.** Cover existing provider ID, new verified email, automatic link to an existing password user, unverified email, locked user, reused state, wrong audience/provider error and concurrent duplicate creation.
 - [ ] **Step 2: Run `node .\node_modules\tsx\dist\cli.mjs --test tests\auth\google-oauth.integration.test.ts`.** Expected: FAIL because account resolution is missing.
@@ -107,13 +108,13 @@
 
 **Interfaces:**
 
-- `POST /api/v1/auth/oauth/google/start` consumes `{ redirectUri }` and returns `{ authorizationUrl, loginToken }`.
-- `POST /api/v1/auth/oauth/google` consumes `{ code, state, redirectUri }` and returns the existing auth token response.
+- `POST /api/v1/auth/oauth/google/start` consumes `{}` and returns `{ authorizationUrl, loginToken }`.
+- `POST /api/v1/auth/oauth/google/callback` consumes `{ code, state }` and returns the existing auth token response.
 
 - [ ] **Step 1: Add failing HTTP tests.** Assert success statuses and response shapes, strict body validation, centralized OAuth errors, no provider token leakage and no secret values in responses.
 - [ ] **Step 2: Run `node .\node_modules\tsx\dist\cli.mjs --test tests\auth\google-oauth-http.integration.test.ts`.** Expected: FAIL because the routes do not exist.
 - [ ] **Step 3: Add DTO, controller and routes.** Keep controller limited to reading validated input, calling the service and returning the standard success response.
-- [ ] **Step 4: Update OpenAPI and endpoint matrix.** Document both Google endpoints, required `code/state/redirectUri`, error codes and the frontend `sessionStorage` responsibility.
+- [ ] **Step 4: Update OpenAPI and endpoint matrix.** Document both Google endpoints, required `code/state`, environment-owned redirect URI, error codes and the frontend `sessionStorage` responsibility.
 - [ ] **Step 5: Write the Swagger manual guide.** Include Google Console setup, test user, exact local redirect URI, how to copy `code/state` when frontend is absent, RedisInsight checks and Prisma Studio checks.
 - [ ] **Step 6: Run focused HTTP tests, `pnpm test`, `pnpm build`, `pnpm format:check` and `git diff --check`.** Expected: all PASS.
 - [ ] **Step 7: Commit the task.** Commit message: `docs(auth): document Google OAuth API and testing`.

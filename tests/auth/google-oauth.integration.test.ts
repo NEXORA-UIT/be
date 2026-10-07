@@ -18,7 +18,6 @@ type GoogleProfile = {
 type LoginInput = {
   authorizationCode: string;
   loginToken: string;
-  redirectUri: string;
 };
 
 type FakeGoogleClient = {
@@ -42,25 +41,26 @@ const emails = {
 };
 const oauthKeys = new Set<string>();
 
-let startGoogleLogin: (
-  redirectUri: string,
-) => Promise<{ authorizationUrl: string; loginToken: string }>;
+let startGoogleLogin: () => Promise<{ authorizationUrl: string; loginToken: string }>;
 let loginWithGoogle: (
   input: LoginInput,
   client?: FakeGoogleClient,
 ) => Promise<{ accessToken: string; refreshToken: string; user: { id: string; email: string } }>;
+let oauthConfig: { googleRedirectUri: string | undefined };
 
 before(async () => {
   process.env.GOOGLE_CLIENT_ID = 'google-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
-  process.env.OAUTH_ALLOWED_REDIRECT_URIS = redirectUri;
+  process.env.GOOGLE_REDIRECT_URI = redirectUri;
   process.env.OAUTH_STATE_TTL_SECONDS = '600';
 
   const stateService =
     await import('../../src/modules/auth/services/google-oauth-state.service.js');
   const oauthService = await import('../../src/modules/auth/services/google-oauth.service.js');
+  const config = await import('../../src/config/oauth.config.js');
   startGoogleLogin = stateService.startGoogleLogin;
   loginWithGoogle = oauthService.loginWithGoogle;
+  oauthConfig = config.oauthConfig;
   await redis.connect();
 });
 
@@ -94,12 +94,11 @@ function googleProfile(email: string, overrides: Partial<GoogleProfile> = {}): G
 }
 
 async function loginInput() {
-  const started = await startGoogleLogin(redirectUri);
+  const started = await startGoogleLogin();
   oauthKeys.add(`oauth-login:${hashToken(started.loginToken)}`);
   return {
     authorizationCode: 'google-authorization-code',
     loginToken: started.loginToken,
-    redirectUri,
   };
 }
 
@@ -228,6 +227,25 @@ test('Google token verification failure becomes a centralized auth error', async
     assert.equal(error.code, 'GOOGLE_AUTHENTICATION_FAILED');
     return true;
   });
+});
+
+test('missing callback config preserves the one-time login token', async () => {
+  const input = await loginInput();
+  const key = `oauth-login:${hashToken(input.loginToken)}`;
+  oauthConfig.googleRedirectUri = undefined;
+
+  try {
+    await assert.rejects(
+      loginWithGoogle(input, fakeGoogleClient(googleProfile(emails.reuse))),
+      (error: any) => {
+        assert.equal(error.code, 'OAUTH_NOT_CONFIGURED');
+        return true;
+      },
+    );
+    assert.equal(await redis.exists(key), 1);
+  } finally {
+    oauthConfig.googleRedirectUri = redirectUri;
+  }
 });
 
 test('concurrent first Google logins create one user and one OAuth account', async () => {

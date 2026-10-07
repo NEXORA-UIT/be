@@ -4,17 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "pnpm dev:local",
+    "dev:local": "tsx watch --env-file=.env.local src/server.ts",
+    "dev:production": "pnpm build && node --env-file=.env.production dist/server.js",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node --env-file=.env.production dist/server.js",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "infra:up": "docker compose --env-file .env -f infrastructure/docker/compose.yaml up -d",
-    "db:validate": "prisma validate",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "test": "tsx --test tests/**/*.test.ts"
+    "infra:up": "pnpm infra:up:local",
+    "infra:up:local": "docker compose --env-file .env.local -f infrastructure/docker/compose.yaml up -d",
+    "db:validate": "node --env-file=.env.local ./node_modules/prisma/build/index.js validate",
+    "db:migrate": "node --env-file=.env.local ./node_modules/prisma/build/index.js migrate dev",
+    "db:generate": "node --env-file=.env.local ./node_modules/prisma/build/index.js generate",
+    "db:studio": "node --env-file=.env.local ./node_modules/prisma/build/index.js studio",
+    "test": "node --env-file-if-exists=.env.local ./node_modules/tsx/dist/cli.mjs --test tests/**/*.test.ts"
   },
   "engines": {
     "node": ">=22"

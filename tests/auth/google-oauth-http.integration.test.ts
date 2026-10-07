@@ -13,7 +13,7 @@ let baseUrl: string;
 before(async () => {
   process.env.GOOGLE_CLIENT_ID = 'google-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
-  process.env.OAUTH_ALLOWED_REDIRECT_URIS = redirectUri;
+  process.env.GOOGLE_REDIRECT_URI = redirectUri;
   process.env.OAUTH_STATE_TTL_SECONDS = '600';
 
   const { app } = await import('../../src/app.js');
@@ -42,7 +42,7 @@ async function post(path: string, body: unknown) {
 }
 
 test('Google OAuth start returns a login URL and one-time token without secrets', async () => {
-  const response = await post('/api/v1/auth/oauth/google/start', { redirectUri });
+  const response = await post('/api/v1/auth/oauth/google/start', {});
   const body = await response.json();
 
   assert.equal(response.status, 200);
@@ -61,12 +61,10 @@ test('Google OAuth start returns a login URL and one-time token without secrets'
 
 test('Google OAuth endpoints reject missing or extra body fields', async () => {
   const extraFieldResponse = await post('/api/v1/auth/oauth/google/start', {
-    redirectUri,
     extra: true,
   });
-  const missingFieldResponse = await post('/api/v1/auth/oauth/google', {
+  const missingFieldResponse = await post('/api/v1/auth/oauth/google/callback', {
     code: 'authorization-code',
-    state: 'login-token',
   });
 
   assert.equal(extraFieldResponse.status, 400);
@@ -76,10 +74,9 @@ test('Google OAuth endpoints reject missing or extra body fields', async () => {
 });
 
 test('Google OAuth callback uses centralized errors for an invalid login token', async () => {
-  const response = await post('/api/v1/auth/oauth/google', {
+  const response = await post('/api/v1/auth/oauth/google/callback', {
     code: 'authorization-code',
     state: 'invalid-login-token',
-    redirectUri,
   });
   const body = await response.json();
 

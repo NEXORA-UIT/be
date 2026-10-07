@@ -29,24 +29,24 @@ http://localhost:5173/oauth/callback/google
 
 Scheme, port, path và dấu `/` cuối URL phải giống hoàn toàn.
 
-## 3. Cấu hình backend
+## 3. Cấu hình backend local
 
-Thêm vào `.env`:
+Thêm vào `.env.local`:
 
 ```dotenv
 GOOGLE_CLIENT_ID=client-id-lay-tu-google-cloud
 GOOGLE_CLIENT_SECRET=client-secret-lay-tu-google-cloud
-OAUTH_ALLOWED_REDIRECT_URIS=http://localhost:5173/oauth/callback/google
+GOOGLE_REDIRECT_URI=http://localhost:5173/oauth/callback/google
 OAUTH_STATE_TTL_SECONDS=600
 ```
 
-Không đưa giá trị thật vào `.env.example` hoặc commit lên Git.
+Không đưa giá trị thật vào `.env.local.example` hoặc commit lên Git. Production dùng `.env.production` với callback URL production riêng.
 
 Khởi động infrastructure và backend:
 
 ```powershell
-pnpm infra:up
-pnpm dev
+pnpm infra:up:local
+pnpm dev:local
 ```
 
 Mở Swagger:
@@ -63,12 +63,10 @@ Trong Swagger, gọi:
 POST /api/v1/auth/oauth/google/start
 ```
 
-Body:
+Body rỗng vì backend lấy redirect URI cố định từ `.env.local`:
 
 ```json
-{
-  "redirectUri": "http://localhost:5173/oauth/callback/google"
-}
+{}
 ```
 
 Response thành công có dạng:
@@ -97,7 +95,7 @@ Kết quả đúng:
 
 - Tên key chứa hash, không chứa login token thô.
 - TTL còn tối đa 600 giây.
-- Value có `provider`, `redirectUri` và `codeVerifier`.
+- Value có `provider` và `codeVerifier`.
 
 ## 5. Bước 2 — Đăng nhập Google khi chưa có frontend
 
@@ -126,7 +124,7 @@ So sánh `state` với `loginToken` nhận ở Bước 1. Hai giá trị phải 
 Trong Swagger, gọi:
 
 ```http
-POST /api/v1/auth/oauth/google
+POST /api/v1/auth/oauth/google/callback
 ```
 
 Body:
@@ -134,8 +132,7 @@ Body:
 ```json
 {
   "code": "code-lay-tu-callback-url",
-  "state": "state-lay-tu-callback-url",
-  "redirectUri": "http://localhost:5173/oauth/callback/google"
+  "state": "state-lay-tu-callback-url"
 }
 ```
 
@@ -168,7 +165,7 @@ Kết quả đúng: API trả đúng user vừa đăng nhập bằng Google.
 Mở Prisma Studio:
 
 ```powershell
-pnpm prisma studio
+pnpm db:studio
 ```
 
 Kiểm tra:
@@ -192,14 +189,13 @@ Key `oauth-login:*` của lần đăng nhập vừa dùng phải biến mất sa
 
 ## 9. Test các trường hợp lỗi
 
-| Cách test                                           | Kết quả mong đợi                 |
-| --------------------------------------------------- | -------------------------------- |
-| Dùng lại cùng `state`                               | `400 INVALID_OAUTH_STATE`        |
-| Sửa `state`                                         | `400 INVALID_OAUTH_STATE`        |
-| Đổi `redirectUri`                                   | `400 INVALID_OAUTH_STATE`        |
-| Gửi redirect URI ngoài allowlist vào endpoint start | `400 INVALID_OAUTH_REDIRECT_URI` |
-| Google email chưa xác minh                          | `401 OAUTH_EMAIL_NOT_VERIFIED`   |
-| User Nexora bị khóa                                 | `403 ACCOUNT_LOCKED`             |
-| Thiếu Google client ID hoặc secret                  | `503 OAUTH_NOT_CONFIGURED`       |
+| Cách test                                        | Kết quả mong đợi               |
+| ------------------------------------------------ | ------------------------------ |
+| Dùng lại cùng `state`                            | `400 INVALID_OAUTH_STATE`      |
+| Sửa `state`                                      | `400 INVALID_OAUTH_STATE`      |
+| Gửi thêm `redirectUri` trong body                | `400 VALIDATION_ERROR`         |
+| Google email chưa xác minh                       | `401 OAUTH_EMAIL_NOT_VERIFIED` |
+| User Nexora bị khóa                              | `403 ACCOUNT_LOCKED`           |
+| Thiếu Google client ID, secret hoặc redirect URI | `503 OAUTH_NOT_CONFIGURED`     |
 
 Nếu code đã hết hạn hoặc đã dùng, hãy bắt đầu lại từ Bước 1.

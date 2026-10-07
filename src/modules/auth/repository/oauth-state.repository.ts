@@ -3,7 +3,6 @@ import { AUTH_CACHE_KEY } from '../utils/auth.constants.js';
 
 export type OAuthLoginState = {
   provider: 'GOOGLE';
-  redirectUri: string;
   codeVerifier: string;
 };
 

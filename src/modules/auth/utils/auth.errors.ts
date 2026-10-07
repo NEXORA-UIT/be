@@ -43,9 +43,6 @@ export const authErrors = {
   oauthNotConfigured() {
     return new AppError(503, 'OAUTH_NOT_CONFIGURED', 'Google OAuth chưa được cấu hình');
   },
-  invalidOAuthRedirectUri() {
-    return new AppError(400, 'INVALID_OAUTH_REDIRECT_URI', 'OAuth redirect URI không hợp lệ');
-  },
   invalidOAuthState() {
     return new AppError(
       400,

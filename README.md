@@ -119,10 +119,16 @@ Cài đặt các gói phụ thuộc:
 pnpm install
 ```
 
-Khởi chạy máy chủ ở chế độ phát triển (Hot reload):
+Khởi chạy local với hot reload và `.env.local`:
 
 ```sh
-pnpm dev
+pnpm dev:local
+```
+
+Build rồi chạy bằng `.env.production`:
+
+```sh
+pnpm dev:production
 ```
 
 Sau khi khởi động, truy cập:
@@ -142,37 +148,37 @@ Biên dịch dự án sang mã nguồn JavaScript:
 pnpm build
 ```
 
-Khởi chạy bản biên dịch trong thư mục `dist/`:
+Khởi chạy bản đã build trong `dist/` bằng `.env.production`:
 
 ```sh
 pnpm start
 ```
 
-_Lưu ý: Biến môi trường `PORT` cho phép thay đổi cổng lắng nghe của máy chủ (mặc định là `3000`). Ở giai đoạn hiện tại, dự án không yêu cầu kết nối cơ sở dữ liệu hay khóa API bên ngoài để chạy._
+`PORT` cho phép thay đổi cổng lắng nghe, mặc định là `3000`. `.env.local` và `.env.production` chứa secret nên không được commit.
 
 ### 5.3. PostgreSQL và Redis local bằng Docker
 
-Docker Compose cho hai dịch vụ nằm tại `infrastructure/docker/compose.yaml`. Backend hiện vẫn chạy trên host bằng `pnpm dev` và chưa kết nối hai dịch vụ này. Cần Docker Desktop hoặc Docker daemon đang chạy.
+Docker Compose cho PostgreSQL và Redis local nằm tại `infrastructure/docker/compose.yaml`. Backend chạy trên host bằng `pnpm dev:local`. Cần Docker Desktop hoặc Docker daemon đang chạy.
 
 Trong PowerShell, tại gốc repo:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.local.example .env.local
 ```
 
-Sửa `POSTGRES_PASSWORD` trong `.env` thành mật khẩu local của bạn. File `.env` đã được Git bỏ qua. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
+Sửa các placeholder trong `.env.local`. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
 
 ```powershell
-docker compose --env-file .env -f infrastructure/docker/compose.yaml up -d
-docker compose --env-file .env -f infrastructure/docker/compose.yaml ps
-docker compose --env-file .env -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-docker compose --env-file .env -f infrastructure/docker/compose.yaml exec redis redis-cli ping
+pnpm infra:up:local
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml ps
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec redis redis-cli ping
 ```
 
 `ps` cần hiển thị cả `postgres` và `redis` ở trạng thái `healthy`; lệnh Redis trả `PONG`. Dừng các container khi không dùng:
 
 ```powershell
-docker compose --env-file .env -f infrastructure/docker/compose.yaml down
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml down
 ```
 
 `down` giữ hai named volumes nên dữ liệu còn sau khi khởi động lại. Chỉ dùng `down --volumes` khi muốn xóa dữ liệu local.

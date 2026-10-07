@@ -7,18 +7,13 @@ import { hashToken } from '../../src/modules/auth/utils/token.util.js';
 const redirectUri = 'http://localhost:5173/oauth/callback/google';
 const oauthKeys = new Set<string>();
 
-let startGoogleLogin: (
-  redirectUri: string,
-) => Promise<{ authorizationUrl: string; loginToken: string }>;
-let consumeGoogleLogin: (
-  loginToken: string,
-  redirectUri: string,
-) => Promise<{ codeVerifier: string }>;
+let startGoogleLogin: () => Promise<{ authorizationUrl: string; loginToken: string }>;
+let consumeGoogleLogin: (loginToken: string) => Promise<{ codeVerifier: string }>;
 
 before(async () => {
   process.env.GOOGLE_CLIENT_ID = 'google-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'google-client-secret';
-  process.env.OAUTH_ALLOWED_REDIRECT_URIS = redirectUri;
+  process.env.GOOGLE_REDIRECT_URI = redirectUri;
   process.env.OAUTH_STATE_TTL_SECONDS = '600';
 
   const service = await import('../../src/modules/auth/services/google-oauth-state.service.js');
@@ -39,7 +34,7 @@ function keyFor(loginToken: string) {
 }
 
 test('Google login stores a hashed one-time token with PKCE for 600 seconds', async () => {
-  const result = await startGoogleLogin(redirectUri);
+  const result = await startGoogleLogin();
   const authorizationUrl = new URL(result.authorizationUrl);
   const key = keyFor(result.loginToken);
   const rawState = await redis.get(key);
@@ -52,48 +47,20 @@ test('Google login stores a hashed one-time token with PKCE for 600 seconds', as
 
   assert.ok(rawState);
   assert.equal(rawState.includes(result.loginToken), false);
-  assert.deepEqual(Object.keys(JSON.parse(rawState)).sort(), [
-    'codeVerifier',
-    'provider',
-    'redirectUri',
-  ]);
+  assert.deepEqual(Object.keys(JSON.parse(rawState)).sort(), ['codeVerifier', 'provider']);
 
   const ttl = await redis.ttl(key);
   assert.ok(ttl > 0);
   assert.ok(ttl <= 600);
 });
 
-test('Google login rejects a redirect URI outside the allowlist', async () => {
-  await assert.rejects(startGoogleLogin('http://attacker.example/callback'), (error: any) => {
-    assert.equal(error.code, 'INVALID_OAUTH_REDIRECT_URI');
-    return true;
-  });
-});
-
 test('Google login token can be consumed only once', async () => {
-  const result = await startGoogleLogin(redirectUri);
+  const result = await startGoogleLogin();
   keyFor(result.loginToken);
 
-  const state = await consumeGoogleLogin(result.loginToken, redirectUri);
+  const state = await consumeGoogleLogin(result.loginToken);
   assert.ok(state.codeVerifier);
-  await assert.rejects(consumeGoogleLogin(result.loginToken, redirectUri), (error: any) => {
-    assert.equal(error.code, 'INVALID_OAUTH_STATE');
-    return true;
-  });
-});
-
-test('a different redirect URI invalidates the Google login token', async () => {
-  const result = await startGoogleLogin(redirectUri);
-  keyFor(result.loginToken);
-
-  await assert.rejects(
-    consumeGoogleLogin(result.loginToken, 'http://localhost:5173/wrong-callback'),
-    (error: any) => {
-      assert.equal(error.code, 'INVALID_OAUTH_STATE');
-      return true;
-    },
-  );
-  await assert.rejects(consumeGoogleLogin(result.loginToken, redirectUri), (error: any) => {
+  await assert.rejects(consumeGoogleLogin(result.loginToken), (error: any) => {
     assert.equal(error.code, 'INVALID_OAUTH_STATE');
     return true;
   });

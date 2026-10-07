@@ -14,4 +14,8 @@ const validateStartBody = validateBody(googleOAuthStartSchema);
 const validateCallbackBody = validateBody(googleOAuthCallbackSchema);
 
 googleOAuthRouter.post(AUTH_ROUTE.googleOAuthStart, validateStartBody, startGoogleOAuthController);
-googleOAuthRouter.post('/', validateCallbackBody, googleOAuthCallbackController);
+googleOAuthRouter.post(
+  AUTH_ROUTE.googleOAuthCallback,
+  validateCallbackBody,
+  googleOAuthCallbackController,
+);

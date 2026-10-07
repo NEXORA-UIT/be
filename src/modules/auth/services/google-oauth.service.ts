@@ -3,7 +3,7 @@ import { UserStatus } from '@prisma/client';
 import { googleOAuthClient } from '../../../infrastructure/oauth/google.client.js';
 import { oauthAccountRepository } from '../repository/oauth-account.repository.js';
 import { authErrors } from '../utils/auth.errors.js';
-import { consumeGoogleLogin } from './google-oauth-state.service.js';
+import { consumeGoogleLogin, getGoogleRedirectUri } from './google-oauth-state.service.js';
 import { issueTokens } from './token.service.js';
 
 type GoogleOAuthClient = Pick<typeof googleOAuthClient, 'exchangeCode'>;
@@ -11,20 +11,20 @@ type GoogleOAuthClient = Pick<typeof googleOAuthClient, 'exchangeCode'>;
 type GoogleLoginInput = {
   authorizationCode: string;
   loginToken: string;
-  redirectUri: string;
 };
 
 export async function loginWithGoogle(
   input: GoogleLoginInput,
   client: GoogleOAuthClient = googleOAuthClient,
 ) {
-  const loginState = await consumeGoogleLogin(input.loginToken, input.redirectUri);
+  const redirectUri = getGoogleRedirectUri();
+  const loginState = await consumeGoogleLogin(input.loginToken);
 
   let profile;
   try {
     profile = await client.exchangeCode({
       authorizationCode: input.authorizationCode,
-      redirectUri: input.redirectUri,
+      redirectUri,
       codeVerifier: loginState.codeVerifier,
     });
   } catch {

@@ -1,6 +1,6 @@
-# Thiết kế đăng nhập Google và GitHub
+# Thiết kế đăng nhập OAuth
 
-**Trạng thái:** chờ review trước khi viết plan triển khai chi tiết.
+**Trạng thái:** Google đã triển khai; GitHub là bước tiếp theo.
 
 Tài liệu này giải thích OAuth bằng từ đơn giản trước khi đi vào code. Google và GitHub chỉ giúp Nexora xác nhận **người đang đăng nhập là ai**. Sau đó Nexora vẫn tự cấp access token và refresh token của mình.
 
@@ -49,21 +49,18 @@ sequenceDiagram
     BE-->>FE: Trả JWT của Nexora
 ```
 
-## 3. API dự kiến
+## 3. API Google hiện tại
 
 ### Bắt đầu đăng nhập
 
 ```http
 POST /api/v1/auth/oauth/google/start
-POST /api/v1/auth/oauth/github/start
 ```
 
 Request:
 
 ```json
-{
-  "redirectUri": "http://localhost:5173/oauth/callback"
-}
+{}
 ```
 
 Response:
@@ -78,15 +75,14 @@ Response:
 }
 ```
 
-Backend tạo login token, lưu bản hash trong Redis rồi đặt token thô vào tham số OAuth `state` của URL. Redis cũng giữ provider, redirect URI và mã PKCE trong tối đa 10 phút.
+Backend lấy redirect URI cố định từ file môi trường, tạo login token, lưu bản hash trong Redis rồi đặt token thô vào tham số OAuth `state` của URL. Redis giữ provider và mã PKCE trong tối đa 10 phút.
 
-Frontend giữ `loginToken` trong `sessionStorage` của tab đã bắt đầu đăng nhập. Khi Google/GitHub trả về, frontend phải so sánh `state` trên callback URL với token trong `sessionStorage`. Không khớp thì dừng ngay và không gọi backend.
+Frontend giữ `loginToken` trong `sessionStorage` của tab đã bắt đầu đăng nhập. Khi Google trả về, frontend phải so sánh `state` trên callback URL với token trong `sessionStorage`. Không khớp thì dừng ngay và không gọi backend.
 
 ### Hoàn tất đăng nhập
 
 ```http
-POST /api/v1/auth/oauth/google
-POST /api/v1/auth/oauth/github
+POST /api/v1/auth/oauth/google/callback
 ```
 
 Frontend đọc `code` và `state` trên callback URL rồi gửi:
@@ -94,12 +90,13 @@ Frontend đọc `code` và `state` trên callback URL rồi gửi:
 ```json
 {
   "code": "authorization-code",
-  "state": "login-token",
-  "redirectUri": "http://localhost:5173/oauth/callback"
+  "state": "login-token"
 }
 ```
 
 Backend kiểm tra login token trước. Token sai, hết hạn hoặc đã dùng đều bị từ chối. Sau đó backend đổi authorization code với đúng provider và cấp access/refresh token Nexora như login bằng mật khẩu.
+
+GitHub chưa dùng chung request body này. Khi triển khai GitHub, backend sẽ có config, endpoint và DTO riêng để thay đổi một provider không làm sai contract của provider còn lại.
 
 ## 4. Redis dùng để làm gì?
 
@@ -114,7 +111,6 @@ Giá trị minh họa:
 ```json
 {
   "provider": "GOOGLE",
-  "redirectUri": "http://localhost:5173/oauth/callback",
   "codeVerifier": "pkce-secret"
 }
 ```
@@ -125,8 +121,7 @@ Quy tắc:
 - Chỉ dùng một lần bằng thao tác đọc rồi xóa.
 - Frontend phải giữ token trong `sessionStorage` để gắn flow với đúng browser/tab đã bắt đầu đăng nhập.
 - Google token không dùng được cho GitHub.
-- Redirect URI gửi lúc hoàn tất phải giống redirect URI lúc bắt đầu.
-- Chỉ chấp nhận redirect URI nằm trong danh sách cấu hình của Nexora.
+- Redirect URI không nhận từ request; backend lấy một giá trị cố định theo môi trường.
 
 PKCE có thể hiểu là một chìa khóa phụ. Backend gửi ổ khóa cho provider lúc bắt đầu và giữ chìa khóa trong Redis. Khi đổi code, backend phải đưa đúng chìa khóa.
 
@@ -134,7 +129,7 @@ Hai lớp kiểm tra có nhiệm vụ khác nhau:
 
 ```text
 Frontend sessionStorage: đúng browser/tab đã bắt đầu đăng nhập chưa?
-Backend Redis: token có tồn tại, đúng provider, đúng redirect URI và chưa dùng chưa?
+Backend Redis: token có tồn tại, đúng provider và chưa dùng chưa?
 ```
 
 ## 5. Nhận diện tài khoản
@@ -246,7 +241,7 @@ Không được log:
 Automated test dùng provider client giả để không gọi Google/GitHub thật:
 
 - Login token hợp lệ, sai, hết hạn và dùng lại.
-- Redirect URI ngoài allowlist.
+- Redirect URI trong authorization URL khớp config môi trường.
 - Provider ID cũ đăng nhập đúng user dù email đã đổi.
 - Google tự liên kết email đã xác minh.
 - Google không liên kết email chưa xác minh.

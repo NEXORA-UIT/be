@@ -1,5 +1,3 @@
-import 'dotenv/config';
-
 let databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {

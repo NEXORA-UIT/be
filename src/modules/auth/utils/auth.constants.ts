@@ -22,6 +22,7 @@ export const AUTH_ROUTE = {
   resetPassword: '/reset-password',
   googleOAuth: '/oauth/google',
   googleOAuthStart: '/start',
+  googleOAuthCallback: '/callback',
 } as const;
 
 export const AUTH_CACHE_KEY = {
