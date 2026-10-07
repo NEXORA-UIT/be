@@ -17,7 +17,7 @@ Tài liệu này lưu lại kết quả đọc context và rà soát ban đầu 
 
 ## Nguồn và cách sử dụng
 
-1. **SRS Đồ án 1.pdf**, bản 128 trang được cung cấp trong phiên làm việc, là căn cứ nghiệp vụ. Đường dẫn nguồn trên máy: `D:/.Learn/Uni/HK5-UIT/DO-AN-1/SRS Đồ án 1.pdf`.
+1. **SRS Đồ án 1.pdf**, bản 128 trang được cung cấp ngoài repository, là căn cứ nghiệp vụ. Tệp nguồn không được sao chép vào repository.
 2. **Master implementation prompt** do người dùng cung cấp là tài liệu định hướng triển khai, có một số điểm lệch với SRS được ghi trong [initial-audit.md](initial-audit.md). Không sao chép nguyên các quy tắc sai vào thiết kế.
 3. **Mã nguồn thực tế** là căn cứ xác định chức năng đã được viết; tài liệu API hoặc thư mục giữ chỗ không chứng minh chức năng đã chạy.
 

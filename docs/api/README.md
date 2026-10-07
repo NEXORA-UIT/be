@@ -58,5 +58,5 @@ docs/api/
 
 ## 4. Danh mục tài liệu tham chiếu
 
-- Chi tiết quy ước API & Mã lỗi: Xem [conventions.md](file:///d:/Document/TÀI%20LIỆU%20ĐỒ%20ÁN%201/Nexora/Backend/be/docs/api/conventions.md).
-- Chi tiết bảng ma trận Endpoint: Xem [endpoint-matrix.md](file:///d:/Document/TÀI%20LIỆU%20ĐỒ%20ÁN%201/Nexora/Backend/be/docs/api/endpoint-matrix.md).
+- Chi tiết quy ước API & Mã lỗi: Xem [conventions.md](conventions.md).
+- Chi tiết bảng ma trận Endpoint: Xem [endpoint-matrix.md](endpoint-matrix.md).
