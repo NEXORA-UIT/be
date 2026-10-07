@@ -12,7 +12,7 @@ export const invitationRepository = {
   },
   findPendingByWorkspaceAndEmail(workspaceId: string, email: string) {
     return prisma.workspaceInvitation.findFirst({
-      where: { workspaceId, email, status: 'PENDING' },
+      where: { workspaceId, email, status: 'PENDING', expiresAt: { gt: new Date() } },
     });
   },
   findById(id: string) {
@@ -20,7 +20,7 @@ export const invitationRepository = {
   },
   listPending(workspaceId: string) {
     return prisma.workspaceInvitation.findMany({
-      where: { workspaceId, status: 'PENDING' },
+      where: { workspaceId, status: 'PENDING', expiresAt: { gt: new Date() } },
       select: {
         id: true,
         workspaceId: true,
@@ -38,8 +38,8 @@ export const invitationRepository = {
     return prisma.workspaceInvitation.findUnique({ where: { tokenHash } });
   },
   markCanceled(id: string) {
-    return prisma.workspaceInvitation.update({
-      where: { id },
+    return prisma.workspaceInvitation.updateMany({
+      where: { id, status: 'PENDING' },
       data: { status: 'CANCELED', canceledAt: new Date() },
     });
   },

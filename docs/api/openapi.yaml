@@ -630,9 +630,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/WorkspaceInvitationResponse'
+                $ref: '#/components/schemas/WorkspaceInvitationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -664,7 +662,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EmptySuccessResponse'
+                $ref: '#/components/schemas/WorkspaceInvitationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -695,7 +693,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EmptySuccessResponse'
+                $ref: '#/components/schemas/WorkspaceInvitationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -732,7 +730,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EmptySuccessResponse'
+                $ref: '#/components/schemas/WorkspaceInvitationResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5343,6 +5341,19 @@ components:
           example: true
         data:
           $ref: '#/components/schemas/WorkspaceInvitation'
+    WorkspaceInvitationListResponse:
+      type: object
+      required:
+      - success
+      - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceInvitation'
     WorkspaceMemberListResponse:
       type: object
       required:

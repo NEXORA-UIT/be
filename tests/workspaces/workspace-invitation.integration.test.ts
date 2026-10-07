@@ -11,10 +11,17 @@ import {
   rejectWorkspaceInvitation,
   resendWorkspaceInvitation,
 } from '../../src/modules/workspaces/services/invitation.service.js';
+import { invitationRepository } from '../../src/modules/workspaces/repository/invitation.repository.js';
 
 describe('Workspace invitation flow', () => {
-  before(async () => redis.connect());
+  const previousInviteUrl = process.env.WORKSPACE_INVITE_URL;
+  before(async () => {
+    process.env.WORKSPACE_INVITE_URL = 'http://localhost:5173/workspace-invitations';
+    await redis.connect();
+  });
   after(async () => {
+    if (previousInviteUrl === undefined) delete process.env.WORKSPACE_INVITE_URL;
+    else process.env.WORKSPACE_INVITE_URL = previousInviteUrl;
     await redis.quit();
     await prisma.$disconnect();
   });
@@ -49,6 +56,7 @@ describe('Workspace invitation flow', () => {
     assert.equal(invitation.status, 'PENDING');
     assert.equal(sent.length, 1);
     assert.equal(sent[0]?.to, 'member@example.com');
+    assert.ok(sent[0]?.text.includes('http://localhost:5173/workspace-invitations?token='));
     assert.ok(invitation.expiresAt.getTime() > Date.now() + 6 * 24 * 60 * 60 * 1000);
 
     await prisma.workspace.delete({ where: { id: workspace.id } });
@@ -127,13 +135,249 @@ describe('Workspace invitation flow', () => {
     });
     const resent = await resendWorkspaceInvitation(owner.id, pending.id, deliver);
     assert.equal(resent.status, 'PENDING');
+    assert.equal(resent.id, pending.id);
+    await assert.rejects(
+      () => acceptWorkspaceInvitation(member.id, tokenFromMessage(sent[1]!.text)),
+      /không hợp lệ/,
+    );
     await cancelWorkspaceInvitation(owner.id, workspace.id, resent.id);
     assert.equal(
       await prisma.workspaceInvitation.count({
         where: { workspaceId: workspace.id, status: 'CANCELED' },
       }),
-      2,
+      1,
     );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('allows inviting the same email after its previous invitation expires', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `expiry-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Expiry Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    const email = `expiry-member-${randomUUID()}@test.local`;
+    const first = await inviteWorkspaceMember(owner.id, workspace.id, email, async () => {});
+    await prisma.workspaceInvitation.update({
+      where: { id: first.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+
+    const second = await inviteWorkspaceMember(owner.id, workspace.id, email, async () => {});
+    assert.equal(second.status, 'PENDING');
+    assert.notEqual(second.id, first.id);
+    assert.equal((await invitationRepository.findById(first.id))?.status, 'EXPIRED');
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.delete({ where: { id: owner.id } });
+  });
+
+  it('preserves the old invitation if resend delivery fails', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `resend-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `resend-member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Resend Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    let originalToken = '';
+    const invitation = await inviteWorkspaceMember(
+      owner.id,
+      workspace.id,
+      member.email,
+      async (message) => {
+        originalToken = tokenFromMessage(message.text);
+      },
+    );
+
+    await assert.rejects(
+      () =>
+        resendWorkspaceInvitation(owner.id, invitation.id, async () => {
+          throw new Error('Mail failed');
+        }),
+      /Mail failed/,
+    );
+    assert.equal((await invitationRepository.findById(invitation.id))?.status, 'PENDING');
+    assert.equal((await acceptWorkspaceInvitation(member.id, originalToken)).status, 'ACCEPTED');
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('cannot cancel an invitation after it has been accepted', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `cancel-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `cancel-member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Cancel Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    let token = '';
+    const invitation = await inviteWorkspaceMember(
+      owner.id,
+      workspace.id,
+      member.email,
+      async (message) => {
+        token = tokenFromMessage(message.text);
+      },
+    );
+    await acceptWorkspaceInvitation(member.id, token);
+
+    assert.equal((await invitationRepository.markCanceled(invitation.id)).count, 0);
+    assert.equal((await invitationRepository.findById(invitation.id))?.status, 'ACCEPTED');
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('does not leave a pending invitation when Redis fails during creation', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `redis-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Redis Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    const email = `redis-member-${randomUUID()}@test.local`;
+    await redis.disconnect();
+    try {
+      await assert.rejects(() =>
+        inviteWorkspaceMember(owner.id, workspace.id, email, async () => {}),
+      );
+    } finally {
+      await redis.connect();
+    }
+    assert.equal(
+      await prisma.workspaceInvitation.count({
+        where: { workspaceId: workspace.id, email, status: 'PENDING' },
+      }),
+      0,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.delete({ where: { id: owner.id } });
+  });
+
+  it('permits only one pending invitation per workspace and email in the database', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `unique-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Unique Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    const email = `unique-member-${randomUUID()}@test.local`;
+    const create = () =>
+      prisma.workspaceInvitation.create({
+        data: {
+          workspaceId: workspace.id,
+          inviterId: owner.id,
+          email,
+          tokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 60000),
+        },
+      });
+    const results = await Promise.allSettled([create(), create()]);
+    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+    assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.delete({ where: { id: owner.id } });
+  });
+
+  it('requires a dedicated invitation URL before creating an invitation', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `config-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Config Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    const configuredUrl = process.env.WORKSPACE_INVITE_URL;
+    delete process.env.WORKSPACE_INVITE_URL;
+    try {
+      await assert.rejects(
+        () =>
+          inviteWorkspaceMember(
+            owner.id,
+            workspace.id,
+            `config-member-${randomUUID()}@test.local`,
+            async () => {},
+          ),
+        (error: any) =>
+          error.status === 503 && error.code === 'WORKSPACE_INVITE_URL_NOT_CONFIGURED',
+      );
+    } finally {
+      process.env.WORKSPACE_INVITE_URL = configuredUrl;
+    }
+    assert.equal(
+      await prisma.workspaceInvitation.count({ where: { workspaceId: workspace.id } }),
+      0,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.delete({ where: { id: owner.id } });
+  });
+
+  it('keeps invitation status and membership consistent when accept races cancel', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `race-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `race-member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Race Workspace',
+        memberships: { create: { userId: owner.id, role: 'OWNER' } },
+      },
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      let token = '';
+      const invitation = await inviteWorkspaceMember(
+        owner.id,
+        workspace.id,
+        member.email,
+        async (message) => {
+          token = tokenFromMessage(message.text);
+        },
+      );
+      const outcomes = await Promise.allSettled([
+        acceptWorkspaceInvitation(member.id, token),
+        cancelWorkspaceInvitation(owner.id, workspace.id, invitation.id),
+      ]);
+      assert.equal(outcomes.filter((outcome) => outcome.status === 'fulfilled').length, 1);
+      const result = await invitationRepository.findById(invitation.id);
+      const membership = await prisma.workspaceMembership.findUnique({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: member.id } },
+      });
+      assert.equal(result?.status === 'ACCEPTED', Boolean(membership));
+      if (membership) {
+        await prisma.workspaceMembership.delete({ where: { id: membership.id } });
+      }
+    }
 
     await prisma.workspace.delete({ where: { id: workspace.id } });
     await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
