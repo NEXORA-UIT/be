@@ -76,7 +76,13 @@ describe('Workspace and authorization core', () => {
     });
     const workspace = await createWorkspace(owner.id, { name: 'Leave Workspace' });
     const board = await prisma.board.create({
-      data: { workspaceId: workspace.id, name: 'Team Board' },
+      data: {
+        workspaceId: workspace.id,
+        name: 'Team Board',
+        memberships: {
+          create: { userId: owner.id, role: 'PM', appointedBy: owner.id },
+        },
+      },
     });
     await prisma.workspaceMembership.create({
       data: { workspaceId: workspace.id, userId: member.id, role: 'MEMBER' },
@@ -84,6 +90,19 @@ describe('Workspace and authorization core', () => {
     await prisma.boardMembership.create({
       data: { boardId: board.id, userId: member.id, role: 'MEMBER' },
     });
+    const list = await prisma.list.create({
+      data: { boardId: board.id, name: 'To Do', statusGroup: 'TODO', position: 0 },
+    });
+    const card = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: list.id,
+        cardKey: 'LEAVE-001',
+        title: 'Preserve assignment history',
+      },
+    });
+    await prisma.cardAssignment.create({ data: { cardId: card.id, userId: member.id } });
+    const cardBeforeLeave = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
 
     await leaveWorkspace(member.id, workspace.id);
     assert.equal(
@@ -97,6 +116,20 @@ describe('Workspace and authorization core', () => {
         where: { boardId_userId: { boardId: board.id, userId: member.id } },
       }),
       null,
+    );
+    assert.equal(await prisma.cardAssignment.count({ where: { cardId: card.id } }), 0);
+    const cardAfterLeave = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+    assert.ok(cardAfterLeave.updatedAt > cardBeforeLeave.updatedAt);
+    assert.equal(
+      await prisma.activityLog.count({
+        where: {
+          cardId: card.id,
+          actorId: member.id,
+          action: 'CARD_UNASSIGNED',
+          details: { path: ['reason'], equals: 'MEMBERSHIP_REVOKED' },
+        },
+      }),
+      1,
     );
 
     await prisma.workspace.delete({ where: { id: workspace.id } });

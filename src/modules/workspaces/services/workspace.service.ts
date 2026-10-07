@@ -9,6 +9,7 @@ import type {
   WorkspacePaginationQuery,
 } from '../dto/workspace.schema.js';
 import { workspaceRepository } from '../repository/workspace.repository.js';
+import { removeCardAssignments } from '../../cards/child-resources/assignment-cleanup.js';
 
 const SERIALIZABLE_RETRY_LIMIT = 3;
 
@@ -63,6 +64,7 @@ async function removeMemberFromWorkspace(
   transaction: Prisma.TransactionClient,
   workspaceId: string,
   userId: string,
+  actorId: string,
 ) {
   const managesBoard = await transaction.boardMembership.findFirst({
     where: { userId, role: 'PM', board: { workspaceId } },
@@ -71,9 +73,7 @@ async function removeMemberFromWorkspace(
   if (managesBoard) throw accessErrors.forbidden();
 
   await transaction.boardMembership.deleteMany({ where: { userId, board: { workspaceId } } });
-  await transaction.cardAssignment.deleteMany({
-    where: { userId, card: { board: { workspaceId } } },
-  });
+  await removeCardAssignments(transaction, { userId, card: { board: { workspaceId } } }, actorId);
   return transaction.workspaceMembership.delete({
     where: { workspaceId_userId: { workspaceId, userId } },
   });
@@ -181,7 +181,7 @@ export async function removeWorkspaceMember(
     if (!target) throw accessErrors.notFound('Thành viên');
     if (target.role === WorkspaceRole.OWNER) throw accessErrors.forbidden();
 
-    return removeMemberFromWorkspace(transaction, workspaceId, targetUserId);
+    return removeMemberFromWorkspace(transaction, workspaceId, targetUserId, actorId);
   });
 }
 
@@ -190,6 +190,6 @@ export async function leaveWorkspace(userId: string, workspaceId: string) {
     const access = await requireWorkspaceMutationAccess(transaction, userId, workspaceId);
     if (access.role === WorkspaceRole.OWNER) throw accessErrors.forbidden();
 
-    return removeMemberFromWorkspace(transaction, workspaceId, userId);
+    return removeMemberFromWorkspace(transaction, workspaceId, userId, userId);
   });
 }
