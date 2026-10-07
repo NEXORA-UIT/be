@@ -6,7 +6,7 @@ import {
   loginController,
   logoutAllController,
   logoutController,
-  meController,
+  getCurrentUserController,
   refreshController,
   registerController,
   resetPasswordController,
@@ -47,7 +47,7 @@ authRouter.post(AUTH_ROUTE.refresh, validateRefreshBody, refreshController);
 authRouter.post(AUTH_ROUTE.logout, requireAuth, logoutController);
 authRouter.post(AUTH_ROUTE.logoutAll, requireAuth, logoutAllController);
 
-authRouter.get(AUTH_ROUTE.me, requireAuth, meController);
+authRouter.get(AUTH_ROUTE.me, requireAuth, getCurrentUserController);
 authRouter.post(
   AUTH_ROUTE.changePassword,
   requireAuth,

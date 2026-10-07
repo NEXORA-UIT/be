@@ -47,7 +47,7 @@ Giữ endpoint hiện có trong OpenAPI: `POST/GET /workspaces`, `GET/PATCH /wor
 
 **Files:** `src/modules/workspaces/dto/member.schema.ts`, `repository/membership.repository.ts`, `services/membership.service.ts`, `controllers/membership.controller.ts`, `routes/index.ts`; `tests/workspaces/ownership.integration.test.ts`.
 
-**Interfaces:** `listMembers(userId, workspaceId, query)`, `transferOwner(actorId, workspaceId, targetUserId)`.
+**Interfaces:** `listWorkspaceMembers(userId, workspaceId, query)`, `transferWorkspaceOwner(actorId, workspaceId, targetUserId)`.
 
 - [ ] Test Owner hiện tại chuyển cho một MEMBER active trong cùng Workspace; người khác bị 403; target ngoài Workspace/locked bị từ chối; duplicate/retry không làm có 0 hoặc 2 Owner.
 - [ ] Implement transaction chuyển Owner: khóa/serialize theo Workspace (row lock hoặc isolation `Serializable` + retry có giới hạn), hạ Owner cũ về MEMBER, nâng target lên OWNER; unique partial index chặn 2 Owner. Ghi actor trong Activity/Audit khi module log đã sẵn; không tạo lịch sử giả ở client.
@@ -72,7 +72,7 @@ Giữ endpoint hiện có trong OpenAPI: `POST/GET /workspaces`, `GET/PATCH /wor
 
 **Files:** `src/modules/workspaces/services/membership.service.ts`, `repository/membership.repository.ts`, `controllers/membership.controller.ts`, `routes/index.ts`; `tests/workspaces/member-lifecycle.integration.test.ts`.
 
-**Interfaces:** `removeMember(actorId, workspaceId, targetUserId)`, `leaveWorkspace(userId, workspaceId)`.
+**Interfaces:** `removeWorkspaceMember(actorId, workspaceId, targetUserId)`, `leaveWorkspace(userId, workspaceId)`.
 
 - [ ] Test Owner không thể rời/xóa chính mình khi còn Owner; member đang là PM của bất kỳ Board nào phải chuyển PM trước; non-Owner không xóa người khác; member ngoài Workspace không bị tác động.
 - [ ] Trong một transaction, thu hồi BoardMembership của mọi Board trong Workspace, gỡ CardAssignment đang hiệu lực, đánh dấu WorkspaceMembership inactive/removed; giữ Card, Comment, Attachment, Activity và thông tin tác giả. Test nhiều Board và lỗi giữa chừng rollback.

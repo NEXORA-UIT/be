@@ -33,14 +33,18 @@ export async function restoreWorkspace(userId: string, id: string) {
   return prisma.workspace.update({ where: { id }, data: { archivedAt: null } });
 }
 
-export async function listMembers(userId: string, workspaceId: string) {
+export async function listWorkspaceMembers(userId: string, workspaceId: string) {
   await requireWorkspaceAccess(userId, workspaceId);
   return prisma.workspaceMembership.findMany({
     where: { workspaceId },
     include: { user: { select: { id: true, email: true, fullName: true, status: true } } },
   });
 }
-export async function transferOwner(actorId: string, workspaceId: string, targetUserId: string) {
+export async function transferWorkspaceOwner(
+  actorId: string,
+  workspaceId: string,
+  targetUserId: string,
+) {
   await requireWorkspaceOwner(actorId, workspaceId);
   return prisma.$transaction(async (tx) => {
     const target = await tx.workspaceMembership.findUnique({
@@ -55,7 +59,11 @@ export async function transferOwner(actorId: string, workspaceId: string, target
     return tx.workspaceMembership.update({ where: { id: target.id }, data: { role: 'OWNER' } });
   });
 }
-export async function removeMember(actorId: string, workspaceId: string, targetUserId: string) {
+export async function removeWorkspaceMember(
+  actorId: string,
+  workspaceId: string,
+  targetUserId: string,
+) {
   await requireWorkspaceOwner(actorId, workspaceId);
   const target = await prisma.workspaceMembership.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: targetUserId } },

@@ -9,7 +9,7 @@ export async function startGoogleOAuthController(_request: Request, response: Re
   response.status(200).json({ success: true, data: login });
 }
 
-export async function googleOAuthCallbackController(request: Request, response: Response) {
+export async function handleGoogleOAuthCallbackController(request: Request, response: Response) {
   // FE lấy code và state từ URL Google trả về, rồi gửi cả hai về backend.
   const { code, state } = request.body as GoogleOAuthCallbackDto;
   const tokens = await loginWithGoogle({

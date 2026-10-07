@@ -2,13 +2,13 @@ import type { Request, Response } from 'express';
 import {
   createWorkspace,
   getWorkspace,
-  listMembers,
+  listWorkspaceMembers,
   listWorkspaces,
   updateWorkspace,
   archiveWorkspace,
   restoreWorkspace,
-  transferOwner,
-  removeMember,
+  transferWorkspaceOwner,
+  removeWorkspaceMember,
   leaveWorkspace,
 } from '../services/workspace.service.js';
 
@@ -39,19 +39,22 @@ export async function archiveWorkspaceController(req: Request, res: Response) {
 export async function restoreWorkspaceController(req: Request, res: Response) {
   res.json({ success: true, data: await restoreWorkspace(req.auth.userId, param(req, 'id')) });
 }
-export async function listMembersController(req: Request, res: Response) {
-  res.json({ success: true, data: await listMembers(req.auth.userId, param(req, 'id')) });
-}
-export async function transferOwnerController(req: Request, res: Response) {
+export async function listWorkspaceMembersController(req: Request, res: Response) {
   res.json({
     success: true,
-    data: await transferOwner(req.auth.userId, param(req, 'id'), param(req, 'userId')),
+    data: await listWorkspaceMembers(req.auth.userId, param(req, 'id')),
   });
 }
-export async function removeMemberController(req: Request, res: Response) {
+export async function transferWorkspaceOwnerController(req: Request, res: Response) {
   res.json({
     success: true,
-    data: await removeMember(req.auth.userId, param(req, 'id'), param(req, 'userId')),
+    data: await transferWorkspaceOwner(req.auth.userId, param(req, 'id'), param(req, 'userId')),
+  });
+}
+export async function removeWorkspaceMemberController(req: Request, res: Response) {
+  res.json({
+    success: true,
+    data: await removeWorkspaceMember(req.auth.userId, param(req, 'id'), param(req, 'userId')),
   });
 }
 export async function leaveWorkspaceController(req: Request, res: Response) {

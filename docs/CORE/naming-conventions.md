@@ -46,22 +46,22 @@ Không đặt tên file theo HTTP verb (`post-workspace.ts`) hoặc theo một m
 
 Service là nơi điều phối nghiệp vụ, transaction và authorization. Tên hàm bắt đầu bằng động từ và kết thúc bằng resource chính:
 
-| Ý định                              | Mẫu chuẩn                | Ví dụ                                        |
-| ----------------------------------- | ------------------------ | -------------------------------------------- |
-| Tạo                                 | `create<Resource>`       | `createWorkspace`, `createBoard`             |
-| Lấy một resource sau khi kiểm quyền | `get<Resource>`          | `getWorkspace`, `getCard`                    |
-| Liệt kê                             | `list<Resources>`        | `listWorkspaces`, `listWorkspaceMembers`     |
-| Cập nhật                            | `update<Resource>`       | `updateWorkspace`, `updateCard`              |
-| Archive                             | `archive<Resource>`      | `archiveWorkspace`                           |
-| Khôi phục                           | `restore<Resource>`      | `restoreWorkspace`                           |
-| Xóa theo nghiệp vụ                  | `remove<Resource>`       | `removeWorkspaceMember`, `removeBoardMember` |
-| Rời scope hiện tại                  | `leave<Resource>`        | `leaveWorkspace`                             |
-| Chuyển vai trò                      | `transfer<Role>`         | `transferOwner`                              |
-| Gán vai trò                         | `assign<Resource><Role>` | `assignBoardPm`                              |
-| Di chuyển                           | `move<Resource>`         | `moveCard`                                   |
-| Sắp xếp                             | `reorder<Resource>`      | `reorderCard`, `reorderList`                 |
-| Tìm kiếm                            | `search<Resources>`      | `searchCards`                                |
-| Tổng hợp                            | `get<Resource>Summary`   | `getBoardDashboard`                          |
+| Ý định                              | Mẫu chuẩn                  | Ví dụ                                        |
+| ----------------------------------- | -------------------------- | -------------------------------------------- |
+| Tạo                                 | `create<Resource>`         | `createWorkspace`, `createBoard`             |
+| Lấy một resource sau khi kiểm quyền | `get<Resource>`            | `getWorkspace`, `getCard`                    |
+| Liệt kê                             | `list<Resources>`          | `listWorkspaces`, `listWorkspaceMembers`     |
+| Cập nhật                            | `update<Resource>`         | `updateWorkspace`, `updateCard`              |
+| Archive                             | `archive<Resource>`        | `archiveWorkspace`                           |
+| Khôi phục                           | `restore<Resource>`        | `restoreWorkspace`                           |
+| Xóa theo nghiệp vụ                  | `remove<Resource>`         | `removeWorkspaceMember`, `removeBoardMember` |
+| Rời scope hiện tại                  | `leave<Resource>`          | `leaveWorkspace`                             |
+| Chuyển vai trò                      | `transfer<Resource><Role>` | `transferWorkspaceOwner`                     |
+| Gán vai trò                         | `assign<Resource><Role>`   | `assignBoardPm`                              |
+| Di chuyển                           | `move<Resource>`           | `moveCard`                                   |
+| Sắp xếp                             | `reorder<Resource>`        | `reorderCard`, `reorderList`                 |
+| Tìm kiếm                            | `search<Resources>`        | `searchCards`                                |
+| Tổng hợp                            | `get<Resource>Summary`     | `getBoardDashboard`                          |
 
 Quy tắc tham số:
 
@@ -82,7 +82,7 @@ requireWorkspaceAccess(userId, workspaceId);
 requireWorkspaceOwner(userId, workspaceId);
 requireWorkspaceWriteAccess(userId, workspaceId);
 requireBoardAccess(userId, boardId);
-requireBoardManager(userId, boardId);
+requireBoardManagementAccess(userId, boardId);
 requireBoardWriteAccess(userId, boardId);
 requireResourceInBoard(resource, resourceId, boardId);
 ```
@@ -175,13 +175,16 @@ File test dùng domain + loại test: `<domain>.unit.test.ts`, `<domain>.integra
 
 Các tên đã dùng hiện tại được xem là canonical cho đến khi có migration:
 
-| Đang có               | Quyết định                                                                  |
-| --------------------- | --------------------------------------------------------------------------- |
-| `requireBoardManager` | Giữ nguyên; nghĩa là Owner hoặc PM có quyền quản trị Board                  |
-| `removeMember`        | Khi mở rộng đổi thành `removeWorkspaceMember` để tránh mơ hồ                |
-| `listMembers`         | Trong module Workspace đổi thành `listWorkspaceMembers`                     |
-| `getWorkspace`        | Giữ nguyên vì đang nằm trong `workspace.service.ts`                         |
-| `access.service.ts`   | Giữ nguyên cho policy dùng chung; không tạo thêm `authorization.service.ts` |
+| Đang có                               | Quyết định                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| `requireBoardManagementAccess`        | Owner hoặc PM có quyền quản trị Board                                       |
+| `removeWorkspaceMember`               | Xóa thành viên khỏi Workspace, tên phải nêu rõ phạm vi                      |
+| `listWorkspaceMembers`                | Liệt kê thành viên của Workspace, tên phải nêu rõ phạm vi                   |
+| `transferWorkspaceOwner`              | Chuyển quyền Owner trong Workspace                                          |
+| `getCurrentUserController`            | Controller trả về user hiện tại bằng tên mô tả rõ hành động                 |
+| `handleGoogleOAuthCallbackController` | Xử lý callback OAuth; tên bắt đầu bằng động từ                              |
+| `getWorkspace`                        | Giữ nguyên vì đang nằm trong `workspace.service.ts`                         |
+| `access.service.ts`                   | Giữ nguyên cho policy dùng chung; không tạo thêm `authorization.service.ts` |
 
 Khi thêm code mới, dùng tên canonical ở các mục trên. Không đổi hàng loạt import chỉ để đổi style; gom rename vào một commit riêng có test/typecheck.
 

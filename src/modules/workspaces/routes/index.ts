@@ -4,18 +4,18 @@ import { validateBody } from '../../../shared/middlewares/validate-body.middlewa
 import {
   createWorkspaceSchema,
   updateWorkspaceSchema,
-  transferOwnerSchema,
+  transferWorkspaceOwnerSchema,
 } from '../dto/workspace.schema.js';
 import {
   archiveWorkspaceController,
   createWorkspaceController,
   getWorkspaceController,
   leaveWorkspaceController,
-  listMembersController,
+  listWorkspaceMembersController,
   listWorkspacesController,
-  removeMemberController,
+  removeWorkspaceMemberController,
   restoreWorkspaceController,
-  transferOwnerController,
+  transferWorkspaceOwnerController,
   updateWorkspaceController,
 } from '../controllers/workspace.controller.js';
 
@@ -27,11 +27,11 @@ workspacesRouter.get('/:id', getWorkspaceController);
 workspacesRouter.patch('/:id', validateBody(updateWorkspaceSchema), updateWorkspaceController);
 workspacesRouter.patch('/:id/archive', archiveWorkspaceController);
 workspacesRouter.patch('/:id/unarchive', restoreWorkspaceController);
-workspacesRouter.get('/:id/members', listMembersController);
+workspacesRouter.get('/:id/members', listWorkspaceMembersController);
 workspacesRouter.patch(
   '/:id/members/:userId',
-  validateBody(transferOwnerSchema),
-  transferOwnerController,
+  validateBody(transferWorkspaceOwnerSchema),
+  transferWorkspaceOwnerController,
 );
-workspacesRouter.delete('/:id/members/:userId', removeMemberController);
+workspacesRouter.delete('/:id/members/:userId', removeWorkspaceMemberController);
 workspacesRouter.post('/:id/leave', leaveWorkspaceController);

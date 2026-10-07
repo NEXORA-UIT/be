@@ -5,12 +5,12 @@ import { after, describe, it } from 'node:test';
 import { prisma } from '../../src/infrastructure/database/prisma.js';
 import {
   requireBoardAccess,
-  requireBoardManager,
+  requireBoardManagementAccess,
 } from '../../src/shared/authorization/access.service.js';
 import {
   createWorkspace,
   leaveWorkspace,
-  transferOwner,
+  transferWorkspaceOwner,
 } from '../../src/modules/workspaces/services/workspace.service.js';
 
 describe('Workspace and authorization core', () => {
@@ -28,7 +28,7 @@ describe('Workspace and authorization core', () => {
       data: { workspaceId: workspace.id, userId: member.id, role: 'MEMBER' },
     });
 
-    await transferOwner(owner.id, workspace.id, member.id);
+    await transferWorkspaceOwner(owner.id, workspace.id, member.id);
     const memberships = await prisma.workspaceMembership.findMany({
       where: { workspaceId: workspace.id },
     });
@@ -59,7 +59,7 @@ describe('Workspace and authorization core', () => {
       (error: any) => error.status === 403,
     );
     await assert.rejects(
-      () => requireBoardManager(member.id, board.id),
+      () => requireBoardManagementAccess(member.id, board.id),
       (error: any) => error.status === 403,
     );
 

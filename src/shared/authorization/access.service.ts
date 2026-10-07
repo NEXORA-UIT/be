@@ -79,7 +79,10 @@ export async function requireBoardAccess(userId: string, boardId: string): Promi
   };
 }
 
-export async function requireBoardManager(userId: string, boardId: string): Promise<BoardAccess> {
+export async function requireBoardManagementAccess(
+  userId: string,
+  boardId: string,
+): Promise<BoardAccess> {
   const access = await requireBoardAccess(userId, boardId);
   if (access.role !== 'OWNER' && access.role !== BoardRole.PM) throw accessErrors.forbidden();
   return access;
@@ -89,7 +92,7 @@ export async function requireBoardWriteAccess(
   userId: string,
   boardId: string,
 ): Promise<BoardAccess> {
-  const access = await requireBoardManager(userId, boardId);
+  const access = await requireBoardManagementAccess(userId, boardId);
   if (access.workspaceArchivedAt || access.boardArchivedAt) throw accessErrors.archived();
   if (access.isFrozen) throw accessErrors.frozen();
   return access;

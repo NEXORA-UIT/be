@@ -6,7 +6,7 @@ export const createWorkspaceSchema = z.strictObject({
   description: z.string().trim().max(2000).optional(),
 });
 export const updateWorkspaceSchema = createWorkspaceSchema.partial();
-export const transferOwnerSchema = z.strictObject({ role: z.literal('OWNER') });
+export const transferWorkspaceOwnerSchema = z.strictObject({ role: z.literal('OWNER') });
 
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;

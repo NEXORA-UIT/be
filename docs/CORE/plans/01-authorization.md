@@ -29,7 +29,7 @@ requireWorkspaceAccess(userId: string, workspaceId: string): Promise<WorkspaceAc
 requireWorkspaceOwner(userId: string, workspaceId: string): Promise<WorkspaceAccess>;
 requireWorkspaceWriteAccess(userId: string, workspaceId: string): Promise<WorkspaceAccess>;
 requireBoardAccess(userId: string, boardId: string): Promise<BoardAccess>;
-requireBoardManager(userId: string, boardId: string): Promise<BoardAccess>;
+requireBoardManagementAccess(userId: string, boardId: string): Promise<BoardAccess>;
 requireBoardWriteAccess(userId: string, boardId: string): Promise<BoardAccess>;
 requireResourceInBoard(resource: 'list' | 'card' | 'task' | 'comment' | 'attachment' | 'label', resourceId: string, boardId: string): Promise<void>;
 ```
@@ -62,7 +62,7 @@ Tên interface có thể đổi sau khi kiểm tra code cụ thể, nhưng plan 
 
 **Files:** `src/shared/authorization/access.service.ts`, `resource-scope.service.ts` (mới); `tests/core/authorization-scope.integration.test.ts`.
 
-- [ ] Viết test write bị chặn khi Workspace/Board đã archive hoặc Workspace frozen; read hợp lệ vẫn được phép. Restore dùng `requireWorkspaceOwner`/`requireBoardManager` và kiểm tra cha thay vì dùng write guard chung.
+- [ ] Viết test write bị chặn khi Workspace/Board đã archive hoặc Workspace frozen; read hợp lệ vẫn được phép. Restore dùng `requireWorkspaceOwner`/`requireBoardManagementAccess` và kiểm tra cha thay vì dùng write guard chung.
 - [ ] Viết test nested ID spoofing: URL Board A + List/Card/Label của Board B bị từ chối; Comment/Task/Attachment phải lần theo Card → List → Board. Kiểm tra luôn Board/Workspace cha đang hoạt động trước mutation.
 - [ ] Triển khai `requireWorkspaceWriteAccess`, `requireBoardWriteAccess`, `requireResourceInBoard`. Dùng Prisma `where` theo chain sở hữu; tránh truy vấn rời rạc rồi tin ID request.
 - [ ] Chạy test tích hợp âm tính và typecheck.

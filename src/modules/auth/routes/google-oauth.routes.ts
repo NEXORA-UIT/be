@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import {
-  googleOAuthCallbackController,
+  handleGoogleOAuthCallbackController,
   startGoogleOAuthController,
 } from '../controllers/google-oauth.controller.js';
 import { googleOAuthCallbackSchema, googleOAuthStartSchema } from '../dto/google-oauth.schema.js';
@@ -10,12 +10,16 @@ import { validateBody } from '../../../shared/middlewares/validate-body.middlewa
 
 export const googleOAuthRouter = Router();
 
-const validateStartBody = validateBody(googleOAuthStartSchema);
-const validateCallbackBody = validateBody(googleOAuthCallbackSchema);
+const validateGoogleOAuthStartRequest = validateBody(googleOAuthStartSchema);
+const validateGoogleOAuthCallbackRequest = validateBody(googleOAuthCallbackSchema);
 
-googleOAuthRouter.post(AUTH_ROUTE.googleOAuthStart, validateStartBody, startGoogleOAuthController);
+googleOAuthRouter.post(
+  AUTH_ROUTE.googleOAuthStart,
+  validateGoogleOAuthStartRequest,
+  startGoogleOAuthController,
+);
 googleOAuthRouter.post(
   AUTH_ROUTE.googleOAuthCallback,
-  validateCallbackBody,
-  googleOAuthCallbackController,
+  validateGoogleOAuthCallbackRequest,
+  handleGoogleOAuthCallbackController,
 );
