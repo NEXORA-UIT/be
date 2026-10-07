@@ -553,6 +553,7 @@ describe('Board and List REST flows', () => {
       data: { cardId: card.id, userId: member.user.id, content: 'Historical comment' },
     });
     await prisma.cardAssignment.create({ data: { cardId: card.id, userId: member.user.id } });
+    const previousUpdatedAt = card.updatedAt;
 
     const removed = await call(
       `/boards/${board.id}/members/${member.user.id}`,
@@ -562,8 +563,110 @@ describe('Board and List REST flows', () => {
 
     assert.equal(removed.status, 200);
     assert.equal(await prisma.cardAssignment.count({ where: { cardId: card.id } }), 0);
-    assert.ok(await prisma.card.findUnique({ where: { id: card.id } }));
+    const updatedCard = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+    assert.ok(updatedCard.updatedAt > previousUpdatedAt);
+    assert.equal(
+      await prisma.activityLog.count({
+        where: {
+          cardId: card.id,
+          actorId: owner.user.id,
+          action: 'CARD_UNASSIGNED',
+          details: { path: ['reason'], equals: 'MEMBERSHIP_REVOKED' },
+        },
+      }),
+      1,
+    );
     assert.ok(await prisma.comment.findUnique({ where: { id: comment.id } }));
     assert.equal((await call(`/boards/${board.id}`, 'GET', member.accessToken)).status, 403);
+  });
+
+  it('permanently deletes only an archived Board after confirmed and retryable file cleanup', async () => {
+    const owner = await createActor('delete-board-owner');
+    const member = await createActor('delete-board-member');
+    const workspace = await createWorkspaceFor(owner.user.id);
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: member.user.id, role: 'MEMBER' },
+    });
+    const board = await createBoard(owner, workspace.id);
+    const list = await prisma.list.findFirstOrThrow({ where: { boardId: board.id } });
+    const card = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: list.id,
+        cardKey: 'DELETE-001',
+        title: 'Cleanup attachment before delete',
+      },
+    });
+    const attachment = await prisma.attachment.create({
+      data: {
+        cardId: card.id,
+        userId: owner.user.id,
+        fileName: 'retry.pdf',
+        fileUrl: '/attachments/invalid',
+        storageKey: 'invalid-storage-key',
+      },
+    });
+
+    const confirm = { confirmationName: `Board ${randomUUID()}` };
+    assert.equal(
+      (await call(`/boards/${board.id}`, 'DELETE', owner.accessToken, confirm)).status,
+      409,
+    );
+    assert.equal(
+      (await call(`/boards/${board.id}/archive`, 'PATCH', owner.accessToken)).status,
+      200,
+    );
+    const persistedBoard = await prisma.board.findUniqueOrThrow({ where: { id: board.id } });
+    assert.equal(
+      (
+        await call(`/boards/${board.id}`, 'DELETE', owner.accessToken, {
+          confirmationName: persistedBoard.name,
+        })
+      ).status,
+      503,
+    );
+    assert.ok(await prisma.board.findUnique({ where: { id: board.id } }));
+    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
+
+    await prisma.attachment.update({
+      where: { id: attachment.id },
+      data: { storageKey: null },
+    });
+    assert.equal(
+      (
+        await call(`/boards/${board.id}`, 'DELETE', owner.accessToken, {
+          confirmationName: persistedBoard.name,
+        })
+      ).status,
+      503,
+    );
+    assert.ok(await prisma.board.findUnique({ where: { id: board.id } }));
+    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
+    assert.equal(
+      (
+        await call(`/boards/${board.id}`, 'DELETE', member.accessToken, {
+          confirmationName: persistedBoard.name,
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await call(`/boards/${board.id}`, 'DELETE', owner.accessToken, {
+          confirmationName: `${persistedBoard.name} `,
+        })
+      ).status,
+      400,
+    );
+    await prisma.attachment.delete({ where: { id: attachment.id } });
+    assert.equal(
+      (
+        await call(`/boards/${board.id}`, 'DELETE', owner.accessToken, {
+          confirmationName: persistedBoard.name,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(await prisma.board.findUnique({ where: { id: board.id } }), null);
   });
 });

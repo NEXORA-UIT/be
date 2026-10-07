@@ -4,6 +4,8 @@ import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireWorkspaceAccess } from '../../../shared/authorization/access.service.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { ERROR_CODE } from '../../../shared/errors/error-code.js';
+import { removeCardAssignments } from '../../cards/child-resources/assignment-cleanup.js';
+import { attachmentStorage } from '../../../infrastructure/storage/object-storage.js';
 import type { CreateBoardDto, UpdateBoardDto } from '../dto/board.schema.js';
 import { runBoardTransaction } from './board-transaction.service.js';
 
@@ -181,6 +183,55 @@ export async function restoreBoard(userId: string, boardId: string) {
   });
 }
 
+export async function deleteArchivedBoard(
+  userId: string,
+  boardId: string,
+  confirmationName: string,
+): Promise<void> {
+  await runBoardTransaction(async (transaction) => {
+    const board = await requireBoardManagementInTransaction(transaction, userId, boardId, {
+      allowBoardArchived: true,
+    });
+    const workspaceMembership = await transaction.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId: board.workspaceId, userId } },
+      select: { role: true },
+    });
+    if (workspaceMembership?.role !== WorkspaceRole.OWNER) throw accessErrors.forbidden();
+    if (!board.archivedAt) throw conflict('Chỉ được xóa vĩnh viễn Board đã archive');
+    if (confirmationName !== board.name) {
+      throw new AppError(400, ERROR_CODE.validation, 'Tên xác nhận phải khớp chính xác với Board');
+    }
+
+    const attachments = await transaction.attachment.findMany({
+      where: { card: { boardId } },
+      select: { storageKey: true },
+    });
+    const storageKeys = attachments.flatMap((attachment) =>
+      attachment.storageKey ? [attachment.storageKey] : [],
+    );
+    if (storageKeys.length !== attachments.length) {
+      throw new AppError(
+        503,
+        'ATTACHMENT_CLEANUP_FAILED',
+        'Không thể xác định tệp đính kèm; dữ liệu Board được giữ lại để kiểm tra',
+      );
+    }
+    for (const storageKey of storageKeys) {
+      try {
+        await attachmentStorage.delete(storageKey);
+      } catch {
+        throw new AppError(
+          503,
+          'ATTACHMENT_CLEANUP_FAILED',
+          'Không thể dọn tệp đính kèm; dữ liệu Board được giữ lại để thử lại',
+        );
+      }
+    }
+
+    await transaction.board.delete({ where: { id: boardId } });
+  });
+}
+
 export async function assignBoardPm(userId: string, boardId: string, pmId: string) {
   return runBoardTransaction(async (transaction) => {
     const board = await transaction.board.findUnique({
@@ -252,9 +303,7 @@ export async function removeBoardMember(userId: string, boardId: string, targetU
     if (membership.role === BoardRole.PM) {
       throw conflict('Hãy phân công PM thay thế trước khi xóa thành viên này');
     }
-    await transaction.cardAssignment.deleteMany({
-      where: { userId: targetUserId, card: { boardId } },
-    });
+    await removeCardAssignments(transaction, { userId: targetUserId, card: { boardId } }, userId);
     await transaction.boardMembership.delete({ where: { id: membership.id } });
   });
 }

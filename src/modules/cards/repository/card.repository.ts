@@ -19,6 +19,7 @@ export async function findCardList(transaction: CardTransaction, listId: string)
       id: true,
       boardId: true,
       archivedAt: true,
+      statusGroup: true,
       board: { select: { workspaceId: true, archivedAt: true } },
     },
   });

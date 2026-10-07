@@ -7,6 +7,7 @@ import {
   assignBoardPmSchema,
   createBoardSchema,
   createListSchema,
+  confirmDeleteBoardSchema,
   reorderListSchema,
   updateBoardSchema,
   updateListSchema,
@@ -16,6 +17,7 @@ import {
   archiveBoardController,
   assignBoardPmController,
   createBoardController,
+  deleteBoardController,
   getBoardController,
   listBoardMembersController,
   listWorkspaceBoardsController,
@@ -50,6 +52,12 @@ boardsRouter.patch(
 );
 boardsRouter.patch('/boards/:id/archive', requireAuth, archiveBoardController);
 boardsRouter.patch('/boards/:id/unarchive', requireAuth, restoreBoardController);
+boardsRouter.delete(
+  '/boards/:id',
+  requireAuth,
+  validateBody(confirmDeleteBoardSchema),
+  deleteBoardController,
+);
 boardsRouter.patch(
   '/boards/:id/pm',
   requireAuth,

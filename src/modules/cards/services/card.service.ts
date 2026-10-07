@@ -6,6 +6,7 @@ import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { nextMonotonicTimestamp } from '../../../shared/utils/timestamp.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
+import { assertCardCanEnterDone } from '../../planning/dependencies/dependency.service.js';
 import type { CreateCardDto, MoveCardDto, UpdateCardDto } from '../dto/card.schema.js';
 import {
   MAX_CARDS_PER_BOARD,
@@ -85,45 +86,54 @@ async function nextCardPosition(transaction: Prisma.TransactionClient, listId: s
   return (cards.length + 1) * POSITION_STEP;
 }
 
-export async function createCard(userId: string, listId: string, input: CreateCardDto) {
-  return runBoardTransaction(async (transaction) => {
-    const list = await findCardList(transaction, listId);
-    if (!list) throw accessErrors.notFound('List');
-    await requireBoardWriteAccessInTransaction(transaction, userId, list.boardId);
-    if (list.archivedAt) throw accessErrors.archived();
+export async function createCardInTransaction(
+  transaction: Prisma.TransactionClient,
+  userId: string,
+  listId: string,
+  input: CreateCardDto,
+) {
+  const list = await findCardList(transaction, listId);
+  if (!list) throw accessErrors.notFound('List');
+  await requireBoardWriteAccessInTransaction(transaction, userId, list.boardId);
+  if (list.archivedAt) throw accessErrors.archived();
 
-    const cardCount = await countBoardCards(transaction, list.boardId);
-    if (cardCount >= MAX_CARDS_PER_BOARD) {
-      throw conflict('CARD_LIMIT_REACHED', 'Board đã đạt giới hạn 2.000 Card');
-    }
+  const cardCount = await countBoardCards(transaction, list.boardId);
+  if (cardCount >= MAX_CARDS_PER_BOARD) {
+    throw conflict('CARD_LIMIT_REACHED', 'Board đã đạt giới hạn 2.000 Card');
+  }
 
-    const board = await transaction.board.update({
-      where: { id: list.boardId },
-      data: { cardCounter: { increment: 1 } },
-      select: { cardCounter: true },
-    });
-    const cardKey = `CARD-${String(board.cardCounter).padStart(3, '0')}`;
-    const card = await createCardRecord(transaction, {
-      boardId: list.boardId,
-      listId,
-      cardKey,
-      title: input.title,
-      description: input.description ?? null,
-      priority: input.priority ?? CardPriority.MEDIUM,
-      startDate: input.startDate ?? null,
-      dueDate: input.dueDate ?? null,
-      position: await nextCardPosition(transaction, listId),
-      updatedAt: new Date(),
-    });
-    await writeActivity(transaction, {
-      boardId: card.boardId,
-      cardId: card.id,
-      actorId: userId,
-      action: 'CARD_CREATED',
-      details: { cardKey: card.cardKey },
-    });
-    return toCardResponse(card);
+  const board = await transaction.board.update({
+    where: { id: list.boardId },
+    data: { cardCounter: { increment: 1 } },
+    select: { cardCounter: true },
   });
+  const cardKey = `CARD-${String(board.cardCounter).padStart(3, '0')}`;
+  const card = await createCardRecord(transaction, {
+    boardId: list.boardId,
+    listId,
+    cardKey,
+    title: input.title,
+    description: input.description ?? null,
+    priority: input.priority ?? CardPriority.MEDIUM,
+    startDate: input.startDate ?? null,
+    dueDate: input.dueDate ?? null,
+    position: await nextCardPosition(transaction, listId),
+    updatedAt: new Date(),
+  });
+  await writeActivity(transaction, {
+    boardId: card.boardId,
+    cardId: card.id,
+    actorId: userId,
+    action: 'CARD_CREATED',
+    details: { cardKey: card.cardKey },
+  });
+  return toCardResponse(card);
+}
+
+export async function createCard(userId: string, listId: string, input: CreateCardDto) {
+  return runBoardTransaction((transaction) =>
+    createCardInTransaction(transaction, userId, listId, input),
+  );
 }
 
 export async function listBoardCards(userId: string, boardId: string, includeArchived: boolean) {
@@ -201,6 +211,9 @@ export async function moveCard(userId: string, cardId: string, input: MoveCardDt
     const destination = await findCardList(transaction, input.targetListId);
     if (!destination || destination.boardId !== card.boardId) throw accessErrors.notFound('List');
     if (destination.archivedAt) throw accessErrors.archived();
+    if (destination.statusGroup === 'DONE' && card.list.statusGroup !== 'DONE') {
+      await assertCardCanEnterDone(transaction, card.id);
+    }
     if (card.updatedAt.getTime() !== input.updatedAt.getTime()) {
       throw conflict(CARD_CONFLICT, 'Card đã được cập nhật; hãy tải lại dữ liệu');
     }

@@ -8,6 +8,7 @@ import { nextMonotonicTimestamp } from '../../../shared/utils/timestamp.js';
 import type { ArchiveListDto, CreateListDto, UpdateListDto } from '../dto/board.schema.js';
 import { requireBoardManagementInTransaction } from './board.service.js';
 import { runBoardTransaction } from './board-transaction.service.js';
+import { assertCardCanEnterDone } from '../../planning/dependencies/dependency.service.js';
 
 const MAX_ACTIVE_LISTS_PER_BOARD = 30;
 const POSITION_STEP = 1024;
@@ -117,6 +118,13 @@ export async function listBoardLists(userId: string, boardId: string, includeArc
 export async function updateList(userId: string, listId: string, input: UpdateListDto) {
   return runBoardTransaction(async (transaction) => {
     await requireWritableList(transaction, userId, listId);
+    if (input.statusGroup === ListStatusGroup.DONE) {
+      const activeCards = await transaction.card.findMany({
+        where: { listId, archivedAt: null, deletedAt: null },
+        select: { id: true },
+      });
+      for (const card of activeCards) await assertCardCanEnterDone(transaction, card.id);
+    }
     return transaction.list.update({
       where: { id: listId },
       data: { ...input, statusGroup: input.statusGroup as ListStatusGroup | undefined },

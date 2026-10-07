@@ -18,7 +18,7 @@
     "db:migrate": "node --env-file=.env.local ./node_modules/prisma/build/index.js migrate dev",
     "db:generate": "node --env-file=.env.local ./node_modules/prisma/build/index.js generate",
     "db:studio": "node --env-file=.env.local ./node_modules/prisma/build/index.js studio",
-    "test": "node --env-file-if-exists=.env.local ./node_modules/tsx/dist/cli.mjs --test tests/**/*.test.ts"
+    "test": "node --env-file-if-exists=.env.local ./node_modules/tsx/dist/cli.mjs --test-concurrency=1 --test tests/**/*.test.ts"
   },
   "engines": {
     "node": ">=22"

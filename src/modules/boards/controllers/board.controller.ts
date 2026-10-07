@@ -4,6 +4,7 @@ import {
   archiveBoard,
   assignBoardPm,
   createBoard,
+  deleteArchivedBoard,
   getBoard,
   listBoardMembers,
   listWorkspaceBoards,
@@ -53,6 +54,15 @@ export async function archiveBoardController(request: Request, response: Respons
 
 export async function restoreBoardController(request: Request, response: Response) {
   await restoreBoard(request.auth.userId, routeParam(request, 'id'));
+  response.json({ success: true, data: {} });
+}
+
+export async function deleteBoardController(request: Request, response: Response) {
+  await deleteArchivedBoard(
+    request.auth.userId,
+    routeParam(request, 'id'),
+    request.body.confirmationName,
+  );
   response.json({ success: true, data: {} });
 }
 

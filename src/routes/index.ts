@@ -9,6 +9,10 @@ import { knowledgeBaseRouter } from '../modules/knowledge-base/routes/index.js';
 import { aiRouter } from '../modules/ai/routes/index.js';
 import { githubRouter } from '../modules/github/routes/index.js';
 import { systemAdminRouter } from '../modules/system-admin/routes/index.js';
+import { dependenciesRouter } from '../modules/planning/dependencies/dependency.routes.js';
+import { cardChildResourcesRouter } from '../modules/cards/child-resources/routes.js';
+import { notificationsRouter } from '../modules/notifications/routes/index.js';
+import { quickNotesRouter } from '../modules/quick-notes/routes/index.js';
 
 export const apiRouter = Router();
 
@@ -16,8 +20,12 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/workspaces', workspacesRouter);
 apiRouter.use('/', boardsRouter);
 apiRouter.use('/', cardsRouter);
-apiRouter.use('/collaboration', collaborationRouter);
-apiRouter.use('/planning', planningRouter);
+apiRouter.use('/', cardChildResourcesRouter);
+apiRouter.use('/', dependenciesRouter);
+apiRouter.use('/', collaborationRouter);
+apiRouter.use('/', planningRouter);
+apiRouter.use('/', notificationsRouter);
+apiRouter.use('/', quickNotesRouter);
 apiRouter.use('/knowledge-base', knowledgeBaseRouter);
 apiRouter.use('/ai', aiRouter);
 apiRouter.use('/github', githubRouter);

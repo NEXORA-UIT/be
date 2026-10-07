@@ -22,6 +22,9 @@ export const updateBoardSchema = createBoardSchema
   .refine((input) => Object.keys(input).length > 0, 'Phải có ít nhất một trường cần cập nhật');
 
 export const assignBoardPmSchema = z.strictObject({ pmId: resourceIdSchema });
+export const confirmDeleteBoardSchema = z.strictObject({
+  confirmationName: z.string().min(1).max(120),
+});
 export const addBoardMemberSchema = z.strictObject({ userId: resourceIdSchema });
 export const createListSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
