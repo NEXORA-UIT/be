@@ -1,5 +1,33 @@
 paths:
   /cards/{id}/dependencies:
+    get:
+      tags: [Planning]
+      summary: List Card prerequisites
+      operationId: listCardDependencies
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Prerequisite Cards for this Card.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      prerequisites:
+                        type: array
+                        items: { $ref: "#/components/schemas/CardDependencySummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-PLAN-03]
     post:
       tags:
         - Planning
@@ -35,7 +63,7 @@ paths:
           $ref: "#/components/responses/Conflict"
       x-scope: SRS-CORE
       x-related-use-cases:
-        - UC-PLAN-11
+        - UC-PLAN-03
   /cards/{id}/dependencies/{dependencyId}:
     delete:
       tags:
@@ -69,7 +97,7 @@ paths:
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
       x-related-use-cases:
-        - UC-PLAN-11
+        - UC-PLAN-03
   /boards/{id}/calendar:
     get:
       tags:
@@ -81,14 +109,14 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/BoardIdPath"
-        - name: start
+        - name: from
           in: query
           required: true
           schema:
             type: string
             format: date-time
           description: Interval start in UTC.
-        - name: end
+        - name: to
           in: query
           required: true
           schema:
@@ -112,13 +140,13 @@ paths:
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
       x-related-use-cases:
-        - UC-PLAN-14
+        - UC-PLAN-01
   /boards/{id}/dashboard:
     get:
       tags:
         - Planning
       summary: Get board progress dashboard (Supporting Proposed API)
-      description: Retrieves traditional aggregated board metrics and progress statistics (task completion rate, lead time, bottleneck list). Supporting/proposed dashboard API for UC-PLAN-23; the direct SRS-CORE AI summary behavior is POST /boards/{id}/ai/summarize-progress.
+      description: Returns Card counts by List status group and overdue count for an authorized Board. Status is derived from the List; an empty Board returns zero counts.
       operationId: getBoardDashboard
       security:
         - bearerAuth: []
@@ -137,6 +165,22 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
-        - UC-PLAN-23
+        - UC-PLAN-04
+  /boards/{id}/list-view:
+    get:
+      tags: [Planning]
+      summary: Get Board Lists and Cards
+      operationId: getBoardListView
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200": { description: Active Lists with their active Cards. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-PLAN-01]

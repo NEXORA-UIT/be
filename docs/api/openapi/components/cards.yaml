@@ -53,10 +53,9 @@ components:
       required:
         - id
         - cardId
+        - userId
         - fileName
-        - fileUrl
         - fileSize
-        - uploadedBy
         - createdAt
       description: Binary attachment file linked to a card.
       properties:
@@ -66,19 +65,19 @@ components:
         cardId:
           type: string
           format: uuid
+        userId:
+          type: string
+          format: uuid
         fileName:
           type: string
           example: architecture_diagram.png
-        fileUrl:
-          type: string
-          format: uri
         fileSize:
           type: integer
           description: File size in bytes.
           example: 1048576
-        uploadedBy:
+        mimeType:
           type: string
-          format: uuid
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -275,6 +274,22 @@ components:
         createdAt:
           type: string
           format: date-time
+    CardDependencySummary:
+      type: object
+      required: [id, cardKey, title, list, dependencyId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        cardKey: { type: string }
+        title: { type: string }
+        list:
+          type: object
+          required: [id, name, statusGroup]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            statusGroup: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        dependencyId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
     CardResponse:
       type: object
       required:
@@ -321,6 +336,19 @@ components:
           example: true
         data:
           $ref: "#/components/schemas/Task"
+    TaskListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
     CardAttachmentResponse:
       type: object
       required:
@@ -332,6 +360,19 @@ components:
           example: true
         data:
           $ref: "#/components/schemas/CardAttachment"
+    CardAttachmentListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CardAttachment"
     CardDependencyResponse:
       type: object
       required:

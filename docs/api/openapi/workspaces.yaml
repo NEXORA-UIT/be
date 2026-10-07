@@ -371,9 +371,9 @@ paths:
     patch:
       tags:
         - Members
-      summary: Update member role
+      summary: Transfer Workspace ownership
       description: Transfers Workspace Owner role to an existing member. Only the current Workspace Owner may perform this action.
-      operationId: updateWorkspaceMemberRole
+      operationId: transferWorkspaceOwner
       security:
         - bearerAuth: []
       parameters:

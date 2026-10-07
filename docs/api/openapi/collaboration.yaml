@@ -3,8 +3,8 @@ paths:
     get:
       tags:
         - Collaboration
-      summary: Realtime board synchronization (WebSocket Handshake)
-      description: Establishes WebSocket connection for real-time collaborative updates (CARD_CREATED, CARD_UPDATED, CARD_MOVED, etc.). Requires handshake authentication token. Target synchronization latency < 500ms.
+      summary: Realtime board synchronization (deferred)
+      description: Reserved for Socket.IO delivery, which is excluded from the current Core REST scope.
       operationId: connectRealtimeWebSocket
       security:
         - bearerAuth: []
@@ -16,6 +16,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
       x-scope: SRS-CORE
+      x-implementation-status: OUT OF SCOPE - Socket.IO deferred
       x-related-use-cases:
         - UC-COL-15
   /cards/{id}/comments:
@@ -23,7 +24,7 @@ paths:
       tags:
         - Collaboration
       summary: Create card comment
-      description: Appends a Markdown comment to the card. Automatically extracts @mention tokens, creating notification records and queuing email alerts via BullMQ.
+      description: Appends a Markdown comment and creates in-app notifications for valid new @mentions. Email and real-time delivery are deferred.
       operationId: createCardComment
       security:
         - bearerAuth: []
@@ -37,7 +38,7 @@ paths:
               $ref: "#/components/schemas/CreateCommentRequest"
       responses:
         "201":
-          description: Comment saved and notifications dispatched.
+          description: Comment saved and in-app mention notifications created.
           content:
             application/json:
               schema:
@@ -142,19 +143,25 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-COL-16
-  /cards/{id}/activities:
+  /cards/{id}/activity:
     get:
       tags:
         - Collaboration
       summary: List card activity history
-      description: Retrieves the audit trail of modifications (status transitions, assignees, dates) for a card. Paginated with default 20 records, ordered descending by time.
+      description: Retrieves immutable Card activity, newest first, with a cursor page of up to 100 entries.
       operationId: listCardActivities
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CardIdPath"
-        - $ref: "#/components/parameters/PageQuery"
-        - $ref: "#/components/parameters/LimitQuery"
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Paginated activity events.

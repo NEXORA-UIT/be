@@ -5,8 +5,8 @@ components:
       required:
         - id
         - userId
-        - title
-        - content
+        - type
+        - message
         - isRead
         - createdAt
       description: User notification item.
@@ -17,16 +17,24 @@ components:
         userId:
           type: string
           format: uuid
-        title:
+        actorId:
           type: string
-          example: Bạn được phân công vào thẻ mới
-        content:
-          type: string
-          example: Phan Gia Đạt đã gán bạn vào thẻ 'Thiết kế API Contract'
-        linkUrl:
-          type: string
+          format: uuid
           nullable: true
-          example: /boards/123/cards/456
+        boardId:
+          type: string
+          format: uuid
+          nullable: true
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [CARD_ASSIGNED, COMMENT_MENTION]
+        message:
+          type: string
+          example: You were assigned to CARD-001
         isRead:
           type: boolean
           example: false
@@ -43,14 +51,10 @@ components:
           type: boolean
           example: true
         data:
-          type: object
-          required:
-            - items
-            - pagination
-          properties:
-            items:
-              type: array
-              items:
-                $ref: "#/components/schemas/Notification"
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }

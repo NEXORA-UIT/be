@@ -1,0 +1,27 @@
+components:
+  schemas:
+    CardAssignment:
+      type: object
+      required: [id, cardId, userId, assignedAt, user]
+      properties:
+        id: { type: string, format: uuid }
+        cardId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        assignedAt: { type: string, format: date-time }
+        user:
+          type: object
+          required: [id, email, fullName]
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            fullName: { type: string }
+    CardBoardLabel:
+      type: object
+      required: [id, boardId, name, color, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        boardId: { type: string, format: uuid }
+        name: { type: string, maxLength: 100 }
+        color: { type: string, maxLength: 32 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }

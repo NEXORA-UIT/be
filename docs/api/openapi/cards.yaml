@@ -265,6 +265,32 @@ paths:
         - UC-Card-12
         - UC-Card-13
   /cards/{id}/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List checklist tasks
+      description: Lists the checklist items for a Card in their stored order.
+      operationId: listCardTasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Checklist items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
     post:
       tags:
         - Tasks
@@ -297,7 +323,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
-      x-implementation-status: PLANNED - REST completion branch
+      x-implementation-status: IMPLEMENTED
       x-related-use-cases:
         - UC-Card-12
   /tasks/{id}:
@@ -333,7 +359,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
-      x-implementation-status: PLANNED - REST completion branch
+      x-implementation-status: IMPLEMENTED
       x-related-use-cases:
         - UC-Card-12
     delete:
@@ -359,34 +385,76 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
-      x-implementation-status: PLANNED - REST completion branch
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
       x-related-use-cases:
         - UC-Card-12
   /cards/{id}/attachments:
-    post:
+    get:
       tags:
         - Cards
-      summary: Upload card attachment
-      description: Uploads a binary work file associated with the card (stored on Cloudflare R2). Enforces a 25MB ceiling (or 5MB for images / 15MB for docs). Card attachments do NOT automatically become Knowledge Base documents.
-      operationId: uploadCardAttachment
+      summary: List card attachments
+      operationId: listCardAttachments
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Card attachment metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardAttachmentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-COL-17
+    post:
+      tags:
+        - Cards
+      summary: Upload card attachment
+      description: Uploads a binary work file associated with the Card using the configured object-storage adapter. Enforces a 25 MiB limit and validates MIME signature. Attachments remain separate from Knowledge Base documents.
+      operationId: uploadCardAttachment
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/pdf:
             schema:
-              type: object
-              required:
-                - file
-              properties:
-                file:
-                  type: string
-                  format: binary
-                  description: Binary attachment file.
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          text/plain:
+            schema:
+              type: string
+              format: binary
+          application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: X-File-Name
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Original file name, with extension matching the detected MIME type.
       responses:
         "201":
           description: Attachment uploaded.
@@ -403,20 +471,53 @@ paths:
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
       x-scope: SRS-CORE
-      x-implementation-status: PLANNED - REST completion branch
+      x-implementation-status: IMPLEMENTED
       x-related-use-cases:
-        - UC-Card-12
-  /cards/{id}/attachments/{attachmentId}:
+        - UC-COL-17
+  /attachments/{attachmentId}/content:
+    get:
+      tags:
+        - Cards
+      summary: Download card attachment
+      operationId: downloadCardAttachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: attachmentId
+          in: path
+          required: true
+          description: Attachment UUID.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Attachment bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-COL-17
+  /attachments/{attachmentId}:
     delete:
       tags:
         - Cards
       summary: Delete card attachment
-      description: Removes an attachment record from the card and purges the file from Cloudflare R2 storage.
+      description: Removes the attachment record and stored object. If object cleanup fails, metadata is retained so cleanup can be retried.
       operationId: deleteCardAttachment
       security:
         - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/CardIdPath"
         - name: attachmentId
           in: path
           required: true
@@ -438,6 +539,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
-      x-implementation-status: PLANNED - REST completion branch
+      x-implementation-status: IMPLEMENTED
       x-related-use-cases:
         - UC-Card-12

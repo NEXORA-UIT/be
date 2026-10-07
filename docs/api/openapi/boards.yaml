@@ -128,6 +128,36 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
+    delete:
+      tags:
+        - Boards
+      summary: Permanently delete an archived Board
+      description: Only a Workspace Owner can delete an archived Board after confirming its exact name. Attachment objects are cleaned up before relational data is deleted; failed cleanup leaves database records intact and can be retried.
+      operationId: deleteArchivedBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmDeleteBoardRequest"
+      responses:
+        "200":
+          description: Board and its relational data deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Board-09]
   /boards/{id}/archive:
     patch:
       tags:

@@ -14,6 +14,7 @@ const moduleNames = [
   'workspaces',
   'boards',
   'cards',
+  'card-resources',
   'planning',
   'collaboration',
   'notifications',

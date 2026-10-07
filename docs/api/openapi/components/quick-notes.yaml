@@ -6,6 +6,8 @@ components:
         - id
         - userId
         - content
+        - convertedAt
+        - convertedCardId
         - createdAt
         - updatedAt
       description: Personal scratchpad note independent of project boards.
@@ -25,6 +27,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+        convertedAt:
+          type: string
+          format: date-time
+          nullable: true
+        convertedCardId:
+          type: string
+          format: uuid
+          nullable: true
     CreateQuickNoteRequest:
       type: object
       required:
@@ -55,9 +65,6 @@ components:
           type: string
           format: uuid
           description: Target list UUID within board.
-        position:
-          type: number
-          description: Optional position index inside list.
     QuickNoteResponse:
       type: object
       required:
@@ -82,3 +89,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QuickNote"
+    QuickNoteConversionResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          required: [note, card]
+          properties:
+            note: { $ref: "#/components/schemas/QuickNote" }
+            card: { $ref: "#/components/schemas/Card" }

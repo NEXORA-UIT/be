@@ -1,0 +1,211 @@
+paths:
+  /cards/{cardId}/assignments:
+    get:
+      tags: [Cards]
+      summary: List Card assignees
+      operationId: listCardAssignments
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Current Card assignments.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: "#/components/schemas/CardAssignment" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+    post:
+      tags: [Cards]
+      summary: Assign a Board member to a Card
+      operationId: assignCardUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string, format: uuid }
+      responses:
+        "201": { description: Assignee added. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+  /cards/{cardId}/assignments/{userId}:
+    delete:
+      tags: [Cards]
+      summary: Unassign a Card member
+      operationId: unassignCardUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Assignment removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+  /boards/{boardId}/labels:
+    get:
+      tags: [Cards]
+      summary: List Board labels
+      operationId: listBoardLabels
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: boardId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Board labels. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+    post:
+      tags: [Cards]
+      summary: Create Board label
+      operationId: createBoardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: boardId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, color]
+              properties:
+                name: { type: string, maxLength: 100 }
+                color: { type: string, maxLength: 32 }
+      responses:
+        "201": { description: Label created. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+  /labels/{labelId}:
+    patch:
+      tags: [Cards]
+      summary: Update Board label
+      operationId: updateBoardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: labelId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name: { type: string, maxLength: 100 }
+                color: { type: string, maxLength: 32 }
+      responses:
+        "200": { description: Label updated. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+    delete:
+      tags: [Cards]
+      summary: Delete Board label
+      operationId: deleteBoardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: labelId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Label and its Card links removed. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+  /cards/{cardId}/labels:
+    get:
+      tags: [Cards]
+      summary: List Card labels
+      operationId: listCardLabels
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Labels attached to the Card. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+    post:
+      tags: [Cards]
+      summary: Attach Board label to Card
+      operationId: linkCardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [labelId]
+              properties:
+                labelId: { type: string, format: uuid }
+      responses:
+        "201": { description: Label attached. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
+  /cards/{cardId}/labels/{labelId}:
+    delete:
+      tags: [Cards]
+      summary: Detach label from Card
+      operationId: unlinkCardLabel
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: labelId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Label detached. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-Card-12]
