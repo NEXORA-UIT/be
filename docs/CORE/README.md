@@ -11,6 +11,7 @@ Tài liệu này lưu lại kết quả đọc context và rà soát ban đầu 
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
+- [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)
 - [Hợp đồng API hiện có](../api/README.md)
 
