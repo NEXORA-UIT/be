@@ -8,6 +8,7 @@ import {
   acceptWorkspaceInvitation,
   cancelWorkspaceInvitation,
   inviteWorkspaceMember,
+  listWorkspaceInvitations,
   rejectWorkspaceInvitation,
   resendWorkspaceInvitation,
 } from '../../src/modules/workspaces/services/invitation.service.js';
@@ -339,6 +340,108 @@ describe('Workspace invitation flow', () => {
 
     await prisma.workspace.delete({ where: { id: workspace.id } });
     await prisma.user.delete({ where: { id: owner.id } });
+  });
+
+  it('enforces invitation authorization, recipient identity, expiry, and failed delivery cleanup', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `guard-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const nonOwner = await prisma.user.create({
+      data: { email: `guard-non-owner-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const recipient = await prisma.user.create({
+      data: { email: `guard-recipient-${randomUUID()}@test.local`, fullName: 'Recipient' },
+    });
+    const wrongRecipient = await prisma.user.create({
+      data: { email: `guard-wrong-${randomUUID()}@test.local`, fullName: 'Wrong recipient' },
+    });
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: 'Invitation Guard Workspace',
+        memberships: {
+          create: [
+            { userId: owner.id, role: 'OWNER' },
+            { userId: nonOwner.id, role: 'MEMBER' },
+          ],
+        },
+      },
+    });
+
+    try {
+      await assert.rejects(
+        () => inviteWorkspaceMember(nonOwner.id, workspace.id, recipient.email, async () => {}),
+        (error: any) => error.status === 403,
+      );
+      await assert.rejects(
+        () => listWorkspaceInvitations(nonOwner.id, workspace.id),
+        (error: any) => error.status === 403,
+      );
+
+      await assert.rejects(
+        () =>
+          inviteWorkspaceMember(owner.id, workspace.id, recipient.email, async () => {
+            throw new Error('Mail delivery failed');
+          }),
+        /Mail delivery failed/,
+      );
+      const failed = await prisma.workspaceInvitation.findFirstOrThrow({
+        where: { workspaceId: workspace.id, email: recipient.email },
+      });
+      assert.equal(failed.status, 'CANCELED');
+
+      let token = '';
+      const invitation = await inviteWorkspaceMember(
+        owner.id,
+        workspace.id,
+        recipient.email,
+        async (message) => {
+          token = tokenFromMessage(message.text);
+        },
+      );
+      await assert.rejects(
+        () => acceptWorkspaceInvitation(wrongRecipient.id, token),
+        (error: any) => error.status === 403,
+      );
+      assert.equal((await acceptWorkspaceInvitation(recipient.id, token)).status, 'ACCEPTED');
+
+      const expired = await inviteWorkspaceMember(
+        owner.id,
+        workspace.id,
+        `expired-${randomUUID()}@test.local`,
+        async (message) => {
+          token = tokenFromMessage(message.text);
+        },
+      );
+      await prisma.workspaceInvitation.update({
+        where: { id: expired.id },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+      await assert.rejects(
+        () => acceptWorkspaceInvitation(owner.id, token),
+        (error: any) => error.status === 410 && error.code === 'INVITATION_EXPIRED',
+      );
+      assert.equal((await invitationRepository.findById(expired.id))?.status, 'EXPIRED');
+
+      const lockedInvitation = await inviteWorkspaceMember(
+        owner.id,
+        workspace.id,
+        wrongRecipient.email,
+        async (message) => {
+          token = tokenFromMessage(message.text);
+        },
+      );
+      await prisma.user.update({ where: { id: wrongRecipient.id }, data: { status: 'LOCKED' } });
+      await assert.rejects(
+        () => acceptWorkspaceInvitation(wrongRecipient.id, token),
+        (error: any) => error.status === 403,
+      );
+      assert.equal((await invitationRepository.findById(lockedInvitation.id))?.status, 'PENDING');
+    } finally {
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, nonOwner.id, recipient.id, wrongRecipient.id] } },
+      });
+    }
   });
 
   it('keeps invitation status and membership consistent when accept races cancel', async () => {

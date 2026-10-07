@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import { createPaginationMeta } from '../../../shared/pagination/pagination.util.js';
 
 export const workspaceRepository = {
   create(userId: string, data: Prisma.WorkspaceCreateInput) {
@@ -11,11 +12,21 @@ export const workspaceRepository = {
       return workspace;
     });
   },
-  listForUser(userId: string) {
-    return prisma.workspace.findMany({
-      where: { memberships: { some: { userId } } },
-      orderBy: { createdAt: 'desc' },
-    });
+  async listForUser(userId: string, page: number, limit: number) {
+    const where = { memberships: { some: { userId } } };
+    const [data, total] = await Promise.all([
+      prisma.workspace.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.workspace.count({ where }),
+    ]);
+    return {
+      data,
+      meta: createPaginationMeta(page, limit, total),
+    };
   },
   get(id: string) {
     return prisma.workspace.findUnique({ where: { id } });
