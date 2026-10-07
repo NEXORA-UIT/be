@@ -1,15 +1,21 @@
 paths:
-  /lists/{id}/cards:
+  /lists/{listId}/cards:
     post:
       tags:
         - Cards
       summary: Create work item card
-      description: Creates a new card in the specified list, writes an entry to ActivityLog, and broadcasts CARD_CREATED over WebSocket. Enforces max 2,000 cards per board.
+      description: Creates a Card in an active List on an accessible Board, assigns a Board-unique cardKey, and records CARD_CREATED in ActivityLog in the same transaction. Enforces a 2,000 non-deleted Card limit per Board.
       operationId: createCard
       security:
         - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/ListIdPath"
+        - name: listId
+          in: path
+          required: true
+          description: Unique UUID of the destination List.
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -31,6 +37,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Card-12
@@ -39,7 +47,7 @@ paths:
       tags:
         - Cards
       summary: Get card details
-      description: Retrieves comprehensive card details including checklist tasks, attachments, assignees, labels, and Markdown description.
+      description: Retrieves Card Core fields, the status group derived from its List, and its archive timestamp. Archived Cards remain readable; soft-deleted Cards do not.
       operationId: getCardById
       security:
         - bearerAuth: []
@@ -47,11 +55,11 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Full card details.
+          description: Card Core fields with derived status group.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CardDetailResponse"
+                $ref: "#/components/schemas/CardResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -101,7 +109,7 @@ paths:
       tags:
         - Cards
       summary: Delete card
-      description: Performs soft deletion of the card record in the database and broadcasts removal to all board viewers.
+      description: Soft-deletes the Card while retaining comments and activity history.
       operationId: deleteCard
       security:
         - bearerAuth: []
@@ -128,7 +136,7 @@ paths:
       tags:
         - Cards
       summary: Move card position or list
-      description: "Moves a card within a list or across lists. Enforces OCC via `updatedAt` and verifies prerequisite dependencies: if target column is category DONE, all prerequisite cards must already be completed, otherwise rejects with 409 Conflict (DEPENDENCY_UNRESOLVED)."
+      description: "Moves or reorders a Card within the same active Board. Status is derived from the destination List. Enforces OCC via `updatedAt`; dependency guards are added by the REST completion branch."
       operationId: moveCard
       security:
         - bearerAuth: []
@@ -146,7 +154,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EmptySuccessResponse"
+                $ref: "#/components/schemas/CardResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -187,6 +195,75 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Card-12
+  /cards/{id}/restore:
+    patch:
+      tags:
+        - Cards
+      summary: Restore archived Card
+      description: Restores an archived Card when its Workspace, Board, and List parents are active.
+      operationId: restoreCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Card restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /boards/{boardId}/cards:
+    get:
+      tags:
+        - Cards
+      summary: List Cards on a Board
+      description: Returns active Cards in List and Card order. Set includeArchived=true to include archived Cards. UC-Card-13 filtering is performed client-side on the loaded Board data.
+      operationId: listBoardCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          description: Unique UUID of the Board.
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Cards ordered by List and position.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+        - UC-Card-13
   /cards/{id}/tasks:
     post:
       tags:
@@ -220,6 +297,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
+      x-implementation-status: PLANNED - REST completion branch
       x-related-use-cases:
         - UC-Card-12
   /tasks/{id}:
@@ -255,6 +333,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
+      x-implementation-status: PLANNED - REST completion branch
       x-related-use-cases:
         - UC-Card-12
     delete:
@@ -281,6 +360,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: PROPOSED
+      x-implementation-status: PLANNED - REST completion branch
       x-related-use-cases:
         - UC-Card-12
   /cards/{id}/attachments:
@@ -323,6 +403,7 @@ paths:
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
       x-scope: SRS-CORE
+      x-implementation-status: PLANNED - REST completion branch
       x-related-use-cases:
         - UC-Card-12
   /cards/{id}/attachments/{attachmentId}:
@@ -357,70 +438,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
       x-scope: SRS-CORE
+      x-implementation-status: PLANNED - REST completion branch
       x-related-use-cases:
         - UC-Card-12
-  /boards/{id}/cards/search:
-    get:
-      tags:
-        - Cards
-      summary: Search and filter cards
-      description: Multi-dimensional card search within a board by keyword, status category, assignee, label, and overdue criteria.
-      operationId: searchCards
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/BoardIdPath"
-        - name: q
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Text search query.
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - TODO
-              - IN_PROGRESS
-              - DONE
-        - name: assigneeId
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: labelId
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: due
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - OVERDUE
-              - TODAY
-              - THIS_WEEK
-      responses:
-        "200":
-          description: Search results matching query filters.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CardListResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-      x-scope: SRS-CORE
-      x-related-use-cases:
-        - UC-Card-13

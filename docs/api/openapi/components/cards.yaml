@@ -88,14 +88,12 @@ components:
         - id
         - listId
         - boardId
+        - cardKey
         - title
         - priority
         - position
-        - status
-        - assigneeIds
-        - labelIds
-        - tasksCount
-        - completedTasksCount
+        - statusGroup
+        - archivedAt
         - updatedAt
         - createdAt
       description: Central work item card.
@@ -109,6 +107,10 @@ components:
         boardId:
           type: string
           format: uuid
+        cardKey:
+          type: string
+          description: Board-unique sequential business key.
+          example: CARD-001
         title:
           type: string
           example: Design Authentication Service
@@ -135,28 +137,18 @@ components:
         position:
           type: number
           example: 1024
-        status:
+        statusGroup:
           type: string
           enum:
-            - ACTIVE
-            - ARCHIVED
-          example: ACTIVE
-        assigneeIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        labelIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        tasksCount:
-          type: integer
-          example: 4
-        completedTasksCount:
-          type: integer
-          example: 2
+            - TODO
+            - IN_PROGRESS
+            - DONE
+          description: Derived from the Card's List.statusGroup; not stored independently.
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Non-null when archived. Archived Cards remain readable.
         updatedAt:
           type: string
           format: date-time
@@ -195,12 +187,16 @@ components:
           example: Setup Docker development environment
         description:
           type: string
+          nullable: true
+          maxLength: 20000
         startDate:
           type: string
           format: date-time
+          nullable: true
         dueDate:
           type: string
           format: date-time
+          nullable: true
         priority:
           type: string
           enum:
@@ -209,16 +205,6 @@ components:
             - HIGH
             - URGENT
           default: MEDIUM
-        assigneeIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        labelIds:
-          type: array
-          items:
-            type: string
-            format: uuid
     UpdateCardRequest:
       type: object
       required:
@@ -244,16 +230,6 @@ components:
             - MEDIUM
             - HIGH
             - URGENT
-        assigneeIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        labelIds:
-          type: array
-          items:
-            type: string
-            format: uuid
         updatedAt:
           type: string
           format: date-time
@@ -271,7 +247,7 @@ components:
           description: Target List UUID.
         position:
           type: number
-          description: Calculated position coordinate inside target list.
+          description: Zero-based destination index within the target List.
         updatedAt:
           type: string
           format: date-time
