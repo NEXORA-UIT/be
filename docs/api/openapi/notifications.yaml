@@ -2,7 +2,7 @@ paths:
   /notifications:
     get:
       tags: [Notifications]
-      summary: List notifications for current user
+      summary: Xem thông báo của người dùng hiện tại
       operationId: listUserNotifications
       security:
         - bearerAuth: []
@@ -11,7 +11,7 @@ paths:
         - $ref: "#/components/parameters/LimitQuery"
       responses:
         "200":
-          description: Current user's notifications with page metadata.
+          description: Thông báo của người dùng hiện tại cùng thông tin phân trang.
           content:
             application/json:
               schema:
@@ -23,31 +23,31 @@ paths:
   /notifications/unread-count:
     get:
       tags: [Notifications]
-      summary: Count unread notifications
+      summary: Đếm thông báo chưa đọc
       operationId: getUnreadNotificationCount
       security:
         - bearerAuth: []
       responses:
-        "200": { description: Unread notification count. }
+        "200": { description: Số lượng thông báo chưa đọc. }
         "401": { $ref: "#/components/responses/Unauthorized" }
       x-scope: SRS-CORE
       x-related-use-cases: [UC-COL-18]
   /notifications/read-all:
     patch:
       tags: [Notifications]
-      summary: Mark all current user's notifications as read
+      summary: Đánh dấu đã đọc toàn bộ thông báo của người dùng hiện tại
       operationId: markAllNotificationsAsRead
       security:
         - bearerAuth: []
       responses:
-        "200": { description: Notifications marked as read. }
+        "200": { description: Đã đánh dấu các thông báo là đã đọc. }
         "401": { $ref: "#/components/responses/Unauthorized" }
       x-scope: SRS-CORE
       x-related-use-cases: [UC-COL-18]
   /notifications/{id}/read:
     patch:
       tags: [Notifications]
-      summary: Mark notification as read
+      summary: Đánh dấu thông báo đã đọc
       operationId: markNotificationAsRead
       security:
         - bearerAuth: []
@@ -57,7 +57,7 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Notification marked as read. }
+        "200": { description: Đã đánh dấu thông báo là đã đọc. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
       x-scope: SRS-CORE
@@ -65,7 +65,7 @@ paths:
   /notifications/{id}:
     delete:
       tags: [Notifications]
-      summary: Delete notification
+      summary: Xóa thông báo
       operationId: deleteNotification
       security:
         - bearerAuth: []
@@ -75,7 +75,7 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Notification deleted. }
+        "200": { description: Đã xóa thông báo. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
       x-scope: SRS-CORE

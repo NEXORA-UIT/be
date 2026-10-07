@@ -2,7 +2,7 @@ paths:
   /cards/{id}/dependencies:
     get:
       tags: [Planning]
-      summary: List Card prerequisites
+      summary: Xem các Card tiên quyết
       operationId: listCardDependencies
       security:
         - bearerAuth: []
@@ -10,7 +10,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Prerequisite Cards for this Card.
+          description: Các Card cần hoàn thành trước Card này.
           content:
             application/json:
               schema:
@@ -31,8 +31,8 @@ paths:
     post:
       tags:
         - Planning
-      summary: Declare card dependency
-      description: Establishes a prerequisite relationship where card `{id}` cannot be moved to DONE until `dependsOnCardId` is completed. Rejects circular dependencies.
+      summary: Tạo quan hệ phụ thuộc giữa các Card
+      description: "Thiết lập điều kiện tiên quyết: Card `{id}` không thể chuyển sang DONE cho đến khi `dependsOnCardId` hoàn thành. Từ chối quan hệ tạo thành chu trình."
       operationId: createCardDependency
       security:
         - bearerAuth: []
@@ -46,7 +46,7 @@ paths:
               $ref: "#/components/schemas/CreateDependencyRequest"
       responses:
         "201":
-          description: Dependency created.
+          description: Đã tạo quan hệ phụ thuộc.
           content:
             application/json:
               schema:
@@ -68,8 +68,8 @@ paths:
     delete:
       tags:
         - Planning
-      summary: Remove card dependency
-      description: Removes a prerequisite relationship between two cards.
+      summary: Xóa quan hệ phụ thuộc giữa các Card
+      description: Xóa quan hệ tiên quyết giữa hai Card.
       operationId: deleteCardDependency
       security:
         - bearerAuth: []
@@ -78,13 +78,13 @@ paths:
         - name: dependencyId
           in: path
           required: true
-          description: Unique UUID of the dependency record.
+          description: UUID duy nhất của bản ghi quan hệ phụ thuộc.
           schema:
             type: string
             format: uuid
       responses:
         "200":
-          description: Dependency removed.
+          description: Đã xóa quan hệ phụ thuộc.
           content:
             application/json:
               schema:
@@ -102,8 +102,8 @@ paths:
     get:
       tags:
         - Planning
-      summary: Get board calendar schedule
-      description: Retrieves cards with start and due dates formatted for display in FullCalendar views.
+      summary: Xem lịch của Board
+      description: Trả về các Card có ngày bắt đầu và hạn hoàn thành, được định dạng để hiển thị trên FullCalendar.
       operationId: getBoardCalendar
       security:
         - bearerAuth: []
@@ -115,17 +115,17 @@ paths:
           schema:
             type: string
             format: date-time
-          description: Interval start in UTC.
+          description: Thời điểm bắt đầu khoảng thời gian theo UTC.
         - name: to
           in: query
           required: true
           schema:
             type: string
             format: date-time
-          description: Interval end in UTC.
+          description: Thời điểm kết thúc khoảng thời gian theo UTC.
       responses:
         "200":
-          description: Cards scheduled within the date window.
+          description: Các Card được lên lịch trong khoảng ngày đã chọn.
           content:
             application/json:
               schema:
@@ -145,8 +145,8 @@ paths:
     get:
       tags:
         - Planning
-      summary: Get board progress dashboard (Supporting Proposed API)
-      description: Returns Card counts by List status group and overdue count for an authorized Board. Status is derived from the List; an empty Board returns zero counts.
+      summary: Xem bảng tiến độ Board (API hỗ trợ được đề xuất)
+      description: Trả về số lượng Card theo nhóm trạng thái của List và số Card quá hạn trong Board mà người dùng có quyền truy cập. Trạng thái được suy ra từ List; Board trống trả về các số đếm bằng không.
       operationId: getBoardDashboard
       security:
         - bearerAuth: []
@@ -154,7 +154,7 @@ paths:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
         "200":
-          description: Progress statistics.
+          description: Thống kê tiến độ.
           content:
             application/json:
               schema:
@@ -171,14 +171,14 @@ paths:
   /boards/{id}/list-view:
     get:
       tags: [Planning]
-      summary: Get Board Lists and Cards
+      summary: Xem các List và Card của Board
       operationId: getBoardListView
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
-        "200": { description: Active Lists with their active Cards. }
+        "200": { description: Các List đang hoạt động cùng những Card đang hoạt động của chúng. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }

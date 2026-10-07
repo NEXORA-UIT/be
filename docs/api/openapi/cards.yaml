@@ -3,8 +3,8 @@ paths:
     post:
       tags:
         - Cards
-      summary: Create work item card
-      description: Creates a Card in an active List on an accessible Board, assigns a Board-unique cardKey, and records CARD_CREATED in ActivityLog in the same transaction. Enforces a 2,000 non-deleted Card limit per Board.
+      summary: Tạo Card công việc
+      description: Tạo Card trong List đang hoạt động thuộc Board mà người dùng được phép truy cập, cấp `cardKey` duy nhất trong Board và ghi `CARD_CREATED` vào ActivityLog trong cùng transaction. Mỗi Board giới hạn 2.000 Card chưa bị xóa.
       operationId: createCard
       security:
         - bearerAuth: []
@@ -12,7 +12,7 @@ paths:
         - name: listId
           in: path
           required: true
-          description: Unique UUID of the destination List.
+          description: UUID duy nhất của List đích.
           schema:
             type: string
             format: uuid
@@ -24,7 +24,7 @@ paths:
               $ref: "#/components/schemas/CreateCardRequest"
       responses:
         "201":
-          description: Card created successfully.
+          description: Đã tạo Card.
           content:
             application/json:
               schema:
@@ -46,8 +46,8 @@ paths:
     get:
       tags:
         - Cards
-      summary: Get card details
-      description: Retrieves Card Core fields, the status group derived from its List, and its archive timestamp. Archived Cards remain readable; soft-deleted Cards do not.
+      summary: Lấy thông tin Card
+      description: Trả về các trường Core của Card, nhóm trạng thái suy ra từ List và thời điểm lưu trữ. Card đã lưu trữ vẫn đọc được; Card đã xóa mềm thì không.
       operationId: getCardById
       security:
         - bearerAuth: []
@@ -55,7 +55,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Card Core fields with derived status group.
+          description: Các trường Core của Card cùng nhóm trạng thái suy ra từ List.
           content:
             application/json:
               schema:
@@ -72,8 +72,8 @@ paths:
     patch:
       tags:
         - Cards
-      summary: Update card details
-      description: "Updates card properties. Enforces Optimistic Concurrency Control (OCC): the client must supply its current `updatedAt` value. If outdated, the server rejects with 409 Conflict (CARD_CONFLICT). Enforces startDate <= dueDate."
+      summary: Cập nhật thông tin Card
+      description: "Cập nhật thuộc tính Card và áp dụng Optimistic Concurrency Control (OCC): client phải gửi giá trị `updatedAt` mới nhất. Nếu giá trị đã cũ, server trả 409 Conflict (`CARD_CONFLICT`). Bảo đảm `startDate <= dueDate`."
       operationId: updateCard
       security:
         - bearerAuth: []
@@ -87,7 +87,7 @@ paths:
               $ref: "#/components/schemas/UpdateCardRequest"
       responses:
         "200":
-          description: Card updated successfully.
+          description: Đã cập nhật Card.
           content:
             application/json:
               schema:
@@ -108,8 +108,8 @@ paths:
     delete:
       tags:
         - Cards
-      summary: Delete card
-      description: Soft-deletes the Card while retaining comments and activity history.
+      summary: Xóa Card
+      description: Xóa mềm Card, đồng thời giữ lại bình luận và lịch sử hoạt động.
       operationId: deleteCard
       security:
         - bearerAuth: []
@@ -117,7 +117,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Card deleted successfully.
+          description: Đã xóa Card.
           content:
             application/json:
               schema:
@@ -135,8 +135,8 @@ paths:
     patch:
       tags:
         - Cards
-      summary: Move card position or list
-      description: "Moves or reorders a Card within the same active Board. Status is derived from the destination List. Enforces OCC via `updatedAt`; dependency guards are added by the REST completion branch."
+      summary: Di chuyển hoặc sắp xếp Card
+      description: "Di chuyển hoặc sắp xếp lại Card trong cùng Board đang hoạt động. Trạng thái được suy ra từ List đích. Áp dụng OCC qua `updatedAt`; điều kiện dependency được kiểm tra trước khi chuyển Card sang Done."
       operationId: moveCard
       security:
         - bearerAuth: []
@@ -150,7 +150,7 @@ paths:
               $ref: "#/components/schemas/MoveCardRequest"
       responses:
         "200":
-          description: Card moved successfully.
+          description: Đã di chuyển Card.
           content:
             application/json:
               schema:
@@ -172,8 +172,8 @@ paths:
     patch:
       tags:
         - Cards
-      summary: Archive card
-      description: Removes the card from active board display while keeping historical comments, activity logs, and attachments intact.
+      summary: Lưu trữ Card
+      description: Ẩn Card khỏi Board đang hoạt động nhưng giữ nguyên bình luận, nhật ký hoạt động và tệp đính kèm.
       operationId: archiveCard
       security:
         - bearerAuth: []
@@ -181,7 +181,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Card archived.
+          description: Đã lưu trữ Card.
           content:
             application/json:
               schema:
@@ -199,8 +199,8 @@ paths:
     patch:
       tags:
         - Cards
-      summary: Restore archived Card
-      description: Restores an archived Card when its Workspace, Board, and List parents are active.
+      summary: Khôi phục Card đã lưu trữ
+      description: Khôi phục Card đã lưu trữ khi Workspace, Board và List cha đều đang hoạt động.
       operationId: restoreCard
       security:
         - bearerAuth: []
@@ -208,7 +208,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Card restored.
+          description: Đã khôi phục Card.
           content:
             application/json:
               schema:
@@ -228,8 +228,8 @@ paths:
     get:
       tags:
         - Cards
-      summary: List Cards on a Board
-      description: Returns active Cards in List and Card order. Set includeArchived=true to include archived Cards. UC-Card-13 filtering is performed client-side on the loaded Board data.
+      summary: Lấy các Card của Board
+      description: Trả về Card đang hoạt động theo thứ tự List và vị trí Card. Đặt `includeArchived=true` để lấy cả Card đã lưu trữ. Bộ lọc của UC-Card-13 được áp dụng ở client trên dữ liệu Board đã tải.
       operationId: listBoardCards
       security:
         - bearerAuth: []
@@ -237,7 +237,7 @@ paths:
         - name: boardId
           in: path
           required: true
-          description: Unique UUID of the Board.
+          description: UUID duy nhất của Board.
           schema:
             type: string
             format: uuid
@@ -249,7 +249,7 @@ paths:
             default: false
       responses:
         "200":
-          description: Cards ordered by List and position.
+          description: Các Card được sắp xếp theo List và vị trí.
           content:
             application/json:
               schema:
@@ -268,8 +268,8 @@ paths:
     get:
       tags:
         - Tasks
-      summary: List checklist tasks
-      description: Lists the checklist items for a Card in their stored order.
+      summary: Lấy danh sách Task của Card
+      description: Trả về các mục checklist thuộc Card theo thứ tự đã lưu.
       operationId: listCardTasks
       security:
         - bearerAuth: []
@@ -277,7 +277,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Checklist items.
+          description: Các mục checklist.
           content:
             application/json:
               schema:
@@ -294,8 +294,8 @@ paths:
     post:
       tags:
         - Tasks
-      summary: Add checklist task to card
-      description: Adds an atomic checklist sub-task to the card. Enforces a hard limit of max 50 checklist tasks per card.
+      summary: Thêm Task vào Card
+      description: Thêm một mục checklist vào Card. Mỗi Card có tối đa 50 Task.
       operationId: createCardTask
       security:
         - bearerAuth: []
@@ -309,7 +309,7 @@ paths:
               $ref: "#/components/schemas/CreateTaskRequest"
       responses:
         "201":
-          description: Task created.
+          description: Đã tạo Task.
           content:
             application/json:
               schema:
@@ -330,8 +330,8 @@ paths:
     patch:
       tags:
         - Tasks
-      summary: Update checklist task
-      description: Updates task title or completion status. Completing tasks automatically recalculates card progress without moving the card to Done.
+      summary: Cập nhật Task
+      description: Cập nhật tiêu đề hoặc trạng thái hoàn thành của Task. Hoàn thành Task chỉ tính lại tiến độ, không tự chuyển Card sang Done.
       operationId: updateTask
       security:
         - bearerAuth: []
@@ -345,7 +345,7 @@ paths:
               $ref: "#/components/schemas/UpdateTaskRequest"
       responses:
         "200":
-          description: Task updated.
+          description: Đã cập nhật Task.
           content:
             application/json:
               schema:
@@ -365,8 +365,8 @@ paths:
     delete:
       tags:
         - Tasks
-      summary: Delete checklist task
-      description: Removes a checklist item from the card.
+      summary: Xóa Task
+      description: Xóa một mục checklist khỏi Card.
       operationId: deleteTask
       security:
         - bearerAuth: []
@@ -374,7 +374,7 @@ paths:
         - $ref: "#/components/parameters/TaskIdPath"
       responses:
         "200":
-          description: Task removed.
+          description: Đã xóa Task.
           content:
             application/json:
               schema:
@@ -393,7 +393,7 @@ paths:
     get:
       tags:
         - Cards
-      summary: List card attachments
+      summary: Lấy danh sách tệp đính kèm của Card
       operationId: listCardAttachments
       security:
         - bearerAuth: []
@@ -401,7 +401,7 @@ paths:
         - $ref: "#/components/parameters/CardIdPath"
       responses:
         "200":
-          description: Card attachment metadata.
+          description: Metadata của tệp đính kèm Card.
           content:
             application/json:
               schema:
@@ -419,8 +419,8 @@ paths:
     post:
       tags:
         - Cards
-      summary: Upload card attachment
-      description: Uploads a binary work file associated with the Card using the configured object-storage adapter. Enforces a 25 MiB limit and validates MIME signature. Attachments remain separate from Knowledge Base documents.
+      summary: Tải tệp đính kèm lên Card
+      description: Tải tệp công việc dạng nhị phân lên Card thông qua object-storage adapter đã cấu hình. Giới hạn 25 MiB và xác thực chữ ký MIME. Attachment là luồng riêng, không thuộc tài liệu Knowledge Base.
       operationId: uploadCardAttachment
       security:
         - bearerAuth: []
@@ -454,10 +454,10 @@ paths:
           required: true
           schema:
             type: string
-          description: Original file name, with extension matching the detected MIME type.
+          description: Tên tệp gốc, có phần mở rộng khớp với MIME type được nhận diện.
       responses:
         "201":
-          description: Attachment uploaded.
+          description: Đã tải tệp đính kèm lên.
           content:
             application/json:
               schema:
@@ -478,7 +478,7 @@ paths:
     get:
       tags:
         - Cards
-      summary: Download card attachment
+      summary: Tải tệp đính kèm của Card
       operationId: downloadCardAttachment
       security:
         - bearerAuth: []
@@ -486,13 +486,13 @@ paths:
         - name: attachmentId
           in: path
           required: true
-          description: Attachment UUID.
+          description: UUID của tệp đính kèm.
           schema:
             type: string
             format: uuid
       responses:
         "200":
-          description: Attachment bytes.
+          description: Dữ liệu nhị phân của tệp đính kèm.
           content:
             application/octet-stream:
               schema:
@@ -512,8 +512,8 @@ paths:
     delete:
       tags:
         - Cards
-      summary: Delete card attachment
-      description: Removes the attachment record and stored object. If object cleanup fails, metadata is retained so cleanup can be retried.
+      summary: Xóa tệp đính kèm của Card
+      description: Xóa bản ghi attachment và object đã lưu. Nếu cleanup object thất bại, metadata được giữ lại để có thể thử lại.
       operationId: deleteCardAttachment
       security:
         - bearerAuth: []
@@ -521,13 +521,13 @@ paths:
         - name: attachmentId
           in: path
           required: true
-          description: Attachment UUID.
+          description: UUID của tệp đính kèm.
           schema:
             type: string
             format: uuid
       responses:
         "200":
-          description: Attachment deleted.
+          description: Đã xóa tệp đính kèm.
           content:
             application/json:
               schema:

@@ -3,14 +3,14 @@ paths:
     get:
       tags:
         - Collaboration
-      summary: Realtime board synchronization (deferred)
-      description: Reserved for Socket.IO delivery, which is excluded from the current Core REST scope.
+      summary: Đồng bộ Board thời gian thực (để triển khai sau)
+      description: Endpoint dành cho Socket.IO, chưa thuộc phạm vi REST Core hiện tại.
       operationId: connectRealtimeWebSocket
       security:
         - bearerAuth: []
       responses:
         "101":
-          description: Switching Protocols - WebSocket connection established and upgraded successfully.
+          description: Đã chuyển giao thức; kết nối WebSocket được thiết lập thành công.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -23,8 +23,8 @@ paths:
     post:
       tags:
         - Collaboration
-      summary: Create card comment
-      description: Appends a Markdown comment and creates in-app notifications for valid new @mentions. Email and real-time delivery are deferred.
+      summary: Tạo bình luận cho Card
+      description: Thêm bình luận Markdown và tạo thông báo trong ứng dụng cho các lượt @mention hợp lệ mới. Gửi email và thông báo thời gian thực sẽ triển khai sau.
       operationId: createCardComment
       security:
         - bearerAuth: []
@@ -38,7 +38,7 @@ paths:
               $ref: "#/components/schemas/CreateCommentRequest"
       responses:
         "201":
-          description: Comment saved and in-app mention notifications created.
+          description: Đã lưu bình luận và tạo thông báo trong ứng dụng cho các lượt mention.
           content:
             application/json:
               schema:
@@ -57,8 +57,8 @@ paths:
     get:
       tags:
         - Collaboration
-      summary: List card comments
-      description: Retrieves discussion comments ordered chronologically for rendering in the card modal timeline.
+      summary: Xem bình luận của Card
+      description: Trả về các bình luận theo thứ tự thời gian để hiển thị trong dòng thời gian của hộp thoại Card.
       operationId: listCardComments
       security:
         - bearerAuth: []
@@ -68,7 +68,7 @@ paths:
         - $ref: "#/components/parameters/LimitQuery"
       responses:
         "200":
-          description: List of comments.
+          description: Danh sách bình luận.
           content:
             application/json:
               schema:
@@ -86,8 +86,8 @@ paths:
     patch:
       tags:
         - Collaboration
-      summary: Edit card comment
-      description: "Updates comment text. Enforces authorization: only the original comment author may modify their text."
+      summary: Sửa bình luận Card
+      description: "Cập nhật nội dung bình luận. Chỉ tác giả ban đầu của bình luận được phép sửa."
       operationId: updateComment
       security:
         - bearerAuth: []
@@ -101,7 +101,7 @@ paths:
               $ref: "#/components/schemas/UpdateCommentRequest"
       responses:
         "200":
-          description: Comment edited successfully.
+          description: Đã cập nhật bình luận.
           content:
             application/json:
               schema:
@@ -120,8 +120,8 @@ paths:
     delete:
       tags:
         - Collaboration
-      summary: Delete card comment
-      description: Soft-deletes a comment. Permitted for the comment author or the Board PM.
+      summary: Xóa bình luận Card
+      description: Xóa mềm bình luận. Tác giả bình luận hoặc PM của Board được phép thực hiện.
       operationId: deleteComment
       security:
         - bearerAuth: []
@@ -129,7 +129,7 @@ paths:
         - $ref: "#/components/parameters/CommentIdPath"
       responses:
         "200":
-          description: Comment deleted.
+          description: Đã xóa bình luận.
           content:
             application/json:
               schema:
@@ -147,8 +147,8 @@ paths:
     get:
       tags:
         - Collaboration
-      summary: List card activity history
-      description: Retrieves immutable Card activity, newest first, with a cursor page of up to 100 entries.
+      summary: Xem lịch sử hoạt động của Card
+      description: Trả về lịch sử hoạt động bất biến của Card, mới nhất trước, phân trang bằng cursor với tối đa 100 mục mỗi trang.
       operationId: listCardActivities
       security:
         - bearerAuth: []
@@ -164,7 +164,7 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         "200":
-          description: Paginated activity events.
+          description: Các sự kiện hoạt động đã phân trang.
           content:
             application/json:
               schema:

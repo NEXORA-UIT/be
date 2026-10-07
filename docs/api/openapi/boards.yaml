@@ -3,8 +3,8 @@ paths:
     post:
       tags:
         - Boards
-      summary: Create project board
-      description: Creates a Board as the Workspace Owner, optionally assigns an active Workspace member as PM, and creates the default To Do, In Progress, and Done Lists in one transaction. The Owner is the default PM.
+      summary: Tạo Board dự án
+      description: Tạo Board với tư cách Workspace Owner, có thể chỉ định thành viên đang hoạt động trong Workspace làm PM, đồng thời tạo ba List mặc định To Do, In Progress và Done trong cùng một transaction. Owner là PM mặc định.
       operationId: createBoard
       security:
         - bearerAuth: []
@@ -18,7 +18,7 @@ paths:
               $ref: "#/components/schemas/CreateBoardRequest"
       responses:
         "201":
-          description: Board created with default Kanban columns.
+          description: Đã tạo Board cùng các cột Kanban mặc định.
           content:
             application/json:
               schema:
@@ -37,8 +37,8 @@ paths:
     get:
       tags:
         - Boards
-      summary: List boards in workspace
-      description: Retrieves active Boards. A Workspace Owner sees every Board; other Workspace members see only Boards where they have BoardMembership.
+      summary: Lấy danh sách Board trong Workspace
+      description: Trả về các Board đang hoạt động. Workspace Owner xem được mọi Board; thành viên Workspace khác chỉ xem Board mà họ có BoardMembership.
       operationId: listWorkspaceBoards
       security:
         - bearerAuth: []
@@ -50,10 +50,10 @@ paths:
           schema:
             type: boolean
             default: false
-          description: Flag to include archived boards.
+          description: Cờ cho biết có bao gồm Board đã lưu trữ hay không.
       responses:
         "200":
-          description: List of accessible boards.
+          description: Danh sách Board người dùng có thể truy cập.
           content:
             application/json:
               schema:
@@ -71,8 +71,8 @@ paths:
     get:
       tags:
         - Boards
-      summary: Get board details
-      description: Retrieves Board metadata and its assigned Project Manager. Workspace Owners can access every Board; other users need Board membership.
+      summary: Lấy thông tin Board
+      description: Trả về metadata và Project Manager được phân công cho Board. Workspace Owner truy cập được mọi Board; người dùng khác cần có membership của Board.
       operationId: getBoard
       security:
         - bearerAuth: []
@@ -80,7 +80,7 @@ paths:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
         "200":
-          description: Board details.
+          description: Chi tiết Board.
           content:
             application/json:
               schema:
@@ -97,8 +97,8 @@ paths:
     patch:
       tags:
         - Boards
-      summary: Update board metadata
-      description: Updates board name, description, background color, or header banner image.
+      summary: Cập nhật thông tin Board
+      description: Cập nhật tên, mô tả, màu nền hoặc ảnh bìa của Board.
       operationId: updateBoard
       security:
         - bearerAuth: []
@@ -112,7 +112,7 @@ paths:
               $ref: "#/components/schemas/UpdateBoardRequest"
       responses:
         "200":
-          description: Board updated successfully.
+          description: Đã cập nhật Board.
           content:
             application/json:
               schema:
@@ -131,8 +131,8 @@ paths:
     delete:
       tags:
         - Boards
-      summary: Permanently delete an archived Board
-      description: Only a Workspace Owner can delete an archived Board after confirming its exact name. Attachment objects are cleaned up before relational data is deleted; failed cleanup leaves database records intact and can be retried.
+      summary: Xóa vĩnh viễn Board đã lưu trữ
+      description: Chỉ Workspace Owner được xóa Board đã lưu trữ sau khi xác nhận chính xác tên Board. Các object Attachment được dọn trước khi xóa dữ liệu quan hệ; nếu cleanup thất bại, dữ liệu trong database được giữ lại để thử lại.
       operationId: deleteArchivedBoard
       security:
         - bearerAuth: []
@@ -146,7 +146,7 @@ paths:
               $ref: "#/components/schemas/ConfirmDeleteBoardRequest"
       responses:
         "200":
-          description: Board and its relational data deleted.
+          description: Đã xóa Board và dữ liệu quan hệ của Board.
           content:
             application/json:
               schema:
@@ -162,8 +162,8 @@ paths:
     patch:
       tags:
         - Boards
-      summary: Archive board
-      description: Archives the specified board, setting project content to read-only and removing it from the active dashboard view.
+      summary: Lưu trữ Board
+      description: Lưu trữ Board, chuyển nội dung dự án sang chỉ đọc và ẩn Board khỏi trang tổng quan đang hoạt động.
       operationId: archiveBoard
       security:
         - bearerAuth: []
@@ -171,7 +171,7 @@ paths:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
         "200":
-          description: Board archived successfully.
+          description: Đã lưu trữ Board.
           content:
             application/json:
               schema:
@@ -189,8 +189,8 @@ paths:
     patch:
       tags:
         - Boards
-      summary: Restore archived board
-      description: Restores an archived Board only while its Workspace is active, re-enabling regular editing.
+      summary: Khôi phục Board đã lưu trữ
+      description: Chỉ khôi phục Board đã lưu trữ khi Workspace đang hoạt động; sau đó có thể chỉnh sửa như bình thường.
       operationId: restoreBoard
       security:
         - bearerAuth: []
@@ -198,7 +198,7 @@ paths:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
         "200":
-          description: Board restored to active status.
+          description: Đã khôi phục Board về trạng thái hoạt động.
           content:
             application/json:
               schema:
@@ -216,8 +216,8 @@ paths:
     patch:
       tags:
         - Boards
-      summary: Assign or change board PM
-      description: Only the Workspace Owner may transfer this Board's PM role to an active Workspace member. The transfer is atomic and records appointedBy.
+      summary: Phân công hoặc đổi PM của Board
+      description: Chỉ Workspace Owner được chuyển vai trò PM của Board cho thành viên Workspace đang hoạt động. Thao tác được thực hiện nguyên tử và ghi nhận người phân công trong `appointedBy`.
       operationId: assignBoardPm
       security:
         - bearerAuth: []
@@ -231,7 +231,7 @@ paths:
               $ref: "#/components/schemas/AssignBoardPmRequest"
       responses:
         "200":
-          description: Board PM reassigned successfully.
+          description: Đã chuyển quyền PM của Board.
           content:
             application/json:
               schema:
@@ -251,8 +251,8 @@ paths:
     get:
       tags:
         - Boards
-      summary: List board members
-      description: Retrieves the list of members explicitly assigned to participate in this project board.
+      summary: Lấy danh sách thành viên Board
+      description: Trả về các thành viên được thêm rõ ràng vào Board dự án này.
       operationId: listBoardMembers
       security:
         - bearerAuth: []
@@ -260,7 +260,7 @@ paths:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
         "200":
-          description: List of board members.
+          description: Danh sách thành viên Board.
           content:
             application/json:
               schema:
@@ -277,8 +277,8 @@ paths:
     post:
       tags:
         - Boards
-      summary: Add member to board
-      description: Adds an active workspace member to this specific project board. Member must already belong to the parent workspace.
+      summary: Thêm thành viên vào Board
+      description: Thêm một thành viên Workspace đang hoạt động vào Board này. Người đó phải là thành viên của Workspace cha.
       operationId: addBoardMember
       security:
         - bearerAuth: []
@@ -292,7 +292,7 @@ paths:
               $ref: "#/components/schemas/AddBoardMemberRequest"
       responses:
         "201":
-          description: Member added to board.
+          description: Đã thêm thành viên vào Board.
           content:
             application/json:
               schema:
@@ -312,8 +312,8 @@ paths:
     delete:
       tags:
         - Boards
-      summary: Remove member from board
-      description: Revokes Board access and removes the target user's assignments from all Cards in the Board.
+      summary: Xóa thành viên khỏi Board
+      description: Thu hồi quyền truy cập Board và gỡ các assignment của người dùng đó khỏi toàn bộ Card trong Board.
       operationId: removeBoardMember
       security:
         - bearerAuth: []
@@ -322,7 +322,7 @@ paths:
         - $ref: "#/components/parameters/UserIdPath"
       responses:
         "200":
-          description: Member removed from board and assignments cleared.
+          description: Đã xóa thành viên khỏi Board và gỡ các phân công.
           content:
             application/json:
               schema:
@@ -342,8 +342,8 @@ paths:
     post:
       tags:
         - Lists
-      summary: Create Kanban list column
-      description: Creates a workflow List with an explicit statusGroup. A Board may have at most 30 active Lists.
+      summary: Tạo List cho quy trình Kanban
+      description: Tạo List với `statusGroup` được chỉ định rõ. Mỗi Board có tối đa 30 List đang hoạt động.
       operationId: createList
       security:
         - bearerAuth: []
@@ -357,7 +357,7 @@ paths:
               $ref: "#/components/schemas/CreateListRequest"
       responses:
         "201":
-          description: List created successfully.
+          description: Đã tạo List.
           content:
             application/json:
               schema:
@@ -376,8 +376,8 @@ paths:
     get:
       tags:
         - Lists
-      summary: List board columns
-      description: Retrieves active Lists for the Board in position order.
+      summary: Lấy danh sách List của Board
+      description: Trả về các List đang hoạt động của Board theo thứ tự vị trí.
       operationId: listBoardLists
       security:
         - bearerAuth: []
@@ -391,7 +391,7 @@ paths:
             default: false
       responses:
         "200":
-          description: Lists in position order.
+          description: Các List theo thứ tự vị trí.
           content:
             application/json:
               schema:
@@ -409,8 +409,8 @@ paths:
     patch:
       tags:
         - Lists
-      summary: Update list column
-      description: Updates the title or status category grouping of a list.
+      summary: Cập nhật List
+      description: Cập nhật tên hoặc nhóm trạng thái của List.
       operationId: updateList
       security:
         - bearerAuth: []
@@ -424,7 +424,7 @@ paths:
               $ref: "#/components/schemas/UpdateListRequest"
       responses:
         "200":
-          description: List updated successfully.
+          description: Đã cập nhật List.
           content:
             application/json:
               schema:
@@ -444,8 +444,8 @@ paths:
     patch:
       tags:
         - Lists
-      summary: Reorder list position
-      description: Updates List position transactionally. Conflicting positions are re-indexed deterministically; clients refresh through the REST API.
+      summary: Sắp xếp lại vị trí List
+      description: Cập nhật vị trí List trong transaction. Nếu vị trí xung đột, hệ thống đánh lại chỉ mục theo thứ tự xác định; client tải trạng thái mới qua REST API.
       operationId: reorderList
       security:
         - bearerAuth: []
@@ -459,7 +459,7 @@ paths:
               $ref: "#/components/schemas/ReorderListRequest"
       responses:
         "200":
-          description: List position updated.
+          description: Đã cập nhật vị trí List.
           content:
             application/json:
               schema:
@@ -479,8 +479,8 @@ paths:
     patch:
       tags:
         - Lists
-      summary: Archive list column
-      description: Archives the List. If it contains active Cards, provide a destination List or set archiveCards to true.
+      summary: Lưu trữ List
+      description: Lưu trữ List. Nếu List còn Card đang hoạt động, hãy chỉ định List đích hoặc đặt `archiveCards` thành `true`.
       operationId: archiveList
       security:
         - bearerAuth: []
@@ -494,7 +494,7 @@ paths:
               $ref: "#/components/schemas/ArchiveListRequest"
       responses:
         "200":
-          description: List archived.
+          description: Đã lưu trữ List.
           content:
             application/json:
               schema:
@@ -514,8 +514,8 @@ paths:
     patch:
       tags:
         - Lists
-      summary: Restore an archived List
-      description: Restores a List only while its Board and Workspace are active. Archived Cards remain archived.
+      summary: Khôi phục List đã lưu trữ
+      description: Chỉ khôi phục List khi Board và Workspace đang hoạt động. Các Card đã lưu trữ vẫn giữ trạng thái lưu trữ.
       operationId: restoreList
       security:
         - bearerAuth: []
@@ -523,7 +523,7 @@ paths:
         - $ref: "#/components/parameters/ListIdPath"
       responses:
         "200":
-          description: List restored.
+          description: Đã khôi phục List.
           content:
             application/json:
               schema:

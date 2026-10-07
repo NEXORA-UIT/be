@@ -1,19 +1,19 @@
-# Nexora API contracts
+# Tài liệu API Nexora
 
-This directory contains the HTTP contract, Core endpoint traceability, shared conventions, and the deferred realtime contract.
+Thư mục này chứa hợp đồng HTTP, bảng truy vết REST Core, quy ước dùng chung và hợp đồng realtime đang được hoãn.
 
-## OpenAPI source
+## Nguồn OpenAPI
 
-The OpenAPI contract is split into [module fragments](openapi/README.md). The backend joins them during startup and serves the complete contract at:
+Đặc tả OpenAPI được chia theo [các phân hệ](openapi/README.md). Khi khởi động, backend ghép các mảnh thành một tài liệu hoàn chỉnh và cung cấp tại:
 
-- `/api/docs` — Swagger UI
-- `/api/docs/openapi.json` — JSON document
-- `/api/docs/openapi.yaml` — YAML document
+- `/api/docs` — giao diện Swagger UI
+- `/api/docs/openapi.json` — tài liệu JSON
+- `/api/docs/openapi.yaml` — tài liệu YAML
 
-The HTTP contract remains one OpenAPI 3.0.3 document for clients and tooling. Keep `$ref` values local to `#/components/...`; the loader checks duplicate paths/components, duplicate operation IDs, and unresolved local references before the server starts.
+Hợp đồng HTTP vẫn là một tài liệu OpenAPI 3.0.3 thống nhất cho client và công cụ. Các `$ref` phải trỏ nội bộ tới `#/components/...`. Loader kiểm tra path/component trùng, `operationId` trùng và tham chiếu nội bộ chưa được khai báo trước khi server khởi động.
 
-## Supporting documents
+## Tài liệu liên quan
 
-- [API conventions](conventions.md) defines HTTP behavior, envelopes, pagination, and error codes.
-- [Endpoint matrix](endpoint-matrix.md) maps implemented REST Core flows to SRS use cases; OpenAPI remains the source of the exact HTTP contract.
-- [WebSocket contract](websocket.md) records the planned realtime protocol. Socket.IO implementation is deferred.
+- [Quy ước API](conventions.md) mô tả hành vi HTTP, response envelope, phân trang và mã lỗi.
+- [Bảng truy vết endpoint](endpoint-matrix.md) ánh xạ các luồng REST Core đã triển khai sang use case trong SRS. OpenAPI là nguồn chuẩn cho hợp đồng chi tiết.
+- [Hợp đồng WebSocket](websocket.md) ghi nhận giao thức realtime dự kiến; phần triển khai Socket.IO đang được hoãn.

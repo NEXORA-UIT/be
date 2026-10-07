@@ -1,4 +1,4 @@
-# Core REST endpoint matrix
+# Bảng truy vết endpoint REST Core
 
 Ngày rà soát: **2026-10-08**. Tài liệu này là bản đồ truy vết ngắn giữa REST Core đã triển khai và use case trong SRS. Modular OpenAPI tại `openapi/` là nguồn sự thật cho schema, request/response, error code và `operationId`; bảng dưới đây chỉ tóm tắt phạm vi và quyền.
 
@@ -25,6 +25,6 @@ Ngày rà soát: **2026-10-08**. Tài liệu này là bản đồ truy vết ng�
 
 ## Ngoài phạm vi của REST Core
 
-BullMQ, Socket.IO/WebSocket delivery, AI, RAG, AI Agent/Tool Calling/Proposal và Knowledge Base processing được để cho các nhánh sau. AUTH email tiếp tục gửi trực tiếp theo ghi chú [deferred infrastructure](../CORE/deferred-infrastructure.md). API realtime được ghi riêng trong [WebSocket contract](websocket.md), không được hiểu là đã triển khai.
+BullMQ, Socket.IO/WebSocket delivery, AI, RAG, AI Agent/Tool Calling/Proposal và xử lý Knowledge Base được để cho các nhánh sau. Email AUTH tiếp tục gửi trực tiếp theo ghi chú [hạ tầng được hoãn](../CORE/deferred-infrastructure.md). API realtime được ghi riêng trong [hợp đồng WebSocket](websocket.md), không được hiểu là đã triển khai.
 
 Các endpoint được mô tả trong OpenAPI cho Knowledge Base, AI, GitHub hoặc System Administration không thuộc phạm vi hoàn tất của ba nhánh Core. Không dùng tài liệu hóa đơn thuần làm bằng chứng rằng route đã chạy; đối chiếu route và integration test trước khi công bố trạng thái.

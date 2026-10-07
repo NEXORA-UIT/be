@@ -2,13 +2,13 @@ paths:
   /quick-notes:
     get:
       tags: [Quick Notes]
-      summary: List personal QuickNotes
+      summary: Xem QuickNote cá nhân
       operationId: listQuickNotes
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: QuickNotes owned by the authenticated user.
+          description: Các QuickNote thuộc về người dùng đã xác thực.
           content:
             application/json:
               schema:
@@ -18,7 +18,7 @@ paths:
       x-related-use-cases: [UC-COL-19]
     post:
       tags: [Quick Notes]
-      summary: Create personal QuickNote
+      summary: Tạo QuickNote cá nhân
       operationId: createQuickNote
       security:
         - bearerAuth: []
@@ -30,7 +30,7 @@ paths:
               $ref: "#/components/schemas/CreateQuickNoteRequest"
       responses:
         "201":
-          description: QuickNote saved.
+          description: Đã lưu QuickNote.
           content:
             application/json:
               schema:
@@ -42,7 +42,7 @@ paths:
   /quick-notes/{id}:
     get:
       tags: [Quick Notes]
-      summary: Get personal QuickNote
+      summary: Xem QuickNote cá nhân
       operationId: getQuickNote
       security:
         - bearerAuth: []
@@ -50,7 +50,7 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: QuickNote owned by the authenticated user.
+          description: QuickNote thuộc về người dùng đã xác thực.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/QuickNoteResponse" }
@@ -60,7 +60,7 @@ paths:
       x-related-use-cases: [UC-COL-19]
     patch:
       tags: [Quick Notes]
-      summary: Update personal QuickNote
+      summary: Cập nhật QuickNote cá nhân
       operationId: updateQuickNote
       security:
         - bearerAuth: []
@@ -73,7 +73,7 @@ paths:
             schema: { $ref: "#/components/schemas/UpdateQuickNoteRequest" }
       responses:
         "200":
-          description: QuickNote updated.
+          description: Đã cập nhật QuickNote.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/QuickNoteResponse" }
@@ -84,14 +84,14 @@ paths:
       x-related-use-cases: [UC-COL-19]
     delete:
       tags: [Quick Notes]
-      summary: Delete personal QuickNote
+      summary: Xóa QuickNote cá nhân
       operationId: deleteQuickNote
       security:
         - bearerAuth: []
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "200": { description: QuickNote deleted. }
+        "200": { description: Đã xóa QuickNote. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
       x-scope: SRS-CORE
@@ -99,8 +99,8 @@ paths:
   /quick-notes/{id}/convert:
     post:
       tags: [Quick Notes]
-      summary: Convert personal QuickNote to a Card
-      description: Creates the Card and marks the QuickNote converted in one transaction. A failed Card creation leaves the QuickNote unchanged.
+      summary: Chuyển QuickNote cá nhân thành Card
+      description: Tạo Card và đánh dấu QuickNote đã chuyển đổi trong cùng một transaction. Nếu tạo Card thất bại, QuickNote không bị thay đổi.
       operationId: convertQuickNoteToCard
       security:
         - bearerAuth: []
@@ -113,7 +113,7 @@ paths:
             schema: { $ref: "#/components/schemas/ConvertQuickNoteToCardRequest" }
       responses:
         "201":
-          description: Card created from QuickNote.
+          description: Card được tạo từ QuickNote.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/QuickNoteConversionResponse" }
