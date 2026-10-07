@@ -152,14 +152,14 @@ describe('Core Authorization Schema & Invariants', () => {
     try {
       // First PM succeeds
       const pm1 = await prisma.boardMembership.create({
-        data: { boardId: board.id, userId: user1.id, role: 'PM' },
+        data: { boardId: board.id, userId: user1.id, role: 'PM', appointedBy: user3.id },
       });
       assert.equal(pm1.role, 'PM');
 
       // Second PM for the same board fails due to partial unique index
       await assert.rejects(
         prisma.boardMembership.create({
-          data: { boardId: board.id, userId: user2.id, role: 'PM' },
+          data: { boardId: board.id, userId: user2.id, role: 'PM', appointedBy: user3.id },
         }),
         (error: unknown) =>
           error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002',

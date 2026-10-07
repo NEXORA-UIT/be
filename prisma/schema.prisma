@@ -27,6 +27,12 @@ enum BoardRole {
   MEMBER
 }
 
+enum ListStatusGroup {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
 enum WorkspaceInvitationStatus {
   PENDING
   ACCEPTED
@@ -36,22 +42,23 @@ enum WorkspaceInvitationStatus {
 }
 
 model User {
-  id                   String                @id @default(uuid()) @db.Uuid
-  email                String                @unique
-  passwordHash         String?
-  fullName             String
-  avatarUrl            String?
-  status               UserStatus            @default(ACTIVE)
-  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
-  refreshTokens        RefreshToken[]
-  oauthAccounts        OAuthAccount[]
-  workspaceMemberships WorkspaceMembership[]
-  boardMemberships     BoardMembership[]
-  cardAssignments      CardAssignment[]
-  comments             Comment[]
-  attachments          Attachment[]
-  sentWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
+  id                        String                @id @default(uuid()) @db.Uuid
+  email                     String                @unique
+  passwordHash              String?
+  fullName                  String
+  avatarUrl                 String?
+  status                    UserStatus            @default(ACTIVE)
+  createdAt                 DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime              @updatedAt @db.Timestamptz(3)
+  refreshTokens             RefreshToken[]
+  oauthAccounts             OAuthAccount[]
+  workspaceMemberships      WorkspaceMembership[]
+  boardMemberships          BoardMembership[]
+  cardAssignments           CardAssignment[]
+  comments                  Comment[]
+  attachments               Attachment[]
+  sentWorkspaceInvitations  WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
+  appointedBoardMemberships BoardMembership[]     @relation("BoardMembershipAppointedBy")
 }
 
 model RefreshToken {
@@ -81,17 +88,17 @@ model OAuthAccount {
 }
 
 model Workspace {
-  id          String                @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
+  id             String                @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
   domainCategory String?
-  isFrozen    Boolean               @default(false)
-  archivedAt  DateTime?             @db.Timestamptz(3)
-  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
-  memberships WorkspaceMembership[]
-  boards      Board[]
-  invitations WorkspaceInvitation[]
+  isFrozen       Boolean               @default(false)
+  archivedAt     DateTime?             @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @db.Timestamptz(3)
+  memberships    WorkspaceMembership[]
+  boards         Board[]
+  invitations    WorkspaceInvitation[]
 }
 
 model WorkspaceMembership {
@@ -135,6 +142,8 @@ model Board {
   workspaceId String            @db.Uuid
   name        String
   description String?
+  coverColor  String?
+  coverUrl    String?
   archivedAt  DateTime?         @db.Timestamptz(3)
   createdAt   DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
@@ -148,31 +157,37 @@ model Board {
 }
 
 model BoardMembership {
-  id        String    @id @default(uuid()) @db.Uuid
-  boardId   String    @db.Uuid
-  userId    String    @db.Uuid
-  role      BoardRole @default(MEMBER)
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
-  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String    @id @default(uuid()) @db.Uuid
+  boardId         String    @db.Uuid
+  userId          String    @db.Uuid
+  role            BoardRole @default(MEMBER)
+  appointedBy     String?   @db.Uuid
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  board           Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointedByUser User?     @relation("BoardMembershipAppointedBy", fields: [appointedBy], references: [id], onDelete: Restrict)
 
   @@unique([boardId, userId])
   @@index([boardId])
+  @@index([boardId, role])
   @@index([userId])
 }
 
 model List {
-  id        String   @id @default(uuid()) @db.Uuid
-  boardId   String   @db.Uuid
-  name      String
-  position  Float    @default(0)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards     Card[]
+  id          String          @id @default(uuid()) @db.Uuid
+  boardId     String          @db.Uuid
+  name        String
+  statusGroup ListStatusGroup @default(TODO)
+  position    Float           @default(0)
+  archivedAt  DateTime?       @db.Timestamptz(3)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  board       Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards       Card[]
 
   @@index([boardId])
+  @@index([boardId, archivedAt, position])
 }
 
 model Card {
@@ -181,6 +196,7 @@ model Card {
   listId      String           @db.Uuid
   title       String
   position    Float            @default(0)
+  archivedAt  DateTime?        @db.Timestamptz(3)
   createdAt   DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
   board       Board            @relation(fields: [boardId], references: [id], onDelete: Cascade)
@@ -191,6 +207,7 @@ model Card {
   attachments Attachment[]
 
   @@index([boardId])
+  @@index([boardId, archivedAt])
   @@index([listId])
 }
 

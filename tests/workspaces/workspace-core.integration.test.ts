@@ -117,7 +117,9 @@ describe('Workspace and authorization core', () => {
     await prisma.workspaceMembership.create({
       data: { workspaceId: workspace.id, userId: pm.id, role: 'MEMBER' },
     });
-    await prisma.boardMembership.create({ data: { boardId: board.id, userId: pm.id, role: 'PM' } });
+    await prisma.boardMembership.create({
+      data: { boardId: board.id, userId: pm.id, role: 'PM', appointedBy: owner.id },
+    });
 
     await assert.rejects(
       () => leaveWorkspace(pm.id, workspace.id),

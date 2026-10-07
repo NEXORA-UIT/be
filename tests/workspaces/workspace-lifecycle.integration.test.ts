@@ -146,7 +146,12 @@ describe('Workspace HTTP lifecycle', () => {
     await prisma.boardMembership.createMany({
       data: [
         { boardId: boardOne.id, userId: removableMember.user.id, role: 'MEMBER' },
-        { boardId: boardTwo.id, userId: removableMember.user.id, role: 'PM' },
+        {
+          boardId: boardTwo.id,
+          userId: removableMember.user.id,
+          role: 'PM',
+          appointedBy: owner.user.id,
+        },
       ],
     });
     await prisma.cardAssignment.createMany({
