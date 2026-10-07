@@ -52,7 +52,6 @@ components:
       type: object
       required:
         - name
-        - pmId
       properties:
         name:
           type: string
@@ -65,7 +64,7 @@ components:
         pmId:
           type: string
           format: uuid
-          description: UUID of active Workspace member assigned as PM.
+          description: Optional UUID of an active Workspace member. Defaults to the Workspace Owner.
     UpdateBoardRequest:
       type: object
       properties:
@@ -148,9 +147,8 @@ components:
         - id
         - boardId
         - name
-        - category
+        - statusGroup
         - position
-        - status
         - createdAt
         - updatedAt
       description: Kanban workflow column.
@@ -164,7 +162,7 @@ components:
         name:
           type: string
           example: In Progress
-        category:
+        statusGroup:
           type: string
           enum:
             - TODO
@@ -174,12 +172,10 @@ components:
         position:
           type: number
           example: 2048
-        status:
+        archivedAt:
           type: string
-          enum:
-            - ACTIVE
-            - ARCHIVED
-          example: ACTIVE
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -190,12 +186,12 @@ components:
       type: object
       required:
         - name
-        - category
+        - statusGroup
       properties:
         name:
           type: string
           example: Code Review
-        category:
+        statusGroup:
           type: string
           enum:
             - TODO
@@ -208,7 +204,7 @@ components:
         name:
           type: string
           example: QA Testing
-        category:
+        statusGroup:
           type: string
           enum:
             - TODO
@@ -229,7 +225,10 @@ components:
         moveCardsToListId:
           type: string
           format: uuid
-          description: Optional target List to transfer active cards before archiving.
+          description: Move active Cards to this other active List in the same Board before archiving.
+        archiveCards:
+          type: boolean
+          description: Archive active Cards together with this List. Mutually exclusive with moveCardsToListId.
     BoardDashboard:
       type: object
       required:

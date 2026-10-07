@@ -4,7 +4,7 @@ paths:
       tags:
         - Boards
       summary: Create project board
-      description: Creates an independent project board within the workspace, assigns exactly one Project Manager (PM), and automatically generates the default Kanban columns (To Do, In Progress, Done).
+      description: Creates a Board as the Workspace Owner, optionally assigns an active Workspace member as PM, and creates the default To Do, In Progress, and Done Lists in one transaction. The Owner is the default PM.
       operationId: createBoard
       security:
         - bearerAuth: []
@@ -38,7 +38,7 @@ paths:
       tags:
         - Boards
       summary: List boards in workspace
-      description: Retrieves active boards in the workspace accessible to the authenticated member.
+      description: Retrieves active Boards. A Workspace Owner sees every Board; other Workspace members see only Boards where they have BoardMembership.
       operationId: listWorkspaceBoards
       security:
         - bearerAuth: []
@@ -64,7 +64,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
   /boards/{id}:
@@ -72,8 +72,8 @@ paths:
       tags:
         - Boards
       summary: Get board details
-      description: Retrieves board metadata, settings, and Project Manager identifier.
-      operationId: getBoardById
+      description: Retrieves Board metadata and its assigned Project Manager. Workspace Owners can access every Board; other users need Board membership.
+      operationId: getBoard
       security:
         - bearerAuth: []
       parameters:
@@ -91,7 +91,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
     patch:
@@ -128,42 +128,6 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
-    delete:
-      tags:
-        - Boards
-      summary: Permanently delete board
-      description: "Permanently deletes a board and cleans up associated Cloudflare R2 files. Enforces the strict archive-first lifecycle rule: rejects deletion with 400 Bad Request (BOARD_NOT_ARCHIVED) if the board is still active. Requires typing the exact board name to confirm."
-      operationId: deleteBoardPermanently
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/BoardIdPath"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConfirmDeleteBoardRequest"
-      responses:
-        "200":
-          description: Board permanently deleted.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EmptySuccessResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-      x-scope: SRS-CORE
-      x-related-use-cases:
-        - UC-Board-09
   /boards/{id}/archive:
     patch:
       tags:
@@ -196,8 +160,8 @@ paths:
       tags:
         - Boards
       summary: Restore archived board
-      description: Restores an archived board to active status, re-enabling regular Kanban editing.
-      operationId: unarchiveBoard
+      description: Restores an archived Board only while its Workspace is active, re-enabling regular editing.
+      operationId: restoreBoard
       security:
         - bearerAuth: []
       parameters:
@@ -223,7 +187,7 @@ paths:
       tags:
         - Boards
       summary: Assign or change board PM
-      description: Transfers Project Manager responsibilities for this board to another active workspace member. Enforces the invariant that each board has exactly one PM at all times.
+      description: Only the Workspace Owner may transfer this Board's PM role to an active Workspace member. The transfer is atomic and records appointedBy.
       operationId: assignBoardPm
       security:
         - bearerAuth: []
@@ -277,7 +241,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
     post:
@@ -319,7 +283,7 @@ paths:
       tags:
         - Boards
       summary: Remove member from board
-      description: Revokes board access for the target user and unassigns them from all active cards within this board.
+      description: Revokes Board access and removes the target user's assignments from all Cards in the Board.
       operationId: removeBoardMember
       security:
         - bearerAuth: []
@@ -344,73 +308,12 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
-  /boards/{id}/labels:
-    get:
-      tags:
-        - Boards
-      summary: List board labels
-      description: Retrieves the color-coded classification labels managed within this board.
-      operationId: listBoardLabels
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/BoardIdPath"
-      responses:
-        "200":
-          description: List of board labels.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BoardLabelListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
-      x-related-use-cases:
-        - UC-Card-12
-    post:
-      tags:
-        - Boards
-      summary: Create board label
-      description: Creates a new color-coded tag label belonging to this board.
-      operationId: createBoardLabel
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/BoardIdPath"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateLabelRequest"
-      responses:
-        "201":
-          description: Label created.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BoardLabelResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
-      x-related-use-cases:
-        - UC-Card-12
   /boards/{id}/lists:
     post:
       tags:
         - Lists
       summary: Create Kanban list column
-      description: Creates a new workflow stage column in the board. Must be explicitly categorized as TODO, IN_PROGRESS, or DONE. Max 30 lists per board.
+      description: Creates a workflow List with an explicit statusGroup. A Board may have at most 30 active Lists.
       operationId: createList
       security:
         - bearerAuth: []
@@ -443,16 +346,22 @@ paths:
     get:
       tags:
         - Lists
-      summary: List board columns with cards
-      description: Retrieves all active columns and nested cards for rendering the complete Kanban board view.
+      summary: List board columns
+      description: Retrieves active Lists for the Board in position order.
       operationId: listBoardLists
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/BoardIdPath"
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
-          description: Kanban columns and card tree.
+          description: Lists in position order.
           content:
             application/json:
               schema:
@@ -463,7 +372,7 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
         - UC-List-10
   /lists/{id}:
@@ -506,8 +415,8 @@ paths:
       tags:
         - Lists
       summary: Reorder list position
-      description: Updates the horizontal position index of the column and broadcasts the event over WebSocket to all active board viewers.
-      operationId: reorderListPosition
+      description: Updates List position transactionally. Conflicting positions are re-indexed deterministically; clients refresh through the REST API.
+      operationId: reorderList
       security:
         - bearerAuth: []
       parameters:
@@ -524,7 +433,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EmptySuccessResponse"
+                $ref: "#/components/schemas/ListResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -540,8 +449,8 @@ paths:
     patch:
       tags:
         - Lists
-      summary: Archive or delete list column
-      description: Archives the column. Allows optionally moving nested cards to another active column before closing.
+      summary: Archive list column
+      description: Archives the List. If it contains active Cards, provide a destination List or set archiveCards to true.
       operationId: archiveList
       security:
         - bearerAuth: []
@@ -568,6 +477,35 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-List-10
+  /lists/{id}/restore:
+    patch:
+      tags:
+        - Lists
+      summary: Restore an archived List
+      description: Restores a List only while its Board and Workspace are active. Archived Cards remain archived.
+      operationId: restoreList
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ListIdPath"
+      responses:
+        "200":
+          description: List restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-List-10
