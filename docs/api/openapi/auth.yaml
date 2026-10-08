@@ -223,12 +223,6 @@ paths:
       description: Uses the environment's fixed Google redirect URI and creates a one-time login token plus PKCE verifier in Redis. The frontend stores loginToken in sessionStorage before opening authorizationUrl.
       operationId: startGoogleOAuth
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/GoogleOAuthStartRequest"
       responses:
         "200":
           description: Google authorization URL and one-time login token created.
@@ -244,7 +238,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-      x-scope: PROPOSED
+      x-scope: SRS-CORE
       x-related-use-cases:
         - UC-AUTH-03
   /auth/oauth/google/callback:

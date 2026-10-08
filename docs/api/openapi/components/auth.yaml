@@ -159,10 +159,6 @@ components:
         state:
           type: string
           description: One-time Google login token returned unchanged by Google.
-    GoogleOAuthStartRequest:
-      type: object
-      additionalProperties: false
-      description: Empty body. The backend reads the fixed redirect URI from its environment configuration.
     GoogleOAuthStartResponse:
       type: object
       required:
