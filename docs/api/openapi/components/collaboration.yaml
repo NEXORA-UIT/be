@@ -1,0 +1,129 @@
+components:
+  schemas:
+    Comment:
+      type: object
+      required:
+        - id
+        - cardId
+        - userId
+        - content
+        - createdAt
+        - updatedAt
+      description: Discussion comment within a card.
+      properties:
+        id:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          nullable: true
+          description: Markdown comment text supporting @mention syntax; null after soft deletion.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+    CreateCommentRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: Vui lòng xem lại API contract tại docs/api @datphan
+    UpdateCommentRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: Cập nhật tài liệu hoàn tất.
+    ActivityLog:
+      type: object
+      required:
+        - id
+        - boardId
+        - actorId
+        - action
+        - createdAt
+      description: Audit event log entry for card state changes.
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+        actorId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: CARD_MOVED
+        details:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    CommentResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Comment"
+    CommentListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
+    ActivityLogPaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ActivityLog"
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"

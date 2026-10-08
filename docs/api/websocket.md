@@ -4,7 +4,7 @@
 > **Phiên bản tài liệu:** 1.2.0 (Strict Consistency Validated)  
 > **Trạng thái:** Formal Specification (Documentation Only)  
 > **Kênh phạm vi:** Cấp độ Bảng dự án (`board:{boardId}`)  
-> **Tài liệu tham chiếu:** `docs/api/openapi.yaml`, `docs/api/endpoint-matrix.md`, `docs/api/conventions.md`, SRS v1.0 (Mục 3.1.3, 3.5, 6.1.2)  
+> **Tài liệu tham chiếu:** `docs/api/openapi/`, `docs/api/endpoint-matrix.md`, `docs/api/conventions.md`, SRS v1.0 (Mục 3.1.3, 3.5, 6.1.2)
 > **Use Case trọng tâm:** `UC-COL-15`, `UC-COL-16`, `UC-COL-17`, `UC-Card-12`, `UC-List-10`
 
 ---
@@ -60,7 +60,7 @@ Other Connected Clients (Client B, Client C, ...)
 * **Cấu hình Cổng:** Máy chủ backend vận hành trên cổng cấu hình `appConfig.port` (`PORT` từ môi trường, mặc định `3000`).
 * **Đường dẫn Bắt tay:**
   * Kênh WebSocket được định tuyến tại đường dẫn: `/realtime`
-  * Trong hợp đồng `openapi.yaml`, do tiền tố máy chủ là `http://localhost:3000/api/v1`, điểm cuối được tài liệu hóa là `/realtime` (được ánh xạ thành `/api/v1/realtime` trong Swagger UI).
+  * Trong hợp đồng `OpenAPI contract`, do tiền tố máy chủ là `http://localhost:3000/api/v1`, điểm cuối được tài liệu hóa là `/realtime` (được ánh xạ thành `/api/v1/realtime` trong Swagger UI).
   * Về mặt kiến trúc máy chủ HTTP Express (`http.Server`), trình xử lý sự kiện nâng cấp (`server.on('upgrade')`) tiếp nhận tại:
     - Đường dẫn gốc chuẩn: `ws://localhost:3000/realtime` (khuyến nghị cho Client)
     - Đồng thời hỗ trợ tương thích ngược: `ws://localhost:3000/api/v1/realtime`
@@ -107,8 +107,8 @@ Quá trình thiết lập kết nối tuân theo chuẩn RFC 6455 thông qua HTT
   ```
 * **Phản hồi Thất bại Trước khi Nâng cấp (HTTP Handshake Errors):**
   Máy chủ kiểm tra token ngay trong sự kiện `upgrade`. Nếu không hợp lệ, trả về HTTP status code trực tiếp và **không** nâng cấp kết nối:
-  * `401 Unauthorized`: Token xác thực bị thiếu, không hợp lệ, hoặc đã hết hạn (`TOKEN_EXPIRED`). Khớp với response `401` trong `openapi.yaml`.
-  * `403 Forbidden`: Người dùng bị khóa tài khoản hoặc bị cấm truy cập hệ thống. Khớp với response `403` trong `openapi.yaml`.
+  * `401 Unauthorized`: Token xác thực bị thiếu, không hợp lệ, hoặc đã hết hạn (`TOKEN_EXPIRED`). Khớp với response `401` trong `OpenAPI contract`.
+  * `403 Forbidden`: Người dùng bị khóa tài khoản hoặc bị cấm truy cập hệ thống. Khớp với response `403` trong `OpenAPI contract`.
 
 ---
 
@@ -125,7 +125,7 @@ Quá trình thiết lập kết nối tuân theo chuẩn RFC 6455 thông qua HTT
 * **Căn cứ Kỹ thuật & Bằng chứng Dự án:**
   1. `docs/api/endpoint-matrix.md` hàng 54 (`UC-COL-15`) quy định rõ: Điểm kết nối `/realtime (ws)` nhận tham số truy vấn (Query Params) để bắt tay xác thực (`WS Handshake`).
   2. Phù hợp hoàn toàn với API chuẩn của trình duyệt: `new WebSocket('ws://localhost:3000/realtime?token=' + accessToken)`.
-  3. Cho phép máy chủ Node.js phân tích và kiểm tra tính hợp lệ của token một cách đồng bộ trong sự kiện `upgrade` trước khi chấp thuận nâng cấp, đảm bảo trả về đúng mã lỗi `HTTP 401 / 403` như cam kết trong `openapi.yaml`.
+  3. Cho phép máy chủ Node.js phân tích và kiểm tra tính hợp lệ của token một cách đồng bộ trong sự kiện `upgrade` trước khi chấp thuận nâng cấp, đảm bảo trả về đúng mã lỗi `HTTP 401 / 403` như cam kết trong `OpenAPI contract`.
   4. Loại bỏ hoàn toàn phương án "First-Frame Authentication" (vốn tạo ra trạng thái kết nối mở chưa xác thực, dễ bị khai thác DoS tài nguyên và mâu thuẫn với mã phản hồi `401` tại tầng HTTP Upgrade).
 * **Cơ chế Dự phòng cho Client Phi trình duyệt:** Máy chủ hỗ trợ đọc thêm header `Authorization: Bearer <token>` nếu client có khả năng gửi custom headers. Nếu cả Query Parameter và Header đều xuất hiện, Query Parameter được ưu tiên giải mã.
 
@@ -455,7 +455,7 @@ Mọi sự kiện phát sóng từ máy chủ tới client đều tuân thủ c�
   }
   ```
 * **Đối chiếu Hợp đồng & Giới hạn Dữ liệu Cá nhân (PII Validation):**
-  - **Khớp DTO OpenAPI:** Schema `Comment` trong `openapi.yaml` định nghĩa trường `user` tham chiếu trực tiếp đến `UserSummary` (`required: [id, fullName, email]`). Do đó, payload hiện tại tuân thủ 100% hình thái DTO trong OpenAPI.
+  - **Khớp DTO OpenAPI:** Schema `Comment` trong `OpenAPI contract` định nghĩa trường `user` tham chiếu trực tiếp đến `UserSummary` (`required: [id, fullName, email]`). Do đó, payload hiện tại tuân thủ 100% hình thái DTO trong OpenAPI.
   - **Đánh giá Dữ liệu Thừa (PII Boundary):** Trường `email` không cần thiết cho giao diện hiển thị trao đổi thẻ Kanban (chỉ cần `fullName` và `avatarUrl`). Để tuân thủ nguyên tắc không tự ý sửa đổi OpenAPI DTO ngoài phạm vi Phase 6, payload giữ nguyên `user` theo `UserSummary`. Đề xuất tối giản hóa (loại bỏ `email` khi phát sóng realtime) được ghi nhận là:  
     `[UNVERIFIED: Cần quyết định phân tách DTO UserRealtimeSummary trong Phase triển khai backend]`.
 
@@ -591,7 +591,7 @@ WebSocket hoạt động qua mạng Internet không ổn định. Giao thức m�
      GET /api/v1/boards/{id}/lists
      ```
    * **Đối chiếu Hợp đồng & Hiện trạng Schema (Contract Audit):**
-     - Trong `docs/api/openapi.yaml`, mô tả của `GET /boards/{id}/lists` ghi nhận: *"Retrieves all active columns and nested cards for rendering the complete Kanban board view"* (phản hồi 200: *"Kanban columns and card tree"*).
+     - Trong `docs/api/openapi/`, mô tả của `GET /boards/{id}/lists` ghi nhận: *"Retrieves all active columns and nested cards for rendering the complete Kanban board view"* (phản hồi 200: *"Kanban columns and card tree"*).
      - Tuy nhiên, schema `$ref: '#/components/schemas/ListListResponse'` hiện tại chỉ định nghĩa mảng các đối tượng `List` phẳng, **chưa chứa mảng thẻ `cards: Card[]` lồng nhau**.
      - **Giải pháp Khôi phục Hiện hành:** Client tải danh sách Cột qua `GET /api/v1/boards/{id}/lists`, kết hợp tải danh sách Thẻ của Bảng qua `GET /api/v1/boards/{id}/cards/search` (hoặc tải theo từng cột).
      - Trường hợp mở rộng `List` trả về `cards` lồng nhau trực tiếp trong `ListListResponse` được đánh dấu là:  
@@ -622,8 +622,8 @@ Hệ thống phân định 3 cấp độ xử lý lỗi kỹ thuật:
 
 ### 13.1. Cấp độ 1 — Lỗi Bắt tay Nâng cấp HTTP (HTTP Upgrade Handshake Rejection)
 Xảy ra trước khi kết nối WebSocket được thiết lập. Máy chủ phản hồi mã trạng thái HTTP chuẩn và ngắt kết nối:
-* `401 Unauthorized`: Thiếu token, token không hợp lệ, hoặc chữ ký sai (`TOKEN_EXPIRED`). Khớp `openapi.yaml`.
-* `403 Forbidden`: Người dùng bị cấm hoạt động hoặc tài khoản bị khóa. Khớp `openapi.yaml`.
+* `401 Unauthorized`: Thiếu token, token không hợp lệ, hoặc chữ ký sai (`TOKEN_EXPIRED`). Khớp `OpenAPI contract`.
+* `403 Forbidden`: Người dùng bị cấm hoạt động hoặc tài khoản bị khóa. Khớp `OpenAPI contract`.
 
 ### 13.2. Cấp độ 2 — Lỗi Cưỡng chế Đóng Socket Đang Hoạt động (WebSocket Close Frames)
 Sử dụng mã đóng RFC 6455 thuộc dải riêng của ứng dụng (`4000-4999`):

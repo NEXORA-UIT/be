@@ -40,4 +40,23 @@ export const authErrors = {
   refreshAlreadyUsed() {
     return new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh token đã được sử dụng');
   },
+  oauthNotConfigured() {
+    return new AppError(503, 'OAUTH_NOT_CONFIGURED', 'Google OAuth chưa được cấu hình');
+  },
+  invalidOAuthState() {
+    return new AppError(
+      400,
+      'INVALID_OAUTH_STATE',
+      'OAuth login token không hợp lệ hoặc đã hết hạn',
+    );
+  },
+  oauthEmailNotVerified() {
+    return new AppError(401, 'OAUTH_EMAIL_NOT_VERIFIED', 'Google chưa xác minh email này');
+  },
+  googleAuthenticationFailed() {
+    return new AppError(401, 'GOOGLE_AUTHENTICATION_FAILED', 'Không thể xác thực với Google');
+  },
+  oauthAccountConflict() {
+    return new AppError(409, 'OAUTH_ACCOUNT_CONFLICT', 'Tài khoản Google đã được liên kết');
+  },
 };

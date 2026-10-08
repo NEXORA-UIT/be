@@ -35,7 +35,7 @@
 
 **Files:**
 
-- Modify: `.env.example`
+- Modify: `.env.local.example` và `.env.production.example`
 - Modify: `src/config/auth.config.ts`
 - Modify: `src/config/email/email.config.ts`
 - Modify: `src/modules/auth/utils/auth.constants.ts`
@@ -112,7 +112,7 @@
 
 **Files:**
 
-- Modify: `docs/api/openapi.yaml`
+- Modify: `docs/api/openapi/`
 - Modify: `docs/api/endpoint-matrix.md`
 - Modify: `docs/AUTH/manual-jwt.md`
 - Verify: `docs/AUTH/email-verification-registration.md`

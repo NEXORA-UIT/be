@@ -20,10 +20,20 @@ export const AUTH_ROUTE = {
   changePassword: '/change-password',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
+  googleOAuth: '/oauth/google',
+  googleOAuthStart: '/start',
+  googleOAuthCallback: '/callback',
 } as const;
 
 export const AUTH_CACHE_KEY = {
   reset: (hash: string) => `reset:${hash}`,
   loginAttempts: (ip: string) => `login-attempts:${ip}`,
   pendingRegistration: (tokenHash: string) => `pending-registration:${tokenHash}`,
+  oauthLogin: (tokenHash: string) => `oauth-login:${tokenHash}`,
+  workspaceInvitation: (tokenHash: string) => `workspace-invitation:${tokenHash}`,
+} as const;
+
+export const GOOGLE_OAUTH = {
+  provider: 'GOOGLE',
+  scopes: ['openid', 'email', 'profile'],
 } as const;

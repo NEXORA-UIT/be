@@ -51,7 +51,7 @@ export async function logoutAllController(request: Request, response: Response) 
   response.status(200).json({ success: true, data: {} });
 }
 
-export function meController(request: Request, response: Response) {
+export function getCurrentUserController(request: Request, response: Response) {
   response.status(200).json({ success: true, data: request.user });
 }
 

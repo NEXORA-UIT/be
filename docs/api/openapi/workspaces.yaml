@@ -1,0 +1,488 @@
+paths:
+  /workspaces:
+    post:
+      tags:
+        - Workspaces
+      summary: Tạo workspace
+      description: Khởi tạo workspace cấp cao nhất đại diện cho tổ chức hoặc phòng ban. Người dùng đã xác thực và tạo workspace được tự động chỉ định làm Owner duy nhất của workspace.
+      operationId: createWorkspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+      responses:
+        "201":
+          description: Đã tạo workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+    get:
+      tags:
+        - Workspaces
+      summary: Xem các workspace của người dùng
+      description: Trả về các workspace mà người dùng đã xác thực hiện là thành viên, bao gồm workspace đã lưu trữ hoặc bị đóng băng cùng thông tin phân trang.
+      operationId: listWorkspaces
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Danh sách workspace người dùng có thể truy cập.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-08
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+  /workspaces/{id}:
+    get:
+      tags:
+        - Workspaces
+      summary: Xem chi tiết workspace
+      description: Trả về thông tin chi tiết và thiết lập thành viên của workspace được chỉ định.
+      operationId: getWorkspaceById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Chi tiết workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-08
+    patch:
+      tags:
+        - Workspaces
+      summary: Cập nhật workspace
+      description: Cập nhật tên, mô tả hoặc lĩnh vực của workspace. Yêu cầu vai trò Owner của workspace.
+      operationId: updateWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkspaceRequest"
+      responses:
+        "200":
+          description: Đã cập nhật workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/archive:
+    patch:
+      tags:
+        - Workspaces
+      summary: Lưu trữ workspace
+      description: Chuyển workspace sang trạng thái đã lưu trữ, đặt các Board bên trong thành chỉ đọc và dừng các tác vụ AI chạy nền tự động.
+      operationId: archiveWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Đã lưu trữ workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/invitations:
+    post:
+      tags:
+        - Members
+      summary: Mời thành viên vào workspace
+      description: Tạo lời mời với token bảo mật có hiệu lực trong 7 ngày và gửi email qua bộ điều hợp email hiện tại. Yêu cầu vai trò Owner của workspace.
+      operationId: inviteWorkspaceMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteMemberRequest"
+      responses:
+        "201":
+          description: Đã tạo lời mời và gửi email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+    get:
+      tags:
+        - Members
+      summary: Xem lời mời workspace đang chờ
+      description: Trả về các lời mời đang chờ của workspace. Yêu cầu vai trò Owner của workspace.
+      operationId: listWorkspaceInvitations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Các lời mời workspace đang chờ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{token}/accept:
+    post:
+      tags:
+        - Members
+      summary: Chấp nhận lời mời workspace
+      description: Chấp nhận lời mời bằng token duy nhất có hiệu lực 7 ngày và thêm người dùng đã xác thực vào workspace với tư cách thành viên.
+      operationId: acceptWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token lời mời bảo mật nhận được qua email.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã chấp nhận lời mời và kích hoạt tư cách thành viên.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{token}/reject:
+    post:
+      tags:
+        - Members
+      summary: Từ chối lời mời workspace
+      description: Từ chối lời mời đang chờ dành cho người dùng đã xác thực mà không tạo tư cách thành viên.
+      operationId: rejectWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Đã từ chối lời mời.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/invitations/{id}/resend:
+    post:
+      tags:
+        - Members
+      summary: Gửi lại lời mời workspace
+      description: Vô hiệu hóa token lời mời cũ, cấp token mới có hiệu lực 7 ngày và gửi email mới.
+      operationId: resendWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID duy nhất của bản ghi lời mời.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Đã cấp token lời mời mới và gửi email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/{id}/invitations/{invitationId}:
+    delete:
+      tags:
+        - Members
+      summary: Hủy lời mời workspace
+      description: Hủy lời mời đang chờ. Yêu cầu vai trò Owner của workspace.
+      operationId: cancelWorkspaceInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - name: invitationId
+          in: path
+          required: true
+          description: UUID duy nhất của bản ghi lời mời.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Đã hủy lời mời.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInvitationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-06
+  /workspaces/{id}/members:
+    get:
+      tags:
+        - Members
+      summary: Xem thành viên workspace
+      description: Trả về danh sách thành viên đang hoạt động và vai trò workspace được gán cho từng người.
+      operationId: listWorkspaceMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Danh sách thành viên workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMemberListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-WS-07
+  /workspaces/{id}/members/{userId}:
+    patch:
+      tags:
+        - Members
+      summary: Chuyển quyền Owner của workspace
+      description: Chuyển vai trò Owner của workspace cho một thành viên hiện có. Chỉ Owner hiện tại mới được thực hiện thao tác này.
+      operationId: transferWorkspaceOwner
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleRequest"
+      responses:
+        "200":
+          description: Đã cập nhật vai trò thành viên.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07
+    delete:
+      tags:
+        - Members
+      summary: Xóa thành viên khỏi workspace
+      description: Xóa tư cách thành viên, thu hồi quyền truy cập Board đang có và các phân công của người đó, đồng thời giữ nguyên nội dung dự án và lịch sử. Không thể xóa Owner hiện tại của workspace hoặc PM của Board trước khi chuyển giao trách nhiệm.
+      operationId: removeWorkspaceMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "200":
+          description: Đã xóa thành viên và thu hồi quyền trên Board.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07
+  /workspaces/{id}/unarchive:
+    patch:
+      tags:
+        - Workspaces
+      summary: Khôi phục workspace
+      description: Khôi phục workspace đã lưu trữ. System Admin cần bỏ trạng thái đóng băng trước khi có thể khôi phục workspace đang bị đóng băng.
+      operationId: restoreWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Đã khôi phục workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-08
+  /workspaces/{id}/leave:
+    post:
+      tags:
+        - Members
+      summary: Rời workspace
+      description: Xóa người dùng đã xác thực khỏi workspace và thu hồi quyền truy cập Board đang có. Owner phải chuyển quyền sở hữu trước; PM hiện tại của Board phải được thay thế trước.
+      operationId: leaveWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Đã xóa tư cách thành viên khỏi workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-WS-07

@@ -1,5 +1,3 @@
-import 'dotenv/config';
-
 const secret = process.env.JWT_ACCESS_SECRET;
 if (!secret || Buffer.byteLength(secret) < 32) {
   throw new Error('JWT_ACCESS_SECRET must contain at least 32 bytes');

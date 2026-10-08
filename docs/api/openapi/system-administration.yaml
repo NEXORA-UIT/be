@@ -1,0 +1,360 @@
+paths:
+  /system-admin/users:
+    get:
+      tags:
+        - System Administration
+      summary: List platform users
+      description: Retrieves a paginated list of all registered accounts across the platform. Accessible only by System Admin.
+      operationId: listAdminUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - LOCKED
+      responses:
+        "200":
+          description: Paginated user accounts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-28
+  /system-admin/users/{userId}/status:
+    patch:
+      tags:
+        - System Administration
+      summary: Lock or unlock user account
+      description: Toggles active/locked status for a user. Locking immediately revokes active JWT sessions without deleting user history.
+      operationId: updateUserStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserStatusRequest"
+      responses:
+        "200":
+          description: User status modified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-28
+  /system-admin/workspaces:
+    get:
+      tags:
+        - System Administration
+      summary: List all workspaces
+      description: Retrieves all workspaces across the platform with usage counters.
+      operationId: listAdminWorkspaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - ARCHIVED
+              - FROZEN
+      responses:
+        "200":
+          description: Paginated workspace records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminWorkspacePaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-28
+  /system-admin/workspaces/{id}/freeze:
+    patch:
+      tags:
+        - System Administration
+      summary: Freeze or unfreeze workspace
+      description: Freezes workspace due to policy violations, making all child boards read-only and pausing automated AI operations.
+      operationId: freezeWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FreezeWorkspaceRequest"
+      responses:
+        "200":
+          description: Workspace freeze state updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-28
+  /system-admin/workspaces/{id}/quotas:
+    get:
+      tags:
+        - System Administration
+      summary: Get workspace resource quotas
+      description: Retrieves AI quota limits (token ceilings, daily requests, storage) and current utilization metrics.
+      operationId: getWorkspaceQuotas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      responses:
+        "200":
+          description: Quota configuration and current consumption.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceQuotasResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-29
+    put:
+      tags:
+        - System Administration
+      summary: Update workspace quotas
+      description: Adjusts monthly AI token limits, daily request limits, and storage quotas for a workspace.
+      operationId: updateWorkspaceQuotas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuotaRequest"
+      responses:
+        "200":
+          description: Quotas updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceQuotasResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-29
+  /system-admin/ai/kill-switch:
+    get:
+      tags:
+        - System Administration
+      summary: Get AI Emergency Kill-Switch status
+      description: Checks whether the platform-wide Emergency Kill-Switch is currently active.
+      operationId: getAiKillSwitchStatus
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Kill-switch state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIKillSwitchStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-SYS-30
+    post:
+      tags:
+        - System Administration
+      summary: Toggle AI Emergency Kill-Switch
+      description: Immediately disables or reenables all outbound LLM API calls and AI Agent services across the entire system. Logs the action to AuditLog.
+      operationId: setAiKillSwitch
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KillSwitchRequest"
+      responses:
+        "200":
+          description: Kill-switch toggled successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIKillSwitchStatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-30
+  /system-admin/queues:
+    get:
+      tags:
+        - System Administration
+      summary: Monitor background queue metrics
+      description: Retrieves operational metrics (waiting, active, completed, failed, delayed counts) across BullMQ queues (Tika document parsing, mailer, embedding jobs).
+      operationId: getQueueMetrics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Queue performance and health stats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueMetricListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-31
+  /system-admin/queues/{queueName}/retry-failed:
+    post:
+      tags:
+        - System Administration
+      summary: Retry failed queue jobs
+      description: Retries all jobs currently residing in the Dead Letter Queue for the specified BullMQ queue name.
+      operationId: retryFailedQueueJobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: queueName
+          in: path
+          required: true
+          description: Name of the target BullMQ queue.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Retry triggered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-31
+  /system-admin/audit-logs:
+    get:
+      tags:
+        - System Administration
+      summary: Query system audit logs
+      description: Queries immutable (Append-Only) system audit logs containing authentication events, role modifications, AI tool executions, approvals, and admin operations. Retained for at least 90 days. Sensitive credentials and tokens are permanently redacted.
+      operationId: queryAuditLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+        - name: eventType
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by actionType code.
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Start timestamp (UTC).
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: End timestamp (UTC).
+      responses:
+        "200":
+          description: Audit log events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemAuditLogPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-SYS-32

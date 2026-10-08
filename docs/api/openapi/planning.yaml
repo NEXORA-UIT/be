@@ -1,0 +1,192 @@
+paths:
+  /cards/{id}/dependencies:
+    get:
+      tags: [Planning]
+      summary: Xem các Card tiên quyết
+      operationId: listCardDependencies
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Các Card cần hoàn thành trước Card này.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      prerequisites:
+                        type: array
+                        items: { $ref: "#/components/schemas/CardDependencySummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-PLAN-03]
+    post:
+      tags:
+        - Planning
+      summary: Tạo quan hệ phụ thuộc giữa các Card
+      description: "Thiết lập điều kiện tiên quyết: Card `{id}` không thể chuyển sang DONE cho đến khi `dependsOnCardId` hoàn thành. Từ chối quan hệ tạo thành chu trình."
+      operationId: createCardDependency
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDependencyRequest"
+      responses:
+        "201":
+          description: Đã tạo quan hệ phụ thuộc.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardDependencyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-03
+  /cards/{id}/dependencies/{dependencyId}:
+    delete:
+      tags:
+        - Planning
+      summary: Xóa quan hệ phụ thuộc giữa các Card
+      description: Xóa quan hệ tiên quyết giữa hai Card.
+      operationId: deleteCardDependency
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: dependencyId
+          in: path
+          required: true
+          description: UUID duy nhất của bản ghi quan hệ phụ thuộc.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Đã xóa quan hệ phụ thuộc.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-03
+  /boards/{id}/calendar:
+    get:
+      tags:
+        - Planning
+      summary: Xem lịch của Board
+      description: Trả các Card có ít nhất một mốc ngày để hiển thị trên lịch, kèm assignee, trạng thái quá hạn và cảnh báo xung đột dependency.
+      operationId: getBoardCalendar
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Thời điểm bắt đầu khoảng thời gian theo UTC.
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Thời điểm kết thúc khoảng thời gian theo UTC.
+      responses:
+        "200":
+          description: Các Card được lên lịch trong khoảng ngày đã chọn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardCalendarResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-01
+  /boards/{id}/dashboard:
+    get:
+      tags:
+        - Planning
+      summary: Xem bảng tiến độ Board (API hỗ trợ được đề xuất)
+      description: Trả về số lượng Card theo nhóm trạng thái của List và số Card quá hạn trong Board mà người dùng có quyền truy cập. Trạng thái được suy ra từ List; Board trống trả về các số đếm bằng không.
+      operationId: getBoardDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Thống kê tiến độ.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardDashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-PLAN-04
+  /boards/{id}/list-view:
+    get:
+      tags: [Planning]
+      summary: Xem các List và Card của Board
+      description: Trả về Card đang hoạt động, bao gồm Card chưa có ngày; dữ liệu chỉ thuộc Board được cấp quyền.
+      operationId: getBoardListView
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Các List đang hoạt động cùng Card, assignee và trạng thái quá hạn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardListViewResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-PLAN-01]

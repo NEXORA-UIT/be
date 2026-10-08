@@ -11,7 +11,7 @@
 
 ## Quy tắc đăng nhập
 
-1. Backend kiểm tra `state` một lần, đổi authorization code với đúng provider và đúng redirect URI được cho phép, rồi lấy provider account ID.
+1. Backend kiểm tra `state` một lần, đổi authorization code với đúng provider và redirect URI trong config môi trường, rồi lấy provider account ID.
 2. Nếu `OAuthAccount` đã tồn tại: đăng nhập user đã liên kết, trừ khi user bị khóa.
 3. Nếu chưa tồn tại và email provider đã xác minh **chưa thuộc user nào**: tạo `User` và `OAuthAccount` trong cùng transaction, rồi cấp phiên.
 4. **Google:** nếu Google trả email khớp `User` đã có và `email_verified = true`, liên kết Google `sub` vào user đó trong transaction rồi cấp phiên. Đây là phương án trải nghiệm bro vừa đề xuất; không dùng email làm khóa nhận diện cho các lần đăng nhập sau. Nếu email chưa xác minh, không tự liên kết.
@@ -27,7 +27,7 @@
 
 ## Những cập nhật hợp đồng API cần review với frontend
 
-- `docs/api/openapi.yaml` hiện có `POST /auth/oauth/google|github` nhận `code` và `redirectUri` tùy chọn, nhưng **chưa có `state` hoặc điểm khởi tạo OAuth**. Cần bổ sung bước cấp state trước khi code OAuth.
+- Google OAuth hiện có endpoint start cấp `state/loginToken`; callback nhận `code` và `state`. Redirect URI do backend lấy từ config môi trường.
 - Bổ sung endpoint liên kết tài khoản có xác thực; xác định request/response và mã `ACCOUNT_LINK_REQUIRED`/conflict trong OpenAPI và endpoint matrix.
 - OpenAPI cần mô tả Google tự liên kết **chỉ với email đã xác minh**; GitHub cần liên kết chủ động khi email trùng. Endpoint liên kết GitHub cụ thể vẫn cần một PR hợp đồng riêng để frontend review.
 
@@ -37,5 +37,5 @@
 - Google có email đã xác minh trùng user cũ thì liên kết và cấp phiên đúng user; email chưa xác minh không được tự liên kết.
 - GitHub có email trùng user cũ trả `ACCOUNT_LINK_REQUIRED`; không tạo thêm user, không cấp token.
 - User đăng nhập và liên kết thành công với provider chưa gắn; liên kết vào user khác hoặc liên kết trùng bị từ chối.
-- State sai/hết hạn/đã dùng, redirect URI ngoài allowlist, code bị dùng lại và user bị khóa đều không cấp phiên.
+- State sai/hết hạn/đã dùng, code bị dùng lại và user bị khóa đều không cấp phiên.
 - GitHub thiếu email xác minh không tạo user mới; callback Google/GitHub không làm lộ token qua URL/log.

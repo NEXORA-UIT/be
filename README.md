@@ -29,33 +29,28 @@ Kho lưu trữ này (`be`) là phần **Backend** của hệ thống, chịu tr�
 
 ## 2. Hiện trạng Dự án (Project Status)
 
-Dự án hiện đang ở giai đoạn **thiết lập nền tảng kỹ thuật và hoàn thiện hợp đồng đặc tả API (API Contract Documentation)**.
+Dự án đang triển khai backend theo từng module; trạng thái tính năng cụ thể cần xem mã nguồn và tài liệu của module tương ứng.
 
 ### 2.1. Đã triển khai trong mã nguồn (Currently Implemented)
 
 - Cấu hình TypeScript nghiêm ngặt (`strict: true`, module resolution `NodeNext`, chuẩn ESM).
-- Ứng dụng nền tảng Express 5 và điểm cuối kiểm tra trạng thái máy chủ `GET /` (`Hello World!`).
-- Cấu trúc khung định tuyến phân tầng modular monolith (Router tổng `/api/v1` gắn kết 10 module rỗng).
+- API Express 5 theo kiến trúc modular monolith, được mount dưới `/api/v1`.
+- AUTH, Workspace/membership/invitation và các module Core khác có implementation trong `src/modules/`; mức độ hoàn tất cần xem service, contract và trạng thái kiểm tra tương ứng.
+- Prisma/PostgreSQL, Redis và email adapter đang được dùng trong các flow hiện có.
 - Tích hợp Swagger UI tại đường dẫn `/api/docs` để duyệt và kiểm tra trực quan hợp đồng API.
-- Bộ tài liệu hợp đồng API đầy đủ và chuẩn hóa trong thư mục `docs/api/`.
+- OpenAPI được chia thành fragment theo module trong `docs/api/openapi/` và được ghép khi server khởi động.
 
 ### 2.2. Đặc tả tài liệu (Documentation Only)
 
 - **Đặc tả WebSocket Realtime (Phase 6):** Bản hợp đồng chuẩn hóa cấu trúc gói tin, sự kiện Kanban và quản lý phòng kết nối tại `docs/api/websocket.md`.
-- **Đặc tả OpenAPI 3.0.3:** Toàn bộ 72 điểm cuối REST API và 123 DTO schema được tài liệu hóa chi tiết tại `docs/api/openapi.yaml`.
+- **Đặc tả OpenAPI 3.0.3:** Các fragment theo module tạo thành một hợp đồng hoàn chỉnh; xem `docs/api/openapi/README.md`.
 
-### 2.3. Hạ tầng dự kiến trong tương lai (Planned / Future Infrastructure)
+### 2.3. Hạ tầng được hoãn
 
-Các công nghệ sau đây **chưa được cài đặt mã nguồn hoặc khởi tạo kết nối** trong repository; các thư mục hiện chỉ là khung giữ chỗ bằng `.gitkeep`:
+- BullMQ workers cho email AUTH và lời mời Workspace; các flow hiện tại vẫn gửi email trực tiếp.
+- Socket.IO cho cộng tác thời gian thực.
 
-- Cơ sở dữ liệu quan hệ: PostgreSQL và Prisma ORM.
-- Tìm kiếm ngữ nghĩa: Phần mở rộng pgvector.
-- Bộ nhớ đệm & Hàng đợi: Redis và BullMQ workers.
-- Lưu trữ tệp tin: Cloudflare R2 hoặc Cloudinary.
-- Xác thực mở rộng: Google OAuth 2.0 và GitHub OAuth 2.0.
-- Trí tuệ nhân tạo: Pipeline RAG, tích hợp LLM, Langfuse tracing, Apache Tika document parser.
-- Tích hợp kỹ thuật: GitHub repository connector và webhook processor.
-- Runtime kết nối mạng thời gian thực: WebSocket runtime (`ws` hoặc Socket.IO).
+Quyết định triển khai chi tiết nằm trong [docs/CORE/deferred-infrastructure.md](docs/CORE/deferred-infrastructure.md).
 
 ---
 
@@ -68,12 +63,12 @@ Các công nghệ sau đây **chưa được cài đặt mã nguồn hoặc kh�
 | **TypeScript (~5.9)**            |   Đang sử dụng    | Ngôn ngữ lập trình chính với cấu hình tĩnh nghiêm ngặt (`strict: true`) |
 | **Express (5.1)**                |   Đang sử dụng    | Web framework nền tảng cho hệ thống REST API                            |
 | **Swagger UI Express (5.0)**     |   Đang sử dụng    | Giao diện hiển thị và tương tác trực quan với tài liệu OpenAPI          |
-| **YAML parser (2.9)**            |   Đang sử dụng    | Bộ nạp tệp đặc tả `openapi.yaml` vào bộ nhớ máy chủ                     |
+| **YAML parser (2.9)**            |   Đang sử dụng    | Đọc và ghép các fragment OpenAPI khi server khởi động                   |
 | **tsx (4.20)**                   |   Đang sử dụng    | Công cụ thực thi TypeScript trực tiếp hỗ trợ hot reload khi phát triển  |
-| **PostgreSQL**                   | Dự kiến (Planned) | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững              |
-| **Prisma ORM**                   | Dự kiến (Planned) | Bộ công cụ quản lý lược đồ dữ liệu, migration và truy vấn               |
+| **PostgreSQL**                   |   Đang sử dụng    | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững              |
+| **Prisma ORM**                   |   Đang sử dụng    | Quản lý lược đồ dữ liệu, migration và truy vấn                          |
 | **pgvector**                     | Dự kiến (Planned) | Vector database mở rộng lưu trữ embedding cho hệ thống RAG              |
-| **Redis**                        | Dự kiến (Planned) | Bộ nhớ tạm (caching), quản lý phiên và điều phối phân tán               |
+| **Redis**                        |   Đang sử dụng    | Lưu token ngắn hạn, OAuth state và dữ liệu tạm                          |
 | **BullMQ**                       | Dự kiến (Planned) | Hệ thống quản lý hàng đợi và tác vụ nền bất đồng bộ                     |
 | **Cloudinary / R2**              | Dự kiến (Planned) | Lưu trữ tệp đính kèm, ảnh đại diện và tài liệu Knowledge Base           |
 | **OAuth 2.0 (Google, GitHub)**   | Dự kiến (Planned) | Đăng nhập một chạm tiện lợi và bảo mật                                  |
@@ -90,11 +85,10 @@ Toàn bộ hợp đồng giao tiếp giữa Frontend và Backend đã được h
 - **Swagger UI:** Có sẵn trực tiếp khi khởi động máy chủ tại:
   - Tuyến đường (Route): `/api/docs`
   - Địa chỉ cục bộ: `http://localhost:3000/api/docs`
-- **Tệp đặc tả OpenAPI:** `docs/api/openapi.yaml` (Quy chuẩn OpenAPI 3.0.3 đầy đủ dữ liệu, phân quyền, OCC và mã lỗi).
+- **Tệp đặc tả OpenAPI:** các fragment tại `docs/api/openapi/`, được ghép thành một tài liệu OpenAPI 3.0.3 khi khởi động.
 - **Ma trận điểm cuối:** `docs/api/endpoint-matrix.md` (Đối chiếu 16 cột chuẩn cho 32 Use Case theo tài liệu SRS).
 - **Quy ước API & Xử lý lỗi:** `docs/api/conventions.md` (Quy định cấu trúc phản hồi JSON chuẩn, mã lỗi chuẩn hóa, phân trang và kiểm soát tương tranh lạc quan OCC).
 - **Đặc tả WebSocket Realtime:** `docs/api/websocket.md` (Đặc tả các gói tin sự kiện cộng tác thời gian thực).
-- **Báo cáo kiểm định WebSocket:** `docs/api/websocket-validation.md` (Báo cáo thẩm định tính nhất quán của hợp đồng Phase 6).
 
 ### Lưu ý về Giai đoạn Phase 6 (WebSocket Documentation)
 
@@ -119,10 +113,16 @@ Cài đặt các gói phụ thuộc:
 pnpm install
 ```
 
-Khởi chạy máy chủ ở chế độ phát triển (Hot reload):
+Khởi chạy local với hot reload và `.env.local`:
 
 ```sh
-pnpm dev
+pnpm dev:local
+```
+
+Build rồi chạy bằng `.env.production`:
+
+```sh
+pnpm dev:production
 ```
 
 Sau khi khởi động, truy cập:
@@ -142,37 +142,37 @@ Biên dịch dự án sang mã nguồn JavaScript:
 pnpm build
 ```
 
-Khởi chạy bản biên dịch trong thư mục `dist/`:
+Khởi chạy bản đã build trong `dist/` bằng `.env.production`:
 
 ```sh
 pnpm start
 ```
 
-_Lưu ý: Biến môi trường `PORT` cho phép thay đổi cổng lắng nghe của máy chủ (mặc định là `3000`). Ở giai đoạn hiện tại, dự án không yêu cầu kết nối cơ sở dữ liệu hay khóa API bên ngoài để chạy._
+`PORT` cho phép thay đổi cổng lắng nghe, mặc định là `3000`. `.env.local` và `.env.production` chứa secret nên không được commit.
 
 ### 5.3. PostgreSQL và Redis local bằng Docker
 
-Docker Compose cho hai dịch vụ nằm tại `infrastructure/docker/compose.yaml`. Backend hiện vẫn chạy trên host bằng `pnpm dev` và chưa kết nối hai dịch vụ này. Cần Docker Desktop hoặc Docker daemon đang chạy.
+Docker Compose cho PostgreSQL và Redis local nằm tại `infrastructure/docker/compose.yaml`. Backend chạy trên host bằng `pnpm dev:local`. Cần Docker Desktop hoặc Docker daemon đang chạy.
 
 Trong PowerShell, tại gốc repo:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.local.example .env.local
 ```
 
-Sửa `POSTGRES_PASSWORD` trong `.env` thành mật khẩu local của bạn. File `.env` đã được Git bỏ qua. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
+Sửa các placeholder trong `.env.local`. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
 
 ```powershell
-docker compose --env-file .env -f infrastructure/docker/compose.yaml up -d
-docker compose --env-file .env -f infrastructure/docker/compose.yaml ps
-docker compose --env-file .env -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-docker compose --env-file .env -f infrastructure/docker/compose.yaml exec redis redis-cli ping
+pnpm infra:up:local
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml ps
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec redis redis-cli ping
 ```
 
 `ps` cần hiển thị cả `postgres` và `redis` ở trạng thái `healthy`; lệnh Redis trả `PONG`. Dừng các container khi không dùng:
 
 ```powershell
-docker compose --env-file .env -f infrastructure/docker/compose.yaml down
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml down
 ```
 
 `down` giữ hai named volumes nên dữ liệu còn sau khi khởi động lại. Chỉ dùng `down --volumes` khi muốn xóa dữ liệu local.

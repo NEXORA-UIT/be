@@ -1,0 +1,164 @@
+import 'dotenv/config';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { after, describe, it } from 'node:test';
+import { prisma } from '../../src/infrastructure/database/prisma.js';
+import {
+  requireBoardAccess,
+  requireBoardManagementAccess,
+} from '../../src/shared/authorization/access.service.js';
+import {
+  createWorkspace,
+  leaveWorkspace,
+  transferWorkspaceOwner,
+} from '../../src/modules/workspaces/services/workspace.service.js';
+
+describe('Workspace and authorization core', () => {
+  after(async () => prisma.$disconnect());
+
+  it('creates a workspace with exactly one owner and transfers ownership atomically', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await createWorkspace(owner.id, { name: 'Core Workspace' });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: member.id, role: 'MEMBER' },
+    });
+
+    await transferWorkspaceOwner(owner.id, workspace.id, member.id);
+    const memberships = await prisma.workspaceMembership.findMany({
+      where: { workspaceId: workspace.id },
+    });
+    assert.equal(memberships.filter((item) => item.role === 'OWNER').length, 1);
+    assert.equal(memberships.find((item) => item.userId === member.id)?.role, 'OWNER');
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('does not let a workspace member read a board without board membership', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `board-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `board-member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await createWorkspace(owner.id, { name: 'Board Workspace' });
+    const board = await prisma.board.create({
+      data: { workspaceId: workspace.id, name: 'Private Board' },
+    });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: member.id, role: 'MEMBER' },
+    });
+
+    await assert.rejects(
+      () => requireBoardAccess(member.id, board.id),
+      (error: any) => error.status === 403,
+    );
+    await assert.rejects(
+      () => requireBoardManagementAccess(member.id, board.id),
+      (error: any) => error.status === 403,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('allows a member to leave and removes active board access', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `leave-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const member = await prisma.user.create({
+      data: { email: `leave-member-${randomUUID()}@test.local`, fullName: 'Member' },
+    });
+    const workspace = await createWorkspace(owner.id, { name: 'Leave Workspace' });
+    const board = await prisma.board.create({
+      data: {
+        workspaceId: workspace.id,
+        name: 'Team Board',
+        memberships: {
+          create: { userId: owner.id, role: 'PM', appointedBy: owner.id },
+        },
+      },
+    });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: member.id, role: 'MEMBER' },
+    });
+    await prisma.boardMembership.create({
+      data: { boardId: board.id, userId: member.id, role: 'MEMBER' },
+    });
+    const list = await prisma.list.create({
+      data: { boardId: board.id, name: 'To Do', statusGroup: 'TODO', position: 0 },
+    });
+    const card = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: list.id,
+        cardKey: 'LEAVE-001',
+        title: 'Preserve assignment history',
+      },
+    });
+    await prisma.cardAssignment.create({ data: { cardId: card.id, userId: member.id } });
+    const cardBeforeLeave = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+
+    await leaveWorkspace(member.id, workspace.id);
+    const endedMembership = await prisma.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId: workspace.id, userId: member.id } },
+    });
+    assert.ok(endedMembership);
+    assert.ok(endedMembership.endedAt);
+    assert.equal(
+      await prisma.boardMembership.findUnique({
+        where: { boardId_userId: { boardId: board.id, userId: member.id } },
+      }),
+      null,
+    );
+    assert.equal(await prisma.cardAssignment.count({ where: { cardId: card.id } }), 0);
+    const cardAfterLeave = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+    assert.ok(cardAfterLeave.updatedAt > cardBeforeLeave.updatedAt);
+    assert.equal(
+      await prisma.activityLog.count({
+        where: {
+          cardId: card.id,
+          actorId: member.id,
+          action: 'CARD_UNASSIGNED',
+          details: { path: ['reason'], equals: 'MEMBERSHIP_REVOKED' },
+        },
+      }),
+      1,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, member.id] } } });
+  });
+
+  it('does not allow a Board PM to leave before a replacement is assigned', async () => {
+    const owner = await prisma.user.create({
+      data: { email: `pm-owner-${randomUUID()}@test.local`, fullName: 'Owner' },
+    });
+    const pm = await prisma.user.create({
+      data: { email: `pm-user-${randomUUID()}@test.local`, fullName: 'PM' },
+    });
+    const workspace = await createWorkspace(owner.id, { name: 'PM Workspace' });
+    const board = await prisma.board.create({
+      data: { workspaceId: workspace.id, name: 'Managed Board' },
+    });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: pm.id, role: 'MEMBER' },
+    });
+    await prisma.boardMembership.create({
+      data: { boardId: board.id, userId: pm.id, role: 'PM', appointedBy: owner.id },
+    });
+
+    await assert.rejects(
+      () => leaveWorkspace(pm.id, workspace.id),
+      (error: any) => error.status === 403,
+    );
+
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+    await prisma.user.deleteMany({ where: { id: { in: [owner.id, pm.id] } } });
+  });
+});

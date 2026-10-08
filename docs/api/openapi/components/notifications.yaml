@@ -1,0 +1,60 @@
+components:
+  schemas:
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - message
+        - isRead
+        - createdAt
+      description: User notification item.
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+          nullable: true
+        boardId:
+          type: string
+          format: uuid
+          nullable: true
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [CARD_ASSIGNED, COMMENT_MENTION]
+        message:
+          type: string
+          example: You were assigned to CARD-001
+        isRead:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+    NotificationPaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }

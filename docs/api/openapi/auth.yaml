@@ -1,0 +1,382 @@
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Request local account registration
+      description: Stores a pending registration in Redis for 15 minutes and sends a verification link through Gmail. No user or token is created until the link is verified.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "202":
+          description: Verification email accepted for delivery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationPendingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          description: Gmail delivery is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-01
+  /auth/verify-registration:
+    post:
+      tags:
+        - Authentication
+      summary: Complete local account registration
+      description: Verifies the one-time registration token, creates the user, removes pending Redis data, and returns JWT tokens.
+      operationId: verifyRegistration
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyRegistrationRequest"
+      responses:
+        "201":
+          description: User created and authenticated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-AUTH-01
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user credentials
+      description: Authenticates user using email and password. Returns JWT access and refresh tokens in the JSON response body. Rate limited to 5 attempts per minute per IP.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authentication successful, token pair returned in response body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-02
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Exchanges a valid 7-day refresh token for a newly issued 15-minute access token.
+      operationId: refreshAccessToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Token refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-AUTH-02
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Revoke current session
+      operationId: logoutCurrentSession
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current session revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout-all:
+    post:
+      tags:
+        - Authentication
+      summary: Revoke all user sessions
+      operationId: logoutAllSessions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All sessions revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request a password reset
+      description: Returns the same success response for known and unknown valid emails. A reset token is delivered by the configured Gmail account.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password with a one-time token
+      description: Token expires after 15 minutes and revokes every existing session when used.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - newPassword
+              properties:
+                token:
+                  type: string
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        "200":
+          description: Password updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /auth/oauth/google/start:
+    post:
+      tags:
+        - Authentication
+      summary: Start Google OAuth login
+      description: Uses the environment's fixed Google redirect URI and creates a one-time login token plus PKCE verifier in Redis. The frontend stores loginToken in sessionStorage before opening authorizationUrl.
+      operationId: startGoogleOAuth
+      security: []
+      responses:
+        "200":
+          description: Google authorization URL and one-time login token created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleOAuthStartResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          description: Google OAuth credentials are not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-03
+  /auth/oauth/google/callback:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate with Google OAuth
+      description: Completes Google OAuth 2.0 Authorization Code exchange after validating the one-time state and PKCE verifier. Resolves an existing OAuthAccount by Google sub. On first login, a verified Google email matching an existing user is linked to that user; an unclaimed verified email creates a user.
+      operationId: loginWithGoogle
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleOAuthCallbackRequest"
+      responses:
+        "200":
+          description: Google authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-03
+  /auth/oauth/github:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate with GitHub OAuth
+      description: Completes GitHub OAuth single sign-on using minimal identity scopes (read:user, user:email). Resolves the provider ID; an email already owned by another user requires explicit account linking. Distinct from the Board-level repository connector.
+      operationId: loginWithGitHub
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthExchangeRequest"
+      responses:
+        "200":
+          description: GitHub authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-04
+  /auth/me:
+    get:
+      tags:
+        - Profile
+      summary: Get authenticated user profile
+      description: Retrieves the identity, email, full name, and avatar of the currently authenticated user.
+      operationId: getCurrentUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile data retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-05
+    patch:
+      tags:
+        - Profile
+      summary: Update user profile
+      description: Updates full name and/or avatar image URL. If a new avatar is provided, previous media assets may be cleaned up asynchronously.
+      operationId: updateCurrentUserProfile
+      x-implementation-status: planned-cloudinary
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-05
+  /auth/change-password:
+    post:
+      tags:
+        - Profile
+      summary: Change account password
+      description: Validates the current password and hashes the new password using Bcrypt. Available only for local password-based accounts.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-AUTH-05

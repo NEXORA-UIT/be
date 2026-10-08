@@ -17,17 +17,71 @@ enum OAuthProvider {
   GITHUB
 }
 
+enum WorkspaceRole {
+  OWNER
+  MEMBER
+}
+
+enum BoardRole {
+  PM
+  MEMBER
+}
+
+enum ListStatusGroup {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum CardPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  CARD_ASSIGNED
+  COMMENT_MENTION
+}
+
+enum WorkspaceInvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELED
+}
+
+enum AppointmentProvenance {
+  UNKNOWN
+  RECORDED
+}
+
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique
-  passwordHash  String?
-  fullName      String
-  avatarUrl     String?
-  status        UserStatus     @default(ACTIVE)
-  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
-  refreshTokens RefreshToken[]
-  oauthAccounts OAuthAccount[]
+  id                           String                @id @default(uuid()) @db.Uuid
+  email                        String                @unique
+  passwordHash                 String?
+  fullName                     String
+  avatarUrl                    String?
+  status                       UserStatus            @default(ACTIVE)
+  createdAt                    DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime              @updatedAt @db.Timestamptz(3)
+  refreshTokens                RefreshToken[]
+  oauthAccounts                OAuthAccount[]
+  workspaceMemberships         WorkspaceMembership[]
+  boardMemberships             BoardMembership[]
+  cardAssignments              CardAssignment[]
+  comments                     Comment[]
+  attachments                  Attachment[]
+  sentWorkspaceInvitations     WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
+  appointedBoardMemberships    BoardMembership[]     @relation("BoardMembershipAppointedBy")
+  activityLogs                 ActivityLog[]
+  workspaceAuditEventsAsActor  WorkspaceAuditLog[]   @relation("WorkspaceAuditActor")
+  workspaceAuditEventsAsTarget WorkspaceAuditLog[]   @relation("WorkspaceAuditTarget")
+  notifications                Notification[]
+  notificationsSent            Notification[]        @relation("NotificationActor")
+  quickNotes                   QuickNote[]
 }
 
 model RefreshToken {
@@ -54,4 +108,317 @@ model OAuthAccount {
 
   @@unique([provider, providerAccountId])
   @@unique([userId, provider])
+}
+
+model Workspace {
+  id             String                @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  domainCategory String?
+  isFrozen       Boolean               @default(false)
+  archivedAt     DateTime?             @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @db.Timestamptz(3)
+  memberships    WorkspaceMembership[]
+  boards         Board[]
+  invitations    WorkspaceInvitation[]
+  auditLogs      WorkspaceAuditLog[]
+}
+
+model WorkspaceMembership {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  userId      String        @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+  endedAt     DateTime?     @db.Timestamptz(3)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model WorkspaceInvitation {
+  id          String                    @id @default(uuid()) @db.Uuid
+  workspaceId String                    @db.Uuid
+  inviterId   String                    @db.Uuid
+  email       String
+  tokenHash   String                    @unique
+  status      WorkspaceInvitationStatus @default(PENDING)
+  expiresAt   DateTime                  @db.Timestamptz(3)
+  acceptedAt  DateTime?                 @db.Timestamptz(3)
+  rejectedAt  DateTime?                 @db.Timestamptz(3)
+  canceledAt  DateTime?                 @db.Timestamptz(3)
+  createdAt   DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                  @updatedAt
+  workspace   Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter     User                      @relation("WorkspaceInvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([email, status])
+  @@index([expiresAt])
+}
+
+model WorkspaceAuditLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @db.Uuid
+  actorId      String    @db.Uuid
+  targetUserId String    @db.Uuid
+  action       String
+  details      Json?     @db.JsonB
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor        User      @relation("WorkspaceAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser   User      @relation("WorkspaceAuditTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+model Board {
+  id            String            @id @default(uuid()) @db.Uuid
+  workspaceId   String            @db.Uuid
+  name          String
+  description   String?
+  coverColor    String?
+  coverUrl      String?
+  archivedAt    DateTime?         @db.Timestamptz(3)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  memberships   BoardMembership[]
+  lists         List[]
+  cards         Card[]
+  labels        Label[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
+  cardCounter   Int               @default(0)
+
+  @@index([workspaceId])
+}
+
+model BoardMembership {
+  id                    String                @id @default(uuid()) @db.Uuid
+  boardId               String                @db.Uuid
+  userId                String                @db.Uuid
+  role                  BoardRole             @default(MEMBER)
+  appointedBy           String?               @db.Uuid
+  appointmentProvenance AppointmentProvenance @default(UNKNOWN)
+  createdAt             DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime              @updatedAt @db.Timestamptz(3)
+  board                 Board                 @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointedByUser       User?                 @relation("BoardMembershipAppointedBy", fields: [appointedBy], references: [id], onDelete: Restrict)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([boardId, role])
+  @@index([userId])
+}
+
+model List {
+  id          String          @id @default(uuid()) @db.Uuid
+  boardId     String          @db.Uuid
+  name        String
+  statusGroup ListStatusGroup @default(TODO)
+  position    Float           @default(0)
+  archivedAt  DateTime?       @db.Timestamptz(3)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  board       Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards       Card[]
+
+  @@index([boardId])
+  @@index([boardId, archivedAt, position])
+}
+
+model Card {
+  id              String           @id @default(uuid()) @db.Uuid
+  boardId         String           @db.Uuid
+  listId          String           @db.Uuid
+  cardKey         String
+  title           String
+  description     String?
+  startDate       DateTime?        @db.Timestamptz(3)
+  dueDate         DateTime?        @db.Timestamptz(3)
+  priority        CardPriority     @default(MEDIUM)
+  position        Float            @default(0)
+  archivedAt      DateTime?        @db.Timestamptz(3)
+  deletedAt       DateTime?        @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+  board           Board            @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list            List             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  assignments     CardAssignment[]
+  labelLinks      CardLabel[]
+  tasks           Task[]
+  dependencies    CardDependency[] @relation("CardDependencySource")
+  dependedOnBy    CardDependency[] @relation("CardDependencyTarget")
+  comments        Comment[]
+  attachments     Attachment[]
+  activityLogs    ActivityLog[]
+  notifications   Notification[]
+  sourceQuickNote QuickNote?
+
+  @@unique([boardId, cardKey])
+  @@index([boardId])
+  @@index([boardId, archivedAt])
+  @@index([listId])
+  @@index([boardId, deletedAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  boardId   String   @db.Uuid
+  cardId    String?  @db.Uuid
+  actorId   String   @db.Uuid
+  action    String
+  details   Json?    @db.JsonB
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  card      Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([boardId, createdAt])
+  @@index([cardId, createdAt])
+  @@index([actorId])
+}
+
+model CardAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  cardId     String   @db.Uuid
+  userId     String   @db.Uuid
+  assignedAt DateTime @default(now()) @db.Timestamptz(3)
+  card       Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+  @@index([cardId])
+  @@index([userId])
+}
+
+model Label {
+  id        String      @id @default(uuid()) @db.Uuid
+  boardId   String      @db.Uuid
+  name      String
+  color     String
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+  board     Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cardLinks CardLabel[]
+
+  @@index([boardId])
+}
+
+model CardLabel {
+  cardId    String   @db.Uuid
+  labelId   String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  label     Label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, labelId])
+  @@index([labelId, cardId])
+}
+
+model CardDependency {
+  id              String   @id @default(uuid()) @db.Uuid
+  cardId          String   @db.Uuid
+  dependsOnCardId String   @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  card            Card     @relation("CardDependencySource", fields: [cardId], references: [id], onDelete: Cascade)
+  dependsOnCard   Card     @relation("CardDependencyTarget", fields: [dependsOnCardId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, dependsOnCardId])
+  @@index([dependsOnCardId, cardId])
+}
+
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  cardId      String   @db.Uuid
+  title       String
+  isCompleted Boolean  @default(false)
+  position    Float    @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  cardId    String    @db.Uuid
+  userId    String    @db.Uuid
+  content   String
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
+  card      Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([userId])
+}
+
+model Attachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  cardId     String   @db.Uuid
+  userId     String   @db.Uuid
+  fileName   String
+  fileUrl    String
+  fileSize   Int      @default(0)
+  mimeType   String?
+  storageKey String?  @unique
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  card       Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([userId])
+}
+
+model PendingObjectCleanup {
+  id         String   @id @default(uuid()) @db.Uuid
+  storageKey String   @unique
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  actorId   String?          @db.Uuid
+  boardId   String?          @db.Uuid
+  cardId    String?          @db.Uuid
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  board     Board?           @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  card      Card?            @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@index([cardId])
+  @@index([boardId])
+}
+
+model QuickNote {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @db.Uuid
+  content         String
+  convertedAt     DateTime? @db.Timestamptz(3)
+  convertedCardId String?   @unique @db.Uuid
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  convertedCard   Card?     @relation(fields: [convertedCardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }

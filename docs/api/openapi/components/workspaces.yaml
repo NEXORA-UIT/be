@@ -1,0 +1,256 @@
+components:
+  schemas:
+    Workspace:
+      type: object
+      required:
+        - id
+        - name
+        - domainCategory
+        - status
+        - ownerId
+        - createdAt
+        - updatedAt
+      description: Workspace representing the top-level organizational and security boundary.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Đồ Án 1 - Nhóm 24
+        description:
+          type: string
+          nullable: true
+          example: Hệ thống quản lý dự án thông minh Nexora
+        domainCategory:
+          type: string
+          enum:
+            - SOFTWARE
+            - MARKETING
+            - EVENT
+            - RESEARCH_ACADEMIC
+            - INTERNAL_OPERATIONS
+            - OTHER
+          example: SOFTWARE
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+            - FROZEN
+          example: ACTIVE
+        ownerId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateWorkspaceRequest:
+      type: object
+      required:
+        - name
+        - domainCategory
+      properties:
+        name:
+          type: string
+          example: Đồ Án 1 - Nhóm 24
+        description:
+          type: string
+          example: Không gian làm việc cho dự án Nexora
+        domainCategory:
+          type: string
+          enum:
+            - SOFTWARE
+            - MARKETING
+            - EVENT
+            - RESEARCH_ACADEMIC
+            - INTERNAL_OPERATIONS
+            - OTHER
+          example: SOFTWARE
+    UpdateWorkspaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Nexora Platform Updated
+        description:
+          type: string
+          nullable: true
+        domainCategory:
+          type: string
+          enum:
+            - SOFTWARE
+            - MARKETING
+            - EVENT
+            - RESEARCH_ACADEMIC
+            - INTERNAL_OPERATIONS
+            - OTHER
+    InviteMemberRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: colleague@university.edu.vn
+    WorkspaceInvitation:
+      type: object
+      required:
+        - id
+        - workspaceId
+        - email
+        - status
+        - expiresAt
+        - createdAt
+      description: Workspace invitation token record.
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+            - PENDING
+            - ACCEPTED
+            - REJECTED
+            - EXPIRED
+            - CANCELED
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    WorkspaceMember:
+      type: object
+      required:
+        - id
+        - workspaceId
+        - userId
+        - role
+        - createdAt
+        - updatedAt
+        - user
+      description: Membership association between a user and a workspace.
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - OWNER
+            - MEMBER
+          example: MEMBER
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/WorkspaceMemberUser"
+    WorkspaceMemberUser:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - LOCKED
+    WorkspaceResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Workspace"
+    WorkspaceListResponse:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workspace"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+    WorkspaceInvitationResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/WorkspaceInvitation"
+    WorkspaceInvitationListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceInvitation"
+    WorkspaceMemberListResponse:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceMember"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"

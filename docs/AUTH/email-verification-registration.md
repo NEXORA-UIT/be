@@ -111,7 +111,7 @@ Sau khi xác nhận thành công, gọi lại cùng token trả `400 INVALID_REG
 
 ## Manual test khi chưa có frontend
 
-1. Mở Swagger UI tại `http://localhost:3000/api/docs` và Prisma Studio bằng `pnpm prisma studio`.
+1. Mở Swagger UI tại `http://localhost:3000/api/docs` và Prisma Studio bằng `pnpm db:studio`.
 2. Trong Swagger, mở `POST /auth/register`, bấm **Try it out** rồi **Execute**; API phải trả `202`.
 3. Kiểm tra Prisma Studio: vẫn chưa có `User`.
 4. Mở RedisInsight: có `pending-registration:<hash>` và TTL không quá 15 phút; value không chứa password hoặc raw token.

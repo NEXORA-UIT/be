@@ -6,7 +6,7 @@ import {
   loginController,
   logoutAllController,
   logoutController,
-  meController,
+  getCurrentUserController,
   refreshController,
   registerController,
   resetPasswordController,
@@ -23,6 +23,7 @@ import {
 } from '../dto/auth.schema.js';
 import { requireAuth } from '../middlewares/require-auth.middleware.js';
 import { AUTH_ROUTE } from '../utils/auth.constants.js';
+import { googleOAuthRouter } from './google-oauth.routes.js';
 
 export const authRouter = Router();
 
@@ -46,7 +47,7 @@ authRouter.post(AUTH_ROUTE.refresh, validateRefreshBody, refreshController);
 authRouter.post(AUTH_ROUTE.logout, requireAuth, logoutController);
 authRouter.post(AUTH_ROUTE.logoutAll, requireAuth, logoutAllController);
 
-authRouter.get(AUTH_ROUTE.me, requireAuth, meController);
+authRouter.get(AUTH_ROUTE.me, requireAuth, getCurrentUserController);
 authRouter.post(
   AUTH_ROUTE.changePassword,
   requireAuth,
@@ -55,3 +56,4 @@ authRouter.post(
 );
 authRouter.post(AUTH_ROUTE.forgotPassword, validateForgotPasswordBody, forgotPasswordController);
 authRouter.post(AUTH_ROUTE.resetPassword, validateResetPasswordBody, resetPasswordController);
+authRouter.use(AUTH_ROUTE.googleOAuth, googleOAuthRouter);

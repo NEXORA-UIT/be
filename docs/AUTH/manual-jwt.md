@@ -1,10 +1,10 @@
 # Manual check AUTH JWT bằng Swagger
 
-Chạy từ gốc `backend`. PostgreSQL và Redis chạy trong Docker, API chạy trên host. Không đưa `.env`, access token, refresh token hoặc reset token lên Git.
+Chạy từ gốc `backend`. PostgreSQL và Redis chạy trong Docker, API chạy trên host. Không đưa `.env.local`, access token, refresh token hoặc reset token lên Git.
 
 ## 1. Cấu hình và khởi động
 
-Đăng ký và quên mật khẩu qua Gmail cần các biến sau trong `.env`:
+Đăng ký và quên mật khẩu qua Gmail cần các biến sau trong `.env.local`:
 
 ```env
 GMAIL_USER=your-account@gmail.com
@@ -17,27 +17,27 @@ Gmail App Password yêu cầu bật xác minh hai bước. Frontend chưa tồn 
 
 ```powershell
 pnpm install
-pnpm infra:up
-docker compose --env-file .env -f infrastructure/docker/compose.yaml ps
+pnpm infra:up:local
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml ps
 pnpm db:validate
 pnpm db:migrate
 pnpm db:generate
 pnpm test
-pnpm dev
+pnpm dev:local
 ```
 
-Hai container phải `healthy`. Nếu cổng 5432 bị chiếm, đổi `POSTGRES_PORT` trong `.env` trước khi chạy Compose.
+Hai container phải `healthy`. Nếu cổng 5432 bị chiếm, đổi `POSTGRES_PORT` trong `.env.local` trước khi chạy Compose.
 
 Mở terminal riêng cho Prisma Studio:
 
 ```powershell
-pnpm prisma studio
+pnpm db:studio
 ```
 
 Mở các công cụ:
 
 - Swagger UI: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
-- Prisma Studio: URL được in bởi `pnpm prisma studio`
+- Prisma Studio: URL được in bởi `pnpm db:studio`
 - RedisInsight: kết nối `127.0.0.1:6379`
 
 Mọi request API bên dưới đều thực hiện trong Swagger bằng nút **Try it out** → **Execute**.

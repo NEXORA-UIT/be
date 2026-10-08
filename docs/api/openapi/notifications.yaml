@@ -1,0 +1,82 @@
+paths:
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Xem thông báo của người dùng hiện tại
+      operationId: listUserNotifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Thông báo của người dùng hiện tại cùng thông tin phân trang.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPaginatedResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-COL-18]
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Đếm thông báo chưa đọc
+      operationId: getUnreadNotificationCount
+      security:
+        - bearerAuth: []
+      responses:
+        "200": { description: Số lượng thông báo chưa đọc. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-COL-18]
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Đánh dấu đã đọc toàn bộ thông báo của người dùng hiện tại
+      operationId: markAllNotificationsAsRead
+      security:
+        - bearerAuth: []
+      responses:
+        "200": { description: Đã đánh dấu các thông báo là đã đọc. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-COL-18]
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Đánh dấu thông báo đã đọc
+      operationId: markNotificationAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Đã đánh dấu thông báo là đã đọc. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-COL-18]
+  /notifications/{id}:
+    delete:
+      tags: [Notifications]
+      summary: Xóa thông báo
+      operationId: deleteNotification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Đã xóa thông báo. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+      x-scope: SRS-CORE
+      x-related-use-cases: [UC-COL-18]
