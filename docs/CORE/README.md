@@ -1,4 +1,4 @@
-# Project Management Core — Context và phạm vi
+# Core quản lý dự án — Bối cảnh và phạm vi
 
 Ngày ghi nhận: **2026-10-08**.
 
@@ -10,6 +10,7 @@ Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Tr�
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
+- [Kế hoạch khép khoảng trống REST Core so với SRS](plans/03-srs-core-gap-closure.md)
 - [Quyết định hoãn BullMQ và Socket.IO](deferred-infrastructure.md)
 - [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)
@@ -66,4 +67,4 @@ Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và đ
 
 ## Trạng thái triển khai
 
-Workspace, membership và invitation REST flow đã được triển khai theo [plan hiện tại](plans/02-workspace-membership.md). Nhánh `feature/core-board-list` đã triển khai Board, PM và List; `feature/core-card` đã triển khai Card Core theo [thứ tự triển khai](implementation-order.md). Integration suite Card đạt 7/7, full backend suite đạt 65/65 trên PostgreSQL/Redis Docker; Prisma validate, migration status, typecheck, build và OpenAPI loader (83 paths) đều pass. Nhánh còn lại là REST completion. BullMQ và Socket.IO vẫn được hoãn. OpenAPI mô tả contract, còn trạng thái hoàn thành phải dựa trên code và kết quả kiểm thử thực tế.
+Ba nhánh `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã triển khai phạm vi REST Core ban đầu. Lần kiểm tra ngày 2026-10-08 trên nhánh cuối đạt 82/82 test và typecheck, nhưng đối chiếu SRS còn các sai khác về membership, truy vết vai trò, archive, lưu trữ tệp và dữ liệu planning. [Kế hoạch khép các khoảng trống](plans/03-srs-core-gap-closure.md) là bước tiếp theo; chưa tuyên bố đáp ứng toàn bộ SRS. BullMQ và Socket.IO vẫn được hoãn.

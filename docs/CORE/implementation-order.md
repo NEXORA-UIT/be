@@ -2,6 +2,8 @@
 
 Ngày rà soát: **2026-10-08**. Kế hoạch gồm ba nhánh tích hợp sau Workspace và phân quyền. `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã hoàn tất phạm vi REST Core; bốn nhóm A–D, tài liệu và OpenAPI đã tích hợp, các bước xác minh bên dưới đều đạt.
 
+Lần đối chiếu chi tiết với SRS sau khi tích hợp vẫn phát hiện các sai khác ở vòng đời membership, audit vai trò, archive, storage và dữ liệu planning. Các bước khép khoảng trống được ghi trong [kế hoạch tiếp theo](plans/03-srs-core-gap-closure.md); trạng thái ba nhánh ở đây không có nghĩa toàn bộ SRS đã đạt.
+
 **Mục tiêu:** Hoàn thiện REST Core theo SRS, bảo đảm ranh giới Workspace/Board, tính nguyên tử của thay đổi, kiểm soát ghi đồng thời và bộ kiểm thử xác nhận quyền trên mọi tài nguyên.
 
 **Kiến trúc:** Tiếp tục kiến trúc modular monolith hiện có. Service chịu trách nhiệm phân quyền, nghiệp vụ và transaction; controller chỉ xử lý HTTP; repository truy cập persistence. HTTP/DB là nguồn sự thật; không thêm realtime hoặc worker trong ba nhánh này.
