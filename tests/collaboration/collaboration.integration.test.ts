@@ -17,7 +17,11 @@ import {
   cleanupAttachmentObject,
   createComment,
   deleteCardAttachment,
+  listCardActivity,
+  listCardAttachments,
+  listComments,
   MAX_ATTACHMENT_BYTES,
+  readCardAttachment,
   retryPendingObjectCleanups,
   uploadCardAttachment,
 } from '../../src/modules/collaboration/services/collaboration.service.js';
@@ -218,6 +222,121 @@ describe('Collaboration and Card attachments', () => {
     );
   });
 
+  it('keeps archived Card collaboration data readable and blocks writes while preserving files', async () => {
+    const owner = await actor('archive-read-owner');
+    const member = await actor('archive-read-member');
+    const outsider = await actor('archive-read-outsider');
+    const { workspace, board, list, card } = await fixture(owner, 'archive-read');
+    await addMember(workspace.id, board.id, member.user.id);
+    await createComment(member.user.id, card.id, 'Keep this discussion');
+    const attachment = await uploadCardAttachment(
+      member.user.id,
+      card.id,
+      'archive.pdf',
+      'application/pdf',
+      Buffer.from('%PDF-1.7\narchive test'),
+      storage,
+    );
+    const attachmentRow = await prisma.attachment.findUniqueOrThrow({
+      where: { id: attachment.id },
+    });
+
+    await prisma.card.update({ where: { id: card.id }, data: { archivedAt: new Date() } });
+    assert.equal((await listComments(member.user.id, card.id)).data.length, 1);
+    assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
+    assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
+    assert.deepEqual(
+      (await readCardAttachment(member.user.id, attachment.id, storage)).content,
+      Buffer.from('%PDF-1.7\narchive test'),
+    );
+    await assert.rejects(
+      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
+    );
+    assert.equal(
+      (
+        await call(`/cards/${card.id}/comments`, 'POST', member.accessToken, {
+          content: 'Cannot change an archived Card',
+        })
+      ).status,
+      403,
+    );
+    await assert.rejects(
+      () =>
+        uploadCardAttachment(
+          member.user.id,
+          card.id,
+          'blocked.pdf',
+          'application/pdf',
+          Buffer.from('%PDF-1.7\nblocked'),
+          storage,
+        ),
+      (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
+    );
+    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
+    assert.deepEqual(
+      await storage.get(attachmentRow.storageKey!),
+      Buffer.from('%PDF-1.7\narchive test'),
+    );
+    assert.equal(
+      (await call(`/cards/${card.id}/comments`, 'GET', outsider.accessToken)).status,
+      403,
+    );
+
+    await prisma.card.update({ where: { id: card.id }, data: { archivedAt: null } });
+    await prisma.list.update({ where: { id: list.id }, data: { archivedAt: new Date() } });
+    assert.equal((await listComments(member.user.id, card.id)).data.length, 1);
+    assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
+    assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
+    await assert.rejects(
+      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
+    );
+    assert.deepEqual(
+      await storage.get(attachmentRow.storageKey!),
+      Buffer.from('%PDF-1.7\narchive test'),
+    );
+
+    await prisma.list.update({ where: { id: list.id }, data: { archivedAt: null } });
+    await prisma.workspace.update({ where: { id: workspace.id }, data: { isFrozen: true } });
+    assert.equal((await listComments(member.user.id, card.id)).data.length, 1);
+    assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
+    assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
+    await assert.rejects(
+      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      (error: { code?: string }) => error.code === 'WORKSPACE_FROZEN',
+    );
+    assert.deepEqual(
+      await storage.get(attachmentRow.storageKey!),
+      Buffer.from('%PDF-1.7\narchive test'),
+    );
+
+    await prisma.workspace.update({ where: { id: workspace.id }, data: { isFrozen: false } });
+    await prisma.board.update({ where: { id: board.id }, data: { archivedAt: new Date() } });
+    assert.equal((await listComments(member.user.id, card.id)).data.length, 1);
+    assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
+    assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
+    await assert.rejects(
+      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
+    );
+    await prisma.board.update({ where: { id: board.id }, data: { archivedAt: null } });
+    await prisma.workspace.update({
+      where: { id: workspace.id },
+      data: { archivedAt: new Date() },
+    });
+    assert.equal((await listComments(member.user.id, card.id)).data.length, 1);
+    assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
+    assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
+    await assert.rejects(
+      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
+    );
+    await prisma.workspace.update({ where: { id: workspace.id }, data: { archivedAt: null } });
+    await prisma.card.update({ where: { id: card.id }, data: { deletedAt: new Date() } });
+    await assert.rejects(() => listComments(member.user.id, card.id), { code: 'NOT_FOUND' });
+  });
+
   it('validates uploads, stores and serves Card-only files, and retains rows after cleanup failure for retry', async () => {
     const owner = await actor('attachment-owner');
     const member = await actor('attachment-member');
@@ -319,7 +438,7 @@ describe('Collaboration and Card attachments', () => {
           Buffer.from('%PDF-1.7\ncontent'),
           failingStorage,
         ),
-      /foreign key/i,
+      { code: 'NOT_FOUND' },
     );
     assert.equal(await prisma.attachment.count({ where: { storageKey } }), 0);
     assert.equal(await prisma.pendingObjectCleanup.count({ where: { storageKey } }), 1);

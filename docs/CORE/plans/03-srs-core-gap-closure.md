@@ -80,9 +80,9 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** Guard đọc yêu cầu membership hiện hành nhưng chấp nhận cha hoặc Card đã archive/frozen; Card đã soft-delete vẫn trả 404. Guard ghi yêu cầu Card, List, Board, Workspace hoạt động và Workspace không frozen. Dùng cùng quy tắc cho comment, Task, attachment và activity.
 
-- [ ] Viết test đang fail: người có quyền đọc comment/Task/activity/attachment sau khi Card hoặc cha archive/frozen; người ngoài Board vẫn bị 403; Card soft-delete vẫn 404; xóa attachment của Card/List đã archive hoặc Workspace frozen bị từ chối và object còn nguyên.
-- [ ] Chạy test mục tiêu, sau đó thay `activeCard`/`requireActiveBoardAccess` ở read path bằng guard đọc. `deleteCardAttachment` phải kiểm tra trạng thái Card/List/cha trước khi gọi `storage.delete`; kiểm tra lại quyền và trạng thái gần thời điểm ghi để giảm cửa sổ thu hồi quyền.
-- [ ] Chạy test Card/Board/Collaboration và kiểm tra OpenAPI mô tả đúng hành vi archive; commit riêng.
+- [x] Viết test đang fail: người có quyền đọc comment/Task/activity/attachment sau khi Card hoặc cha archive/frozen; người ngoài Board vẫn bị 403; Card soft-delete vẫn 404; xóa attachment của Card/List đã archive hoặc Workspace frozen bị từ chối và object còn nguyên.
+- [x] Chạy test mục tiêu, sau đó thay `activeCard`/`requireActiveBoardAccess` ở read path bằng guard đọc. `deleteCardAttachment` phải kiểm tra trạng thái Card/List/cha trước khi gọi `storage.delete`; kiểm tra lại quyền và trạng thái gần thời điểm ghi để giảm cửa sổ thu hồi quyền.
+- [x] Chạy test Card/Board/Collaboration và kiểm tra OpenAPI mô tả đúng hành vi archive; commit riêng.
 
 **Nghiệm thu:** Archive/frozen nhất quán là chỉ đọc trên mọi tài nguyên Core; không có đường xóa tệp thuộc Card đã archive.
 

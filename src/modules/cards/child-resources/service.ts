@@ -26,7 +26,7 @@ function conflict(code: string, message: string) {
   return new AppError(409, code, message);
 }
 
-async function requireActiveBoardAccess(userId: string, boardId: string) {
+async function requireReadableBoardAccess(userId: string, boardId: string) {
   const actor = await prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
   if (!actor || actor.status !== 'ACTIVE') throw accessErrors.forbidden();
   return requireBoardAccess(userId, boardId);
@@ -82,7 +82,7 @@ async function requireBoardAssignee(
 export async function listCardAssignments(userId: string, cardId: string) {
   const card = await prisma.card.findFirst({ where: { id: cardId, deletedAt: null } });
   if (!card) throw accessErrors.notFound('Card');
-  await requireActiveBoardAccess(userId, card.boardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   const assignments = await prisma.cardAssignment.findMany({
     where: { cardId },
     include: { user: { select: { id: true, fullName: true, email: true } } },
@@ -217,7 +217,7 @@ export async function deleteBoardLabel(userId: string, labelId: string) {
 export async function listCardLabels(userId: string, cardId: string) {
   const card = await prisma.card.findFirst({ where: { id: cardId, deletedAt: null } });
   if (!card) throw accessErrors.notFound('Card');
-  await requireActiveBoardAccess(userId, card.boardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   return prisma.cardLabel.findMany({
     where: { cardId },
     include: { label: true },
@@ -292,7 +292,7 @@ export async function createCardTask(userId: string, cardId: string, input: Crea
 export async function listCardTasks(userId: string, cardId: string) {
   const card = await prisma.card.findFirst({ where: { id: cardId, deletedAt: null } });
   if (!card) throw accessErrors.notFound('Card');
-  await requireActiveBoardAccess(userId, card.boardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   return prisma.task.findMany({ where: { cardId }, orderBy: [{ position: 'asc' }, { id: 'asc' }] });
 }
 

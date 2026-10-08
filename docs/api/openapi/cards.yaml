@@ -269,7 +269,7 @@ paths:
       tags:
         - Tasks
       summary: Lấy danh sách Task của Card
-      description: Trả về các mục checklist thuộc Card theo thứ tự đã lưu.
+      description: Trả về các mục checklist theo thứ tự đã lưu. Thành viên Board vẫn đọc được khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
       operationId: listCardTasks
       security:
         - bearerAuth: []
@@ -295,7 +295,7 @@ paths:
       tags:
         - Tasks
       summary: Thêm Task vào Card
-      description: Thêm một mục checklist vào Card. Mỗi Card có tối đa 50 Task.
+      description: Thêm một mục checklist khi Card, List, Board và Workspace còn hoạt động. Mỗi Card có tối đa 50 Task.
       operationId: createCardTask
       security:
         - bearerAuth: []
@@ -331,7 +331,7 @@ paths:
       tags:
         - Tasks
       summary: Cập nhật Task
-      description: Cập nhật tiêu đề hoặc trạng thái hoàn thành của Task. Hoàn thành Task chỉ tính lại tiến độ, không tự chuyển Card sang Done.
+      description: Cập nhật tiêu đề hoặc trạng thái hoàn thành khi Card, List, Board và Workspace còn hoạt động. Hoàn thành Task chỉ tính lại tiến độ, không tự chuyển Card sang Done.
       operationId: updateTask
       security:
         - bearerAuth: []
@@ -366,7 +366,7 @@ paths:
       tags:
         - Tasks
       summary: Xóa Task
-      description: Xóa một mục checklist khỏi Card.
+      description: Xóa một mục checklist khi Card, List, Board và Workspace còn hoạt động.
       operationId: deleteTask
       security:
         - bearerAuth: []
@@ -394,6 +394,7 @@ paths:
       tags:
         - Cards
       summary: Lấy danh sách tệp đính kèm của Card
+      description: Thành viên Board vẫn xem metadata khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
       operationId: listCardAttachments
       security:
         - bearerAuth: []
@@ -420,7 +421,7 @@ paths:
       tags:
         - Cards
       summary: Tải tệp đính kèm lên Card
-      description: Tải tệp công việc dạng nhị phân lên Card thông qua object-storage adapter đã cấu hình. Giới hạn 25 MiB và xác thực chữ ký MIME. Attachment là luồng riêng, không thuộc tài liệu Knowledge Base.
+      description: Tải tệp công việc dạng nhị phân lên Card thông qua object-storage adapter đã cấu hình khi Card, List, Board và Workspace còn hoạt động. Giới hạn 25 MiB và xác thực chữ ký MIME. Attachment là luồng riêng, không thuộc tài liệu Knowledge Base.
       operationId: uploadCardAttachment
       security:
         - bearerAuth: []
@@ -479,6 +480,7 @@ paths:
       tags:
         - Cards
       summary: Tải tệp đính kèm của Card
+      description: Thành viên Board vẫn tải được tệp khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
       operationId: downloadCardAttachment
       security:
         - bearerAuth: []
@@ -513,7 +515,7 @@ paths:
       tags:
         - Cards
       summary: Xóa tệp đính kèm của Card
-      description: Xóa bản ghi attachment và object đã lưu. Nếu cleanup object thất bại, metadata được giữ lại để có thể thử lại.
+      description: Chỉ xóa khi Card, List, Board và Workspace còn hoạt động. Nếu cleanup object thất bại, metadata được giữ lại để có thể thử lại.
       operationId: deleteCardAttachment
       security:
         - bearerAuth: []

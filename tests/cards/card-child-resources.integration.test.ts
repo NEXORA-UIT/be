@@ -250,4 +250,40 @@ describe('Card child resources REST flows', () => {
       403,
     );
   });
+
+  it('keeps Task reads available on archived or frozen Cards while enforcing Board membership', async () => {
+    const owner = await createActor('archive-task-owner');
+    const member = await createActor('archive-task-member');
+    const outsider = await createActor('archive-task-outsider');
+    const { workspace, card } = await createFixture(owner);
+    const parentCard = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
+    await prisma.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId: member.user.id, role: 'MEMBER' },
+    });
+    await prisma.boardMembership.create({
+      data: { boardId: parentCard.boardId, userId: member.user.id, role: 'MEMBER' },
+    });
+    const task = await prisma.task.create({ data: { cardId: card.id, title: 'Retained task' } });
+
+    await prisma.card.update({ where: { id: card.id }, data: { archivedAt: new Date() } });
+    assert.equal((await call(`/cards/${card.id}/tasks`, 'GET', member.accessToken)).status, 200);
+    assert.equal((await call(`/cards/${card.id}/tasks`, 'GET', outsider.accessToken)).status, 403);
+    assert.equal(
+      (await call(`/tasks/${task.id}`, 'PATCH', member.accessToken, { title: 'Cannot edit' }))
+        .status,
+      403,
+    );
+
+    await prisma.card.update({ where: { id: card.id }, data: { archivedAt: null } });
+    await prisma.workspace.update({ where: { id: workspace.id }, data: { isFrozen: true } });
+    assert.equal((await call(`/cards/${card.id}/tasks`, 'GET', member.accessToken)).status, 200);
+    assert.equal(
+      (await call(`/tasks/${task.id}`, 'PATCH', member.accessToken, { title: 'Still read-only' }))
+        .status,
+      403,
+    );
+    await prisma.workspace.update({ where: { id: workspace.id }, data: { isFrozen: false } });
+    await prisma.card.update({ where: { id: card.id }, data: { deletedAt: new Date() } });
+    assert.equal((await call(`/cards/${card.id}/tasks`, 'GET', member.accessToken)).status, 404);
+  });
 });

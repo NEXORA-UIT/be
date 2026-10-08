@@ -5,6 +5,7 @@ import {
   type ObjectStorage,
 } from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
+import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
@@ -43,9 +44,12 @@ function mapComment(comment: Comment) {
   };
 }
 
-async function activeCard(cardId: string, transaction: Prisma.TransactionClient | typeof prisma) {
+async function findNonDeletedCard(
+  cardId: string,
+  transaction: Prisma.TransactionClient | typeof prisma,
+) {
   const card = await transaction.card.findFirst({
-    where: { id: cardId, deletedAt: null, archivedAt: null, list: { archivedAt: null } },
+    where: { id: cardId, deletedAt: null },
     select: {
       id: true,
       boardId: true,
@@ -59,10 +63,19 @@ async function activeCard(cardId: string, transaction: Prisma.TransactionClient 
   return card;
 }
 
-async function readableCard(cardId: string) {
-  const card = await prisma.card.findFirst({
+async function readableCard(
+  cardId: string,
+  transaction: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  const card = await transaction.card.findFirst({
     where: { id: cardId, deletedAt: null },
-    select: { id: true, boardId: true },
+    select: {
+      id: true,
+      boardId: true,
+      cardKey: true,
+      archivedAt: true,
+      list: { select: { archivedAt: true } },
+    },
   });
   if (!card) throw accessErrors.notFound('Card');
   return card;
@@ -110,15 +123,32 @@ async function validateMentions(
   return uniqueIds;
 }
 
-async function requireActiveBoardAccess(userId: string, boardId: string) {
-  const access = await requireBoardAccess(userId, boardId);
-  if (access.workspaceArchivedAt || access.boardArchivedAt) throw accessErrors.archived();
-  if (access.isFrozen) throw accessErrors.frozen();
+async function requireReadableBoardAccess(userId: string, boardId: string) {
+  const actor = await prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+  if (!actor || actor.status !== 'ACTIVE') throw accessErrors.forbidden();
+  return requireBoardAccess(userId, boardId);
+}
+
+async function requireWritableCard(
+  transaction: Prisma.TransactionClient | typeof prisma,
+  userId: string,
+  cardId: string,
+) {
+  const card = await findNonDeletedCard(cardId, transaction);
+  if (card.archivedAt || card.list.archivedAt) throw accessErrors.archived();
+  if (transaction === prisma) {
+    const access = await requireReadableBoardAccess(userId, card.boardId);
+    if (access.workspaceArchivedAt || access.boardArchivedAt) throw accessErrors.archived();
+    if (access.isFrozen) throw accessErrors.frozen();
+  } else {
+    await requireBoardWriteAccessInTransaction(transaction, userId, card.boardId);
+  }
+  return card;
 }
 
 export async function listComments(userId: string, cardId: string) {
-  const card = await activeCard(cardId, prisma);
-  await requireActiveBoardAccess(userId, card.boardId);
+  const card = await readableCard(cardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   const comments = await prisma.comment.findMany({
     where: { cardId },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -129,8 +159,7 @@ export async function listComments(userId: string, cardId: string) {
 export async function createComment(userId: string, cardId: string, content: string) {
   const normalized = validateContent(content);
   return runBoardTransaction(async (transaction) => {
-    const card = await activeCard(cardId, transaction);
-    await requireActiveBoardAccess(userId, card.boardId);
+    const card = await requireWritableCard(transaction, userId, cardId);
     const mentionedUserIds = await validateMentions(normalized, card.boardId, transaction);
     const comment = await transaction.comment.create({
       data: { cardId, userId, content: normalized },
@@ -181,7 +210,7 @@ export async function updateComment(userId: string, commentId: string, content: 
     if (!comment || comment.deletedAt || comment.card.deletedAt)
       throw accessErrors.notFound('Comment');
     if (comment.card.archivedAt || comment.card.list.archivedAt) throw accessErrors.archived();
-    await requireActiveBoardAccess(userId, comment.card.boardId);
+    await requireBoardWriteAccessInTransaction(transaction, userId, comment.card.boardId);
     if (comment.userId !== userId) throw accessErrors.forbidden();
     const mentionedUserIds = await validateMentions(normalized, comment.card.boardId, transaction);
     const updated = await transaction.comment.update({
@@ -236,7 +265,7 @@ export async function deleteComment(userId: string, commentId: string): Promise<
     if (!comment || comment.deletedAt || comment.card.deletedAt)
       throw accessErrors.notFound('Comment');
     if (comment.card.archivedAt || comment.card.list.archivedAt) throw accessErrors.archived();
-    await requireActiveBoardAccess(userId, comment.card.boardId);
+    await requireBoardWriteAccessInTransaction(transaction, userId, comment.card.boardId);
     if (comment.userId !== userId) throw accessErrors.forbidden();
     await transaction.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } });
     await transaction.activityLog.create({
@@ -258,9 +287,7 @@ export async function listCardActivity(
   cursor?: string,
 ) {
   const card = await readableCard(cardId);
-  const access = await requireBoardAccess(userId, card.boardId);
-  if (access.workspaceArchivedAt || access.boardArchivedAt) throw accessErrors.archived();
-  if (access.isFrozen) throw accessErrors.frozen();
+  await requireReadableBoardAccess(userId, card.boardId);
   if (cursor) {
     const cursorRow = await prisma.activityLog.findFirst({
       where: { id: cursor, cardId },
@@ -330,8 +357,7 @@ function assertAllowedFilename(fileName: string, mimeType: string) {
 }
 
 export async function authorizeCardAttachmentUpload(userId: string, cardId: string) {
-  const card = await activeCard(cardId, prisma);
-  await requireActiveBoardAccess(userId, card.boardId);
+  await requireWritableCard(prisma, userId, cardId);
 }
 
 export async function retryPendingObjectCleanups(
@@ -376,11 +402,12 @@ export async function uploadCardAttachment(
   if (!mimeType || mimeType !== declaredMime || !MIME_EXTENSIONS[mimeType]) {
     throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không hợp lệ');
   }
-  const card = await activeCard(cardId, prisma);
+  await requireWritableCard(prisma, userId, cardId);
   await retryPendingObjectCleanups(storage);
   const storageKey = await storage.put(content);
   try {
     return await prisma.$transaction(async (transaction) => {
+      const card = await requireWritableCard(transaction, userId, cardId);
       const attachment = await transaction.attachment.create({
         data: {
           cardId,
@@ -439,7 +466,7 @@ function mapAttachment(attachment: Attachment) {
 
 export async function listCardAttachments(userId: string, cardId: string) {
   const card = await readableCard(cardId);
-  await requireBoardAccess(userId, card.boardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   const items = await prisma.attachment.findMany({
     where: { cardId },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -455,7 +482,7 @@ export async function readCardAttachment(
   const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
   if (!attachment || !attachment.storageKey) throw accessErrors.notFound('Attachment');
   const card = await readableCard(attachment.cardId);
-  await requireBoardAccess(userId, card.boardId);
+  await requireReadableBoardAccess(userId, card.boardId);
   const content = await storage.get(attachment.storageKey);
   return { attachment: mapAttachment(attachment), content };
 }
@@ -477,23 +504,39 @@ export async function deleteCardAttachment(
   attachmentId: string,
   storage: ObjectStorage = attachmentStorage,
 ) {
-  const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
-  if (!attachment) throw accessErrors.notFound('Attachment');
-  const card = await readableCard(attachment.cardId);
-  const access = await requireBoardAccess(userId, card.boardId);
-  if (access.workspaceArchivedAt || access.boardArchivedAt) throw accessErrors.archived();
-  if (access.isFrozen) throw accessErrors.frozen();
-  if (attachment.userId !== userId && access.role !== 'OWNER' && access.role !== 'PM')
-    throw accessErrors.forbidden();
-  await cleanupAttachmentObject(attachmentId, storage);
-  await prisma.activityLog.create({
-    data: {
-      boardId: card.boardId,
-      cardId: card.id,
-      actorId: userId,
-      action: 'ATTACHMENT_DELETED',
-      details: { attachmentId },
-    },
+  await runBoardTransaction(async (transaction) => {
+    const attachment = await transaction.attachment.findUnique({ where: { id: attachmentId } });
+    if (!attachment) throw accessErrors.notFound('Attachment');
+    if (!attachment.storageKey) throw accessErrors.notFound('Attachment');
+    const card = await requireWritableCard(transaction, userId, attachment.cardId);
+    const board = await transaction.board.findUniqueOrThrow({
+      where: { id: card.boardId },
+      select: { workspaceId: true },
+    });
+    const actualWorkspaceMembership = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId, endedAt: null },
+      select: { role: true },
+    });
+    const boardMembership = await transaction.boardMembership.findUnique({
+      where: { boardId_userId: { boardId: card.boardId, userId } },
+      select: { role: true },
+    });
+    const role =
+      actualWorkspaceMembership?.role === 'OWNER' ? 'OWNER' : (boardMembership?.role ?? null);
+    if (attachment.userId !== userId && role !== 'OWNER' && role !== 'PM') {
+      throw accessErrors.forbidden();
+    }
+    await storage.delete(attachment.storageKey);
+    await transaction.attachment.delete({ where: { id: attachmentId } });
+    await transaction.activityLog.create({
+      data: {
+        boardId: card.boardId,
+        cardId: card.id,
+        actorId: userId,
+        action: 'ATTACHMENT_DELETED',
+        details: { attachmentId },
+      },
+    });
   });
 }
 
