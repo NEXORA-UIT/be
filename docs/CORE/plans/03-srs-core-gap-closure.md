@@ -119,9 +119,9 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** Calendar/List View trả `assigneeIds`, `statusGroup`, `isOverdue` cùng List, ngày và priority. `isOverdue` chỉ đúng khi có `dueDate < now`, Card/List/Board/Workspace đang hoạt động và trạng thái khác DONE. Dashboard trả thêm `completionPercent = 0` nếu Board trống, nếu không là `Math.round(done / totalCards * 100)`. Calendar trả `dependencyWarnings: { prerequisiteCardId, kind: 'SCHEDULE_CONFLICT' }[]`; thêm cảnh báo khi prerequisite chưa DONE và `dueDate` của nó muộn hơn `startDate` của Card phụ thuộc. Thiếu một trong hai mốc thì không suy đoán xung đột.
 
-- [ ] Viết test đang fail: Board khác không lộ dữ liệu; dueDate-only xuất hiện trên Calendar; Card không có ngày vẫn có trong List View; assignee/overdue đúng; Card Done hoặc archive không quá hạn; Board rỗng trả 0; lịch có và không có xung đột dependency trả kết quả xác định.
-- [ ] Chạy test mục tiêu; mở rộng repository bằng truy vấn batch cho assignment/dependency, tính toán ở service theo UTC, không thêm trạng thái tiến độ lưu trong DB.
-- [ ] Cập nhật OpenAPI và [bảng truy vết](../../api/endpoint-matrix.md); chạy test planning và so sánh response thật với schema; commit riêng.
+- [x] Viết test đang fail: Board khác không lộ dữ liệu; dueDate-only xuất hiện trên Calendar; Card không có ngày vẫn có trong List View; assignee/overdue đúng; Card Done hoặc archive không quá hạn; Board rỗng trả 0; lịch có và không có xung đột dependency trả kết quả xác định.
+- [x] Chạy test mục tiêu; mở rộng repository bằng truy vấn batch cho assignment/dependency, tính toán ở service theo UTC, không thêm trạng thái tiến độ lưu trong DB.
+- [x] Cập nhật OpenAPI và [bảng truy vết](../../api/endpoint-matrix.md); chạy test planning và so sánh response thật với schema; commit riêng.
 
 **Nghiệm thu:** Các field đầu ra SRS của ba chế độ xem có mặt, đúng quyền Board và đúng dữ liệu tại thời điểm truy vấn.
 

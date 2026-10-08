@@ -1,7 +1,46 @@
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { findActiveBoardCards, findActiveLists } from './read-model.repository.js';
 
-export async function getCalendar(userId: string, boardId: string, from?: Date, to?: Date) {
+function isCardOverdue(
+  card: { dueDate: Date | null; list: { statusGroup: string } },
+  now: Date,
+): boolean {
+  return Boolean(card.dueDate && card.dueDate < now && card.list.statusGroup !== 'DONE');
+}
+
+function getDependencyWarnings(card: {
+  startDate: Date | null;
+  dependencies: {
+    dependsOnCard: {
+      id: string;
+      dueDate: Date | null;
+      list: { statusGroup: string };
+    };
+  }[];
+}) {
+  const dependentStartDate = card.startDate;
+  if (!dependentStartDate) return [];
+
+  return card.dependencies.flatMap(({ dependsOnCard }) => {
+    if (
+      dependsOnCard.list.statusGroup === 'DONE' ||
+      !dependsOnCard.dueDate ||
+      dependsOnCard.dueDate <= dependentStartDate
+    ) {
+      return [];
+    }
+
+    return [{ prerequisiteCardId: dependsOnCard.id, kind: 'SCHEDULE_CONFLICT' as const }];
+  });
+}
+
+export async function getCalendar(
+  userId: string,
+  boardId: string,
+  from?: Date,
+  to?: Date,
+  now = new Date(),
+) {
   await requireBoardAccess(userId, boardId);
   const cards = await findActiveBoardCards(boardId);
   return {
@@ -22,11 +61,14 @@ export async function getCalendar(userId: string, boardId: string, from?: Date, 
         dueDate: card.dueDate,
         priority: card.priority,
         statusGroup: card.list.statusGroup,
+        assigneeIds: card.assigneeIds,
+        isOverdue: isCardOverdue(card, now),
+        dependencyWarnings: getDependencyWarnings(card),
       })),
   };
 }
 
-export async function getBoardListView(userId: string, boardId: string) {
+export async function getBoardListView(userId: string, boardId: string, now = new Date()) {
   await requireBoardAccess(userId, boardId);
   const lists = await findActiveLists(boardId);
   return {
@@ -48,6 +90,8 @@ export async function getBoardListView(userId: string, boardId: string) {
         priority: card.priority,
         position: card.position,
         statusGroup: list.statusGroup,
+        assigneeIds: card.assigneeIds,
+        isOverdue: isCardOverdue({ dueDate: card.dueDate, list }, now),
       })),
     })),
   };
@@ -61,7 +105,9 @@ export async function getBoardDashboard(userId: string, boardId: string, now = n
     if (card.list.statusGroup === 'TODO') totals.todo += 1;
     else if (card.list.statusGroup === 'IN_PROGRESS') totals.inProgress += 1;
     else if (card.list.statusGroup === 'DONE') totals.done += 1;
-    if (card.dueDate && card.dueDate < now && card.list.statusGroup !== 'DONE') totals.overdue += 1;
+    if (isCardOverdue(card, now)) totals.overdue += 1;
   }
-  return { data: totals };
+  const completionPercent =
+    totals.totalCards === 0 ? 0 : Math.round((totals.done / totals.totalCards) * 100);
+  return { data: { ...totals, completionPercent } };
 }

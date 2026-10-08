@@ -103,7 +103,7 @@ paths:
       tags:
         - Planning
       summary: Xem lịch của Board
-      description: Trả về các Card có ngày bắt đầu và hạn hoàn thành, được định dạng để hiển thị trên FullCalendar.
+      description: Trả các Card có ít nhất một mốc ngày để hiển thị trên lịch, kèm assignee, trạng thái quá hạn và cảnh báo xung đột dependency.
       operationId: getBoardCalendar
       security:
         - bearerAuth: []
@@ -129,7 +129,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CardListResponse"
+                $ref: "#/components/schemas/BoardCalendarResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -172,13 +172,19 @@ paths:
     get:
       tags: [Planning]
       summary: Xem các List và Card của Board
+      description: Trả về Card đang hoạt động, bao gồm Card chưa có ngày; dữ liệu chỉ thuộc Board được cấp quyền.
       operationId: getBoardListView
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/BoardIdPath"
       responses:
-        "200": { description: Các List đang hoạt động cùng những Card đang hoạt động của chúng. }
+        "200":
+          description: Các List đang hoạt động cùng Card, assignee và trạng thái quá hạn.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardListViewResponse"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }

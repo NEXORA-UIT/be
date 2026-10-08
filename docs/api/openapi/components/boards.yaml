@@ -246,32 +246,32 @@ components:
       type: object
       required:
         - totalCards
-        - completedCards
-        - inProgressCards
-        - todoCards
-        - overdueCards
-        - completionRate
-      description: Aggregated statistical metrics of a project board.
+        - todo
+        - inProgress
+        - done
+        - overdue
+        - completionPercent
+      description: Thống kê Card đang hoạt động; tỷ lệ hoàn thành bằng 0 khi Board trống.
       properties:
         totalCards:
           type: integer
-          example: 24
-        completedCards:
+          minimum: 0
+        todo:
           type: integer
-          example: 10
-        inProgressCards:
+          minimum: 0
+        inProgress:
           type: integer
-          example: 8
-        todoCards:
+          minimum: 0
+        done:
           type: integer
-          example: 6
-        overdueCards:
+          minimum: 0
+        overdue:
           type: integer
-          example: 2
-        completionRate:
-          type: number
-          format: float
-          example: 41.67
+          minimum: 0
+        completionPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
     BoardResponse:
       type: object
       required:

@@ -88,16 +88,16 @@ components:
         total:
           type: integer
           minimum: 0
-          description: Number of current Tasks on the Card.
+          description: Số Task hiện hành của Card.
         completed:
           type: integer
           minimum: 0
-          description: Number of current Tasks marked complete.
+          description: Số Task hiện hành đã hoàn thành.
         percent:
           type: integer
           minimum: 0
           maximum: 100
-          description: Rounded completed-to-total percentage; zero when there are no Tasks.
+          description: Tỷ lệ hoàn thành đã làm tròn; bằng 0 nếu Card chưa có Task.
     Card:
       type: object
       required:
