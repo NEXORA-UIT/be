@@ -11,6 +11,7 @@ Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Tr�
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
 - [Kế hoạch khép khoảng trống REST Core so với SRS](plans/03-srs-core-gap-closure.md)
+- [Cấu hình và di chuyển Card Attachment sang R2](attachment-storage.md)
 - [Quyết định hoãn BullMQ và Socket.IO](deferred-infrastructure.md)
 - [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)

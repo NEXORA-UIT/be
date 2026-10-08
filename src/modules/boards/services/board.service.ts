@@ -5,7 +5,8 @@ import { requireWorkspaceAccess } from '../../../shared/authorization/access.ser
 import { AppError } from '../../../shared/errors/app.error.js';
 import { ERROR_CODE } from '../../../shared/errors/error-code.js';
 import { removeCardAssignments } from '../../cards/child-resources/assignment-cleanup.js';
-import { attachmentStorage } from '../../../infrastructure/storage/object-storage.js';
+import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
+import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
 import type { CreateBoardDto, UpdateBoardDto } from '../dto/board.schema.js';
 import { runBoardTransaction } from './board-transaction.service.js';
 
@@ -194,6 +195,7 @@ export async function deleteArchivedBoard(
   userId: string,
   boardId: string,
   confirmationName: string,
+  storage: ObjectStorage = attachmentStorage,
 ): Promise<void> {
   await runBoardTransaction(async (transaction) => {
     const board = await requireBoardManagementInTransaction(transaction, userId, boardId, {
@@ -225,7 +227,7 @@ export async function deleteArchivedBoard(
     }
     for (const storageKey of storageKeys) {
       try {
-        await attachmentStorage.delete(storageKey);
+        await storage.delete(storageKey);
       } catch {
         throw new AppError(
           503,

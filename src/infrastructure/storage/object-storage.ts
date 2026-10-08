@@ -63,5 +63,3 @@ export class FileSystemObjectStorage implements ObjectStorage {
     await rm(this.pathFor(storageKey), { force: true });
   }
 }
-
-export const attachmentStorage: ObjectStorage = new FileSystemObjectStorage();

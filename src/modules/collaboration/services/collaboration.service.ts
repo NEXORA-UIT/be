@@ -1,9 +1,7 @@
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
-import {
-  attachmentStorage,
-  type ObjectStorage,
-} from '../../../infrastructure/storage/object-storage.js';
+import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
+import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';

@@ -92,10 +92,10 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** Giữ `ObjectStorage.put/get/delete`; `R2ObjectStorage` dùng `@aws-sdk/client-s3`. `ATTACHMENT_STORAGE_PROVIDER=filesystem|r2` chọn provider; R2 yêu cầu `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` và dùng region `auto`. Production yêu cầu `r2` và fail sớm nếu thiếu cấu hình; filesystem chỉ dùng cho local/test. `deleteArchivedBoard` nhận `ObjectStorage` tùy chọn để test lỗi bằng fake storage. Không đổi route hoặc ID attachment.
 
-- [ ] Viết test provider bằng fake S3 client: put/get/delete, thiếu cấu hình, lỗi upload, lỗi xóa, gọi delete lặp; test Board delete giữ DB rows khi cleanup tệp thất bại và retry thành công khi storage hoạt động lại.
-- [ ] Chạy test mục tiêu để xác nhận fail; triển khai R2 adapter và cấu hình. Không đưa credentials vào repo hoặc log. Giữ `PendingObjectCleanup` cho object đã upload nhưng DB ghi thất bại.
-- [ ] Xác định đường di chuyển blob filesystem đã tồn tại trước khi bật R2; nếu không có dữ liệu production, ghi rõ điều kiện đó trong tài liệu triển khai. Không đổi provider khi các attachment cũ chưa đọc được ở provider mới.
-- [ ] Chạy test Collaboration/Board, xác minh upload/download qua fake storage và cleanup lỗi; commit riêng.
+- [x] Viết test provider bằng fake S3 client: put/get/delete, thiếu cấu hình, lỗi upload, lỗi xóa, gọi delete lặp; test Board delete giữ DB rows khi cleanup tệp thất bại và retry thành công khi storage hoạt động lại.
+- [x] Chạy test mục tiêu để xác nhận fail; triển khai R2 adapter và cấu hình. Không đưa credentials vào repo hoặc log. Giữ `PendingObjectCleanup` cho object đã upload nhưng DB ghi thất bại.
+- [x] Xác định đường di chuyển blob filesystem đã tồn tại trước khi bật R2; nếu không có dữ liệu production, ghi rõ điều kiện đó trong tài liệu triển khai. Không đổi provider khi các attachment cũ chưa đọc được ở provider mới.
+- [x] Chạy test Collaboration/Board, xác minh upload/download qua fake storage và cleanup lỗi; commit riêng.
 
 **Nghiệm thu:** Card Attachment và Board delete dùng đúng provider đã cấu hình, lỗi storage không báo thành công giả. Tác vụ xóa Document Knowledge Base của UC-Board-09 vẫn là dependency của module Knowledge Base, chưa đánh dấu hoàn tất.
 
