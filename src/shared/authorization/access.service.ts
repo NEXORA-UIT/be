@@ -24,7 +24,7 @@ export async function requireWorkspaceAccess(
 ): Promise<WorkspaceAccess> {
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
-    include: { memberships: { where: { userId } } },
+    include: { memberships: { where: { userId, endedAt: null } } },
   });
   if (!workspace) throw accessErrors.notFound('Workspace');
   const membership = workspace.memberships[0];
@@ -62,8 +62,8 @@ export async function requireBoardAccess(userId: string, boardId: string): Promi
     include: { workspace: true, memberships: { where: { userId } } },
   });
   if (!board) throw accessErrors.notFound('Board');
-  const workspaceMembership = await prisma.workspaceMembership.findUnique({
-    where: { workspaceId_userId: { workspaceId: board.workspaceId, userId } },
+  const workspaceMembership = await prisma.workspaceMembership.findFirst({
+    where: { workspaceId: board.workspaceId, userId, endedAt: null },
   });
   if (!workspaceMembership) throw accessErrors.forbidden();
   const isOwner = workspaceMembership.role === WorkspaceRole.OWNER;

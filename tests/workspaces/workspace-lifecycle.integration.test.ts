@@ -200,11 +200,22 @@ describe('Workspace HTTP lifecycle', () => {
     );
     assert.equal(removed.status, 200);
     assert.deepEqual(removed.body.data, {});
+    const endedMembership = await prisma.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: removableMember.user.id } },
+    });
+    assert.ok(endedMembership, 'removed membership remains available for history');
+    assert.ok(endedMembership.endedAt, 'removed membership is marked inactive');
+    assert.equal((await call(`/${workspaceId}`, 'GET', removableMember.accessToken)).status, 403);
+    const boardAccessAfterRemoval = await fetch(
+      `${baseUrl.replace('/workspaces', '')}/boards/${boardOne.id}`,
+      { headers: { authorization: `Bearer ${removableMember.accessToken}` } },
+    );
+    assert.equal(boardAccessAfterRemoval.status, 403);
     assert.equal(
-      await prisma.workspaceMembership.count({
-        where: { workspaceId, userId: removableMember.user.id },
-      }),
-      0,
+      (await call('/?page=1&limit=10', 'GET', removableMember.accessToken)).body.data.some(
+        (workspace: { id: string }) => workspace.id === workspaceId,
+      ),
+      false,
     );
     assert.equal(
       await prisma.boardMembership.count({ where: { userId: removableMember.user.id } }),
@@ -214,8 +225,44 @@ describe('Workspace HTTP lifecycle', () => {
       await prisma.cardAssignment.count({ where: { userId: removableMember.user.id } }),
       0,
     );
+    const activeMembersAfterRemoval = await call(
+      `/${workspaceId}/members?page=1&limit=10`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.equal(activeMembersAfterRemoval.body.meta.total, 2);
+    assert.equal(
+      activeMembersAfterRemoval.body.data.some(
+        (member: { userId: string }) => member.userId === removableMember.user.id,
+      ),
+      false,
+    );
     assert.ok(await prisma.card.findUnique({ where: { id: cardOne.id } }));
     assert.equal(await prisma.comment.count({ where: { cardId: cardOne.id } }), 1);
+
+    await inviteWorkspaceMember(owner.user.id, workspaceId, removableMember.user.email, deliver);
+    const rejoinToken = invitationToken(sentMessages[2]!.text);
+    const rejoinResults = await Promise.all([
+      call(`/invitations/${rejoinToken}/accept`, 'POST', removableMember.accessToken),
+      call(`/invitations/${rejoinToken}/accept`, 'POST', removableMember.accessToken),
+    ]);
+    assert.equal(rejoinResults.filter((result) => result.status === 200).length, 1);
+    const rejoinedMembership = await prisma.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: removableMember.user.id } },
+    });
+    assert.equal(rejoinedMembership?.id, endedMembership.id);
+    assert.equal(rejoinedMembership?.endedAt, null);
+    assert.equal(rejoinedMembership?.role, 'MEMBER');
+    assert.equal(
+      await prisma.boardMembership.count({ where: { userId: removableMember.user.id } }),
+      0,
+      'rejoining a Workspace does not restore Board membership',
+    );
+    assert.equal(
+      await prisma.cardAssignment.count({ where: { userId: removableMember.user.id } }),
+      0,
+      'rejoining a Workspace does not restore Card assignments',
+    );
 
     const transferred = await call(
       `/${workspaceId}/members/${invitedMember.user.id}`,
@@ -238,10 +285,10 @@ describe('Workspace HTTP lifecycle', () => {
     const left = await call(`/${workspaceId}/leave`, 'POST', owner.accessToken);
     assert.equal(left.status, 200);
     assert.deepEqual(left.body.data, {});
-    assert.equal(
-      await prisma.workspaceMembership.count({ where: { workspaceId, userId: owner.user.id } }),
-      0,
-    );
+    const formerOwnerMembership = await prisma.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: owner.user.id } },
+    });
+    assert.ok(formerOwnerMembership?.endedAt, 'former Owner membership remains in history');
 
     assert.equal(
       (await call(`/${workspaceId}/archive`, 'PATCH', invitedMember.accessToken)).status,

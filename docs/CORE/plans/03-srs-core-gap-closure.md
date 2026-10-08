@@ -52,10 +52,10 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** Thêm `WorkspaceMembership.endedAt: DateTime?`; `endedAt = null` là membership hiện hành. Giữ unique `(workspaceId, userId)`; khi nhận lời mời sau khi rời, tái kích hoạt cùng hàng với `role = MEMBER`, `endedAt = null`, không tái tạo BoardMembership/assignment. Nhật ký ở Task 2 ghi từng lần rời và tái gia nhập.
 
-- [ ] Viết integration test đang fail: Owner chuyển quyền rồi rời; member bị gỡ/rời mất quyền ngay với access token còn hạn; hàng membership vẫn còn với `endedAt`; tái gia nhập bằng lời mời hợp lệ có quyền Workspace nhưng không có lại quyền Board/assignment cũ; hai lần accept không tạo hai membership.
-- [ ] Chạy riêng các test mới, xác nhận chúng fail do hàng bị xóa hoặc quyền cũ còn hiệu lực.
-- [ ] Tạo migration bổ sung `endedAt`; cập nhật mọi truy vấn membership trong `src/` để chỉ xem hàng hiện hành. `removeMemberFromWorkspace` đánh dấu kết thúc trong cùng transaction với thu hồi BoardMembership và assignment; `acceptWorkspaceInvitation` tái kích hoạt hàng cũ có điều kiện.
-- [ ] Chạy test Workspace, Board/Card authorization và invitation; kiểm tra migration trên DB có membership cũ; commit riêng.
+- [x] Viết integration test đang fail: Owner chuyển quyền rồi rời; member bị gỡ/rời mất quyền ngay với access token còn hạn; hàng membership vẫn còn với `endedAt`; tái gia nhập bằng lời mời hợp lệ có quyền Workspace nhưng không có lại quyền Board/assignment cũ; hai lần accept không tạo hai membership.
+- [x] Chạy riêng các test mới, xác nhận chúng fail do hàng bị xóa hoặc quyền cũ còn hiệu lực.
+- [x] Tạo migration bổ sung `endedAt`; cập nhật mọi truy vấn membership trong `src/` để chỉ xem hàng hiện hành. `removeMemberFromWorkspace` đánh dấu kết thúc trong cùng transaction với thu hồi BoardMembership và assignment; `acceptWorkspaceInvitation` tái kích hoạt hàng cũ có điều kiện.
+- [x] Chạy test Workspace, Board/Card authorization và invitation; kiểm tra migration trên DB có membership cũ; commit riêng.
 
 **Nghiệm thu:** Không còn thao tác hard-delete WorkspaceMembership khi rời/gỡ; lịch sử nội dung và tác giả giữ nguyên, quyền cũ bị thu hồi ngay.
 

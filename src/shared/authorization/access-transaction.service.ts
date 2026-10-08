@@ -18,8 +18,8 @@ export async function requireBoardWriteAccessInTransaction(
 
   const [actor, workspaceMembership, boardMembership] = await Promise.all([
     transaction.user.findUnique({ where: { id: userId }, select: { status: true } }),
-    transaction.workspaceMembership.findUnique({
-      where: { workspaceId_userId: { workspaceId: board.workspaceId, userId } },
+    transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId, endedAt: null },
       select: { role: true },
     }),
     transaction.boardMembership.findUnique({

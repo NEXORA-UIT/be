@@ -47,7 +47,7 @@ async function requireWorkspaceMutationAccess(
     select: {
       archivedAt: true,
       isFrozen: true,
-      memberships: { where: { userId: actorId }, select: { role: true } },
+      memberships: { where: { userId: actorId, endedAt: null }, select: { role: true } },
     },
   });
   if (!workspace) throw accessErrors.notFound('Workspace');
@@ -74,8 +74,9 @@ async function removeMemberFromWorkspace(
 
   await transaction.boardMembership.deleteMany({ where: { userId, board: { workspaceId } } });
   await removeCardAssignments(transaction, { userId, card: { board: { workspaceId } } }, actorId);
-  return transaction.workspaceMembership.delete({
+  return transaction.workspaceMembership.update({
     where: { workspaceId_userId: { workspaceId, userId } },
+    data: { endedAt: new Date() },
   });
 }
 
@@ -124,7 +125,7 @@ export async function listWorkspaceMembers(
   query: WorkspacePaginationQuery,
 ) {
   await requireWorkspaceAccess(userId, workspaceId);
-  const where = { workspaceId };
+  const where = { workspaceId, endedAt: null };
   const [data, total] = await Promise.all([
     prisma.workspaceMembership.findMany({
       where,
@@ -154,7 +155,7 @@ export async function transferWorkspaceOwner(
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       include: { user: { select: { status: true } } },
     });
-    if (!target) throw accessErrors.notFound('Thành viên');
+    if (!target || target.endedAt) throw accessErrors.notFound('Thành viên');
     if (target.user.status !== 'ACTIVE') throw accessErrors.forbidden();
 
     await transaction.workspaceMembership.updateMany({
@@ -178,7 +179,7 @@ export async function removeWorkspaceMember(
     const target = await transaction.workspaceMembership.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
     });
-    if (!target) throw accessErrors.notFound('Thành viên');
+    if (!target || target.endedAt) throw accessErrors.notFound('Thành viên');
     if (target.role === WorkspaceRole.OWNER) throw accessErrors.forbidden();
 
     return removeMemberFromWorkspace(transaction, workspaceId, targetUserId, actorId);

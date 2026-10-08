@@ -33,7 +33,9 @@ async function requireWorkspaceOwnerInTransaction(
 ) {
   const workspace = await transaction.workspace.findUnique({
     where: { id: workspaceId },
-    include: { memberships: { where: { userId }, select: { role: true } } },
+    include: {
+      memberships: { where: { userId, endedAt: null }, select: { role: true } },
+    },
   });
   if (!workspace) throw accessErrors.notFound('Workspace');
   const membership = workspace.memberships[0];
@@ -55,8 +57,8 @@ export async function requireBoardManagementInTransaction(
   });
   if (!board) throw accessErrors.notFound('Board');
 
-  const workspaceMembership = await transaction.workspaceMembership.findUnique({
-    where: { workspaceId_userId: { workspaceId: board.workspaceId, userId } },
+  const workspaceMembership = await transaction.workspaceMembership.findFirst({
+    where: { workspaceId: board.workspaceId, userId, endedAt: null },
     select: { role: true },
   });
   if (!workspaceMembership) throw accessErrors.forbidden();
@@ -84,8 +86,8 @@ export async function createBoard(userId: string, workspaceId: string, input: Cr
   return runBoardTransaction(async (transaction) => {
     await requireWorkspaceOwnerInTransaction(transaction, userId, workspaceId);
     const pmId = input.pmId ?? userId;
-    const candidate = await transaction.workspaceMembership.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId: pmId } },
+    const candidate = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId, userId: pmId, endedAt: null },
       include: { user: { select: { status: true } } },
     });
     if (!candidate) throw accessErrors.notFound('Thành viên Workspace');
@@ -192,8 +194,8 @@ export async function deleteArchivedBoard(
     const board = await requireBoardManagementInTransaction(transaction, userId, boardId, {
       allowBoardArchived: true,
     });
-    const workspaceMembership = await transaction.workspaceMembership.findUnique({
-      where: { workspaceId_userId: { workspaceId: board.workspaceId, userId } },
+    const workspaceMembership = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId, endedAt: null },
       select: { role: true },
     });
     if (workspaceMembership?.role !== WorkspaceRole.OWNER) throw accessErrors.forbidden();
@@ -242,8 +244,8 @@ export async function assignBoardPm(userId: string, boardId: string, pmId: strin
     await requireWorkspaceOwnerInTransaction(transaction, userId, board.workspaceId);
     if (board.archivedAt) throw accessErrors.archived();
 
-    const candidate = await transaction.workspaceMembership.findUnique({
-      where: { workspaceId_userId: { workspaceId: board.workspaceId, userId: pmId } },
+    const candidate = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId: pmId, endedAt: null },
       include: { user: { select: { status: true } } },
     });
     if (!candidate) throw accessErrors.notFound('Thành viên Workspace');
@@ -275,8 +277,8 @@ export async function listBoardMembers(userId: string, boardId: string) {
 export async function addBoardMember(userId: string, boardId: string, targetUserId: string) {
   return runBoardTransaction(async (transaction) => {
     const board = await requireBoardManagementInTransaction(transaction, userId, boardId);
-    const candidate = await transaction.workspaceMembership.findUnique({
-      where: { workspaceId_userId: { workspaceId: board.workspaceId, userId: targetUserId } },
+    const candidate = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId: targetUserId, endedAt: null },
       include: { user: { select: { status: true } } },
     });
     if (!candidate) throw accessErrors.notFound('Thành viên Workspace');

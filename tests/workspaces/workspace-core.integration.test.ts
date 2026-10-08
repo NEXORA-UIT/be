@@ -105,12 +105,11 @@ describe('Workspace and authorization core', () => {
     const cardBeforeLeave = await prisma.card.findUniqueOrThrow({ where: { id: card.id } });
 
     await leaveWorkspace(member.id, workspace.id);
-    assert.equal(
-      await prisma.workspaceMembership.findUnique({
-        where: { workspaceId_userId: { workspaceId: workspace.id, userId: member.id } },
-      }),
-      null,
-    );
+    const endedMembership = await prisma.workspaceMembership.findUnique({
+      where: { workspaceId_userId: { workspaceId: workspace.id, userId: member.id } },
+    });
+    assert.ok(endedMembership);
+    assert.ok(endedMembership.endedAt);
     assert.equal(
       await prisma.boardMembership.findUnique({
         where: { boardId_userId: { boardId: board.id, userId: member.id } },

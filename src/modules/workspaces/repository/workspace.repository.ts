@@ -13,7 +13,7 @@ export const workspaceRepository = {
     });
   },
   async listForUser(userId: string, page: number, limit: number) {
-    const where = { memberships: { some: { userId } } };
+    const where = { memberships: { some: { userId, endedAt: null } } };
     const [data, total] = await Promise.all([
       prisma.workspace.findMany({
         where,

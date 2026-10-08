@@ -92,7 +92,12 @@ async function validateMentions(
   });
   if (!workspace) throw accessErrors.notFound('Board');
   const workspaceMembers = await transaction.workspaceMembership.findMany({
-    where: { workspaceId: workspace.workspaceId, userId: { in: uniqueIds }, role: 'OWNER' },
+    where: {
+      workspaceId: workspace.workspaceId,
+      userId: { in: uniqueIds },
+      role: 'OWNER',
+      endedAt: null,
+    },
     select: { userId: true },
   });
   const valid = new Set([

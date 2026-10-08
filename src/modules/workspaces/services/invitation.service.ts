@@ -107,7 +107,7 @@ export async function inviteWorkspaceMember(
   const link = invitationLink(rawToken);
   await expireOldInvitations(workspaceId, normalizedEmail);
   const existingMember = await prisma.workspaceMembership.findFirst({
-    where: { workspaceId, user: { email: normalizedEmail } },
+    where: { workspaceId, endedAt: null, user: { email: normalizedEmail } },
   });
   if (existingMember) throw new AppError(409, 'ALREADY_MEMBER', 'User đã là thành viên Workspace');
   const pending = await invitationRepository.findPendingByWorkspaceAndEmail(
@@ -173,9 +173,22 @@ export async function acceptWorkspaceInvitation(userId: string, rawToken: string
       data: { status: 'ACCEPTED', acceptedAt: new Date() },
     });
     if (claimed.count !== 1) throw invalidInvitation();
-    await tx.workspaceMembership.create({
-      data: { workspaceId: invitation.workspaceId, userId, role: 'MEMBER' },
+    const existingMembership = await tx.workspaceMembership.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: invitation.workspaceId, userId },
+      },
     });
+    if (existingMembership) {
+      if (!existingMembership.endedAt) throw invalidInvitation();
+      await tx.workspaceMembership.update({
+        where: { id: existingMembership.id },
+        data: { role: 'MEMBER', endedAt: null },
+      });
+    } else {
+      await tx.workspaceMembership.create({
+        data: { workspaceId: invitation.workspaceId, userId, role: 'MEMBER' },
+      });
+    }
     return tx.workspaceInvitation.findUniqueOrThrow({ where: { id: invitation.id } });
   });
   await redis.del(AUTH_CACHE_KEY.workspaceInvitation(tokenHash)).catch(() => {});
