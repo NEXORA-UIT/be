@@ -53,28 +53,35 @@ enum WorkspaceInvitationStatus {
   CANCELED
 }
 
+enum AppointmentProvenance {
+  UNKNOWN
+  RECORDED
+}
+
 model User {
-  id                        String                @id @default(uuid()) @db.Uuid
-  email                     String                @unique
-  passwordHash              String?
-  fullName                  String
-  avatarUrl                 String?
-  status                    UserStatus            @default(ACTIVE)
-  createdAt                 DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt                 DateTime              @updatedAt @db.Timestamptz(3)
-  refreshTokens             RefreshToken[]
-  oauthAccounts             OAuthAccount[]
-  workspaceMemberships      WorkspaceMembership[]
-  boardMemberships          BoardMembership[]
-  cardAssignments           CardAssignment[]
-  comments                  Comment[]
-  attachments               Attachment[]
-  sentWorkspaceInvitations  WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
-  appointedBoardMemberships BoardMembership[]     @relation("BoardMembershipAppointedBy")
-  activityLogs              ActivityLog[]
-  notifications             Notification[]
-  notificationsSent         Notification[]        @relation("NotificationActor")
-  quickNotes                QuickNote[]
+  id                           String                @id @default(uuid()) @db.Uuid
+  email                        String                @unique
+  passwordHash                 String?
+  fullName                     String
+  avatarUrl                    String?
+  status                       UserStatus            @default(ACTIVE)
+  createdAt                    DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime              @updatedAt @db.Timestamptz(3)
+  refreshTokens                RefreshToken[]
+  oauthAccounts                OAuthAccount[]
+  workspaceMemberships         WorkspaceMembership[]
+  boardMemberships             BoardMembership[]
+  cardAssignments              CardAssignment[]
+  comments                     Comment[]
+  attachments                  Attachment[]
+  sentWorkspaceInvitations     WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
+  appointedBoardMemberships    BoardMembership[]     @relation("BoardMembershipAppointedBy")
+  activityLogs                 ActivityLog[]
+  workspaceAuditEventsAsActor  WorkspaceAuditLog[]   @relation("WorkspaceAuditActor")
+  workspaceAuditEventsAsTarget WorkspaceAuditLog[]   @relation("WorkspaceAuditTarget")
+  notifications                Notification[]
+  notificationsSent            Notification[]        @relation("NotificationActor")
+  quickNotes                   QuickNote[]
 }
 
 model RefreshToken {
@@ -115,6 +122,7 @@ model Workspace {
   memberships    WorkspaceMembership[]
   boards         Board[]
   invitations    WorkspaceInvitation[]
+  auditLogs      WorkspaceAuditLog[]
 }
 
 model WorkspaceMembership {
@@ -154,6 +162,22 @@ model WorkspaceInvitation {
   @@index([expiresAt])
 }
 
+model WorkspaceAuditLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @db.Uuid
+  actorId      String    @db.Uuid
+  targetUserId String    @db.Uuid
+  action       String
+  details      Json?     @db.JsonB
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor        User      @relation("WorkspaceAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser   User      @relation("WorkspaceAuditTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
 model Board {
   id            String            @id @default(uuid()) @db.Uuid
   workspaceId   String            @db.Uuid
@@ -177,16 +201,17 @@ model Board {
 }
 
 model BoardMembership {
-  id              String    @id @default(uuid()) @db.Uuid
-  boardId         String    @db.Uuid
-  userId          String    @db.Uuid
-  role            BoardRole @default(MEMBER)
-  appointedBy     String?   @db.Uuid
-  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
-  board           Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  appointedByUser User?     @relation("BoardMembershipAppointedBy", fields: [appointedBy], references: [id], onDelete: Restrict)
+  id                    String                @id @default(uuid()) @db.Uuid
+  boardId               String                @db.Uuid
+  userId                String                @db.Uuid
+  role                  BoardRole             @default(MEMBER)
+  appointedBy           String?               @db.Uuid
+  appointmentProvenance AppointmentProvenance @default(UNKNOWN)
+  createdAt             DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime              @updatedAt @db.Timestamptz(3)
+  board                 Board                 @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointedByUser       User?                 @relation("BoardMembershipAppointedBy", fields: [appointedBy], references: [id], onDelete: Restrict)
 
   @@unique([boardId, userId])
   @@index([boardId])

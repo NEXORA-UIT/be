@@ -10,6 +10,7 @@ import { AppError } from '../../../shared/errors/app.error.js';
 import type { EmailMessage } from '../../../infrastructure/email/email.client.js';
 import { AUTH_CACHE_KEY } from '../../auth/utils/auth.constants.js';
 import { invitationRepository } from '../repository/invitation.repository.js';
+import { recordWorkspaceAudit } from './workspace-audit.service.js';
 
 export const WORKSPACE_INVITATION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
@@ -183,6 +184,13 @@ export async function acceptWorkspaceInvitation(userId: string, rawToken: string
       await tx.workspaceMembership.update({
         where: { id: existingMembership.id },
         data: { role: 'MEMBER', endedAt: null },
+      });
+      await recordWorkspaceAudit(tx, {
+        workspaceId: invitation.workspaceId,
+        actorId: userId,
+        targetUserId: userId,
+        action: 'MEMBER_REJOINED',
+        details: { invitationId: invitation.id },
       });
     } else {
       await tx.workspaceMembership.create({

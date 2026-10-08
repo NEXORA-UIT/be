@@ -253,6 +253,19 @@ describe('Workspace HTTP lifecycle', () => {
     assert.equal(rejoinedMembership?.id, endedMembership.id);
     assert.equal(rejoinedMembership?.endedAt, null);
     assert.equal(rejoinedMembership?.role, 'MEMBER');
+    assert.deepEqual(
+      (
+        await prisma.workspaceAuditLog.findMany({
+          where: { workspaceId, targetUserId: removableMember.user.id },
+          orderBy: { action: 'asc' },
+          select: { action: true, actorId: true },
+        })
+      ).map(({ action, actorId }) => ({ action, actorId })),
+      [
+        { action: 'MEMBER_REJOINED', actorId: removableMember.user.id },
+        { action: 'MEMBER_REMOVED', actorId: owner.user.id },
+      ],
+    );
     assert.equal(
       await prisma.boardMembership.count({ where: { userId: removableMember.user.id } }),
       0,
@@ -272,6 +285,19 @@ describe('Workspace HTTP lifecycle', () => {
     );
     assert.equal(transferred.status, 200);
     assert.deepEqual(transferred.body.data, {});
+    assert.deepEqual(
+      await prisma.workspaceAuditLog.findMany({
+        where: { workspaceId, action: 'OWNER_TRANSFERRED' },
+        select: { actorId: true, targetUserId: true, details: true },
+      }),
+      [
+        {
+          actorId: owner.user.id,
+          targetUserId: invitedMember.user.id,
+          details: { previousOwnerId: owner.user.id, newOwnerId: invitedMember.user.id },
+        },
+      ],
+    );
     assert.equal(
       await prisma.workspaceMembership.count({ where: { workspaceId, role: 'OWNER' } }),
       1,
@@ -289,6 +315,10 @@ describe('Workspace HTTP lifecycle', () => {
       where: { workspaceId_userId: { workspaceId, userId: owner.user.id } },
     });
     assert.ok(formerOwnerMembership?.endedAt, 'former Owner membership remains in history');
+    assert.equal(
+      await prisma.workspaceAuditLog.count({ where: { workspaceId, action: 'MEMBER_LEFT' } }),
+      1,
+    );
 
     assert.equal(
       (await call(`/${workspaceId}/archive`, 'PATCH', invitedMember.accessToken)).status,
@@ -377,6 +407,18 @@ describe('Workspace HTTP lifecycle', () => {
         },
       }),
       1,
+    );
+    assert.deepEqual(
+      await prisma.workspaceAuditLog.findMany({
+        where: { workspaceId, action: 'OWNER_TRANSFERRED' },
+        select: { actorId: true, targetUserId: true },
+      }),
+      [
+        {
+          actorId: owner.user.id,
+          targetUserId: results[0]!.status === 200 ? firstTarget.user.id : secondTarget.user.id,
+        },
+      ],
     );
   });
 });

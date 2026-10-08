@@ -85,6 +85,7 @@ describe('Board and List REST flows', () => {
     assert.equal(memberships[0]?.role, 'PM');
     assert.equal(memberships[0]?.userId, owner.user.id);
     assert.equal(memberships[0]?.appointedBy, owner.user.id);
+    assert.equal(memberships[0]?.appointmentProvenance, 'RECORDED');
 
     const lists = await prisma.list.findMany({ where: { boardId }, orderBy: { position: 'asc' } });
     assert.deepEqual(
@@ -157,6 +158,7 @@ describe('Board and List REST flows', () => {
     const owner = await createActor('transfer-owner');
     const firstPm = await createActor('first-pm');
     const secondPm = await createActor('second-pm');
+    const outsider = await createActor('pm-outsider');
     const workspace = await createWorkspaceFor(owner.user.id);
     await prisma.workspaceMembership.createMany({
       data: [
@@ -188,6 +190,45 @@ describe('Board and List REST flows', () => {
       boardMemberships.find((membership) => membership.userId === secondPm.user.id)?.appointedBy,
       owner.user.id,
     );
+    assert.equal(
+      boardMemberships.find((membership) => membership.userId === secondPm.user.id)
+        ?.appointmentProvenance,
+      'RECORDED',
+    );
+    assert.deepEqual(
+      await prisma.activityLog.findMany({
+        where: { boardId: board.id, action: 'BOARD_PM_TRANSFERRED' },
+        select: { actorId: true, details: true },
+      }),
+      [
+        {
+          actorId: owner.user.id,
+          details: { previousPmId: firstPm.user.id, newPmId: secondPm.user.id },
+        },
+      ],
+    );
+    const rejectedTransfer = await call(`/boards/${board.id}/pm`, 'PATCH', owner.accessToken, {
+      pmId: outsider.user.id,
+    });
+    assert.equal(rejectedTransfer.status, 404);
+    assert.equal(
+      await prisma.activityLog.count({
+        where: { boardId: board.id, action: 'BOARD_PM_TRANSFERRED' },
+      }),
+      1,
+    );
+
+    await prisma.boardMembership.update({
+      where: { boardId_userId: { boardId: board.id, userId: firstPm.user.id } },
+      data: { appointmentProvenance: 'UNKNOWN' },
+    });
+    const listedMembers = await call(`/boards/${board.id}/members`, 'GET', owner.accessToken);
+    assert.equal(listedMembers.status, 200);
+    const legacyMembership = listedMembers.body.data.find(
+      (membership: { userId: string }) => membership.userId === firstPm.user.id,
+    );
+    assert.equal(legacyMembership.appointmentProvenance, 'UNKNOWN');
+    assert.equal(legacyMembership.appointedBy, null);
     assert.equal(
       (
         await prisma.workspaceMembership.findUnique({

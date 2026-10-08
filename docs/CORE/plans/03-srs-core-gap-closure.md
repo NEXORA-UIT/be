@@ -65,10 +65,10 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** Tạo `WorkspaceAuditLog` bất biến với `workspaceId`, `actorId`, `targetUserId`, `action`, `details`, `createdAt`; ghi `OWNER_TRANSFERRED`, `MEMBER_REMOVED`, `MEMBER_LEFT`, `MEMBER_REJOINED` trong cùng transaction với mutation. Chuyển PM ghi thêm `ActivityLog` action `BOARD_PM_TRANSFERRED` với actor, PM cũ và PM mới. Thêm `BoardMembership.appointmentProvenance = UNKNOWN | RECORDED`; mọi hàng có trước migration mới là `UNKNOWN`, thao tác phân công mới đặt `RECORDED`. Chỉ hiển thị `appointedBy` như người bổ nhiệm đã xác minh khi provenance là `RECORDED`.
 
-- [ ] Viết test đang fail: chuyển Owner/PM thành công có đúng một audit event với actor và vai trò cũ/mới; transaction rollback hoặc request đua thất bại không ghi event; gỡ/rời/tái gia nhập giữ vết sự kiện.
-- [ ] Chạy test mục tiêu để xác nhận fail; thêm model/migration và hàm ghi audit. Không viết lại migration Board/List đã áp dụng và không đoán người bổ nhiệm lịch sử từ Owner hiện tại.
-- [ ] Migration đánh dấu các hàng PM hiện có là `UNKNOWN`; code tạo/chuyển PM mới đặt `RECORDED`. Không suy diễn lại lịch sử cũ bằng timestamp; cập nhật response nếu có xuất `appointedBy`.
-- [ ] Chạy lại test race Owner/PM và migration trên dữ liệu mẫu; commit riêng.
+- [x] Viết test đang fail: chuyển Owner/PM thành công có đúng một audit event với actor và vai trò cũ/mới; transaction rollback hoặc request đua thất bại không ghi event; gỡ/rời/tái gia nhập giữ vết sự kiện.
+- [x] Chạy test mục tiêu để xác nhận fail; thêm model/migration và hàm ghi audit. Không viết lại migration Board/List đã áp dụng và không đoán người bổ nhiệm lịch sử từ Owner hiện tại.
+- [x] Migration đánh dấu các hàng PM hiện có là `UNKNOWN`; code tạo/chuyển PM mới đặt `RECORDED`. Không suy diễn lại lịch sử cũ bằng timestamp; cập nhật response nếu có xuất `appointedBy`.
+- [x] Chạy lại test race Owner/PM và migration trên dữ liệu mẫu; commit riêng.
 
 **Nghiệm thu:** Truy vết đúng các thao tác mới; dữ liệu cũ không bị trình bày như một sự kiện bổ nhiệm đã được chứng minh.
 

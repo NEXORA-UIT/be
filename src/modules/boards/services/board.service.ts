@@ -1,4 +1,4 @@
-import { BoardRole, Prisma, WorkspaceRole } from '@prisma/client';
+import { AppointmentProvenance, BoardRole, Prisma, WorkspaceRole } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireWorkspaceAccess } from '../../../shared/authorization/access.service.js';
@@ -101,7 +101,12 @@ export async function createBoard(userId: string, workspaceId: string, input: Cr
         coverColor: input.coverColor,
         coverUrl: input.coverUrl,
         memberships: {
-          create: { userId: pmId, role: BoardRole.PM, appointedBy: userId },
+          create: {
+            userId: pmId,
+            role: BoardRole.PM,
+            appointedBy: userId,
+            appointmentProvenance: AppointmentProvenance.RECORDED,
+          },
         },
         lists: { create: DEFAULT_LISTS },
       },
@@ -251,15 +256,39 @@ export async function assignBoardPm(userId: string, boardId: string, pmId: strin
     if (!candidate) throw accessErrors.notFound('Thành viên Workspace');
     if (candidate.user.status !== 'ACTIVE') throw accessErrors.forbidden();
 
+    const currentPm = await transaction.boardMembership.findFirst({
+      where: { boardId, role: BoardRole.PM },
+      select: { userId: true },
+    });
     await transaction.boardMembership.updateMany({
       where: { boardId, role: BoardRole.PM },
       data: { role: BoardRole.MEMBER },
     });
     const membership = await transaction.boardMembership.upsert({
       where: { boardId_userId: { boardId, userId: pmId } },
-      create: { boardId, userId: pmId, role: BoardRole.PM, appointedBy: userId },
-      update: { role: BoardRole.PM, appointedBy: userId },
+      create: {
+        boardId,
+        userId: pmId,
+        role: BoardRole.PM,
+        appointedBy: userId,
+        appointmentProvenance: AppointmentProvenance.RECORDED,
+      },
+      update: {
+        role: BoardRole.PM,
+        appointedBy: userId,
+        appointmentProvenance: AppointmentProvenance.RECORDED,
+      },
     });
+    if (currentPm && currentPm.userId !== pmId) {
+      await transaction.activityLog.create({
+        data: {
+          boardId,
+          actorId: userId,
+          action: 'BOARD_PM_TRANSFERRED',
+          details: { previousPmId: currentPm.userId, newPmId: pmId },
+        },
+      });
+    }
     return { boardId, userId: membership.userId, role: membership.role };
   });
 }
@@ -271,7 +300,15 @@ export async function listBoardMembers(userId: string, boardId: string) {
     include: { user: { select: { id: true, email: true, fullName: true, avatarUrl: true } } },
     orderBy: [{ role: 'asc' }, { createdAt: 'asc' }, { userId: 'asc' }],
   });
-  return { data: memberships };
+  return {
+    data: memberships.map((membership) => ({
+      ...membership,
+      appointedBy:
+        membership.appointmentProvenance === AppointmentProvenance.RECORDED
+          ? membership.appointedBy
+          : null,
+    })),
+  };
 }
 
 export async function addBoardMember(userId: string, boardId: string, targetUserId: string) {

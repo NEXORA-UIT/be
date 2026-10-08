@@ -217,7 +217,7 @@ paths:
       tags:
         - Boards
       summary: Phân công hoặc đổi PM của Board
-      description: Chỉ Workspace Owner được chuyển vai trò PM của Board cho thành viên Workspace đang hoạt động. Thao tác được thực hiện nguyên tử và ghi nhận người phân công trong `appointedBy`.
+      description: Chỉ Workspace Owner được chuyển vai trò PM của Board cho thành viên Workspace đang hoạt động. Thao tác được thực hiện nguyên tử, ghi ActivityLog BOARD_PM_TRANSFERRED và lưu thông tin người bổ nhiệm trong `appointedBy` với appointmentProvenance RECORDED.
       operationId: assignBoardPm
       security:
         - bearerAuth: []

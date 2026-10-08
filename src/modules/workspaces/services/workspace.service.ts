@@ -10,6 +10,7 @@ import type {
 } from '../dto/workspace.schema.js';
 import { workspaceRepository } from '../repository/workspace.repository.js';
 import { removeCardAssignments } from '../../cards/child-resources/assignment-cleanup.js';
+import { recordWorkspaceAudit } from './workspace-audit.service.js';
 
 const SERIALIZABLE_RETRY_LIMIT = 3;
 
@@ -74,10 +75,17 @@ async function removeMemberFromWorkspace(
 
   await transaction.boardMembership.deleteMany({ where: { userId, board: { workspaceId } } });
   await removeCardAssignments(transaction, { userId, card: { board: { workspaceId } } }, actorId);
-  return transaction.workspaceMembership.update({
+  const membership = await transaction.workspaceMembership.update({
     where: { workspaceId_userId: { workspaceId, userId } },
     data: { endedAt: new Date() },
   });
+  await recordWorkspaceAudit(transaction, {
+    workspaceId,
+    actorId,
+    targetUserId: userId,
+    action: actorId === userId ? 'MEMBER_LEFT' : 'MEMBER_REMOVED',
+  });
+  return membership;
 }
 
 export async function createWorkspace(userId: string, input: CreateWorkspaceDto) {
@@ -162,10 +170,18 @@ export async function transferWorkspaceOwner(
       where: { workspaceId, role: WorkspaceRole.OWNER },
       data: { role: WorkspaceRole.MEMBER },
     });
-    return transaction.workspaceMembership.update({
+    const membership = await transaction.workspaceMembership.update({
       where: { id: target.id },
       data: { role: WorkspaceRole.OWNER },
     });
+    await recordWorkspaceAudit(transaction, {
+      workspaceId,
+      actorId,
+      targetUserId,
+      action: 'OWNER_TRANSFERRED',
+      details: { previousOwnerId: actorId, newOwnerId: targetUserId },
+    });
+    return membership;
   });
 }
 

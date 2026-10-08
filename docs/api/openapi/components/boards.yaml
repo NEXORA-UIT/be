@@ -103,8 +103,10 @@ components:
         - boardId
         - userId
         - role
+        - appointedBy
+        - appointmentProvenance
         - user
-      description: Membership association between a user and a board.
+      description: Thành viên được thêm rõ ràng vào Board; người bổ nhiệm chỉ được xem là đã xác minh khi appointmentProvenance là RECORDED.
       properties:
         boardId:
           type: string
@@ -118,6 +120,17 @@ components:
             - PM
             - MEMBER
           example: MEMBER
+        appointedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID người bổ nhiệm đã xác minh; null nếu nguồn gốc là UNKNOWN.
+        appointmentProvenance:
+          type: string
+          enum:
+            - UNKNOWN
+            - RECORDED
+          description: Mức độ xác thực của thông tin người bổ nhiệm.
         user:
           $ref: "#/components/schemas/UserSummary"
     BoardLabel:
