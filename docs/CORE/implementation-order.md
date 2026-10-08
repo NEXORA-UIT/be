@@ -2,7 +2,7 @@
 
 Ngày rà soát: **2026-10-08**. Kế hoạch gồm ba nhánh tích hợp sau Workspace và phân quyền. `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã hoàn tất phạm vi REST Core; bốn nhóm A–D, tài liệu và OpenAPI đã tích hợp, các bước xác minh bên dưới đều đạt.
 
-Lần đối chiếu chi tiết với SRS sau khi tích hợp vẫn phát hiện các sai khác ở vòng đời membership, audit vai trò, archive, storage và dữ liệu planning. Các bước khép khoảng trống được ghi trong [kế hoạch tiếp theo](plans/03-srs-core-gap-closure.md); trạng thái ba nhánh ở đây không có nghĩa toàn bộ SRS đã đạt.
+Kế hoạch khép các sai khác phát hiện sau tích hợp đã hoàn tất tại [03-srs-core-gap-closure](plans/03-srs-core-gap-closure.md): membership/audit, archive/storage, tiến độ Task và dữ liệu planning. Cổng cuối đạt 91/91 test trên PostgreSQL/Redis Docker, Prisma validate/migration deploy, typecheck, Prettier và OpenAPI loader (92 path/122 operation). Đây chỉ xác nhận REST Core trong phạm vi đã chọn; UC-Board-09 phần tài liệu Knowledge Base, BullMQ, Socket.IO và AI/RAG/Agent vẫn chưa hoàn tất.
 
 **Mục tiêu:** Hoàn thiện REST Core theo SRS, bảo đảm ranh giới Workspace/Board, tính nguyên tử của thay đổi, kiểm soát ghi đồng thời và bộ kiểm thử xác nhận quyền trên mọi tài nguyên.
 
@@ -115,7 +115,7 @@ Người tích hợp khóa schema, migration và API contract chung cho các mod
 - Test xóa vĩnh viễn Board theo SRS: từ chối Board chưa archive/sai actor/sai tên; nếu Attachment thiếu `storageKey` hoặc cleanup object storage lỗi thì giữ nguyên relational rows và báo lỗi; cleanup phải idempotent để retry an toàn nếu lần xóa DB thất bại sau khi object đã được dọn.
 - Test upload khi ghi DB thất bại đồng thời xóa object cũng thất bại: phải lưu `storageKey` trong `PendingObjectCleanup` để lần upload sau hoặc tác vụ retry gọi service cleanup có thể thử lại; không chấp nhận nuốt lỗi rồi để object mồ côi không có đường khôi phục. Cơ chế retry này không yêu cầu BullMQ.
 - Đồng bộ OpenAPI/endpoint matrix với route chạy thật; endpoint tài liệu hóa không được xem là implementation.
-- Kết quả xác minh ngày 2026-10-08: Prisma validate đạt; trạng thái migration đã cập nhật; TypeScript typecheck/build đạt; `pnpm test` đạt **82/82** khi chạy tuần tự trên PostgreSQL Docker; Prettier đạt; OpenAPI loader ghép thành công **92 path / 122 operation**. `prisma migrate dev` không qua shadow database do lỗi chạy lại một migration cũ (P3006/P1014); migration mới được áp dụng bằng `migrate deploy` sau khi xác nhận chỉ có migration bổ sung đang chờ. BullMQ, Socket.IO, AI/RAG/Agent và AUTH transport vẫn nằm ngoài phạm vi; không tuyên bố hoàn thành toàn bộ SRS.
+- Kết quả xác minh sau khi khép khoảng trống ngày 2026-10-08: Prisma validate, `migrate status`, `migrate deploy`, TypeScript typecheck và Prettier toàn repo đều đạt; toàn bộ test đạt **91/91** khi chạy tuần tự với PostgreSQL/Redis Docker; OpenAPI loader ghép **92 path / 122 operation**. Không có route hay `operationId` nào đổi trong ba nhánh khép khoảng trống; các response schema mới và mô tả quyền đã được đối chiếu với code. UC-Board-09 phần xóa tài liệu Knowledge Base, BullMQ, Socket.IO, AI/RAG/Agent và AUTH transport vẫn nằm ngoài phạm vi; không tuyên bố hoàn thành toàn bộ SRS.
 
 ## Quản lý nhánh và quyền sở hữu file
 

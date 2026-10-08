@@ -68,4 +68,4 @@ Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và đ
 
 ## Trạng thái triển khai
 
-Ba nhánh `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã triển khai phạm vi REST Core ban đầu. Lần kiểm tra ngày 2026-10-08 trên nhánh cuối đạt 82/82 test và typecheck, nhưng đối chiếu SRS còn các sai khác về membership, truy vết vai trò, archive, lưu trữ tệp và dữ liệu planning. [Kế hoạch khép các khoảng trống](plans/03-srs-core-gap-closure.md) là bước tiếp theo; chưa tuyên bố đáp ứng toàn bộ SRS. BullMQ và Socket.IO vẫn được hoãn.
+Ba nhánh `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã triển khai phạm vi REST Core ban đầu. Các khoảng trống về membership, audit vai trò, archive/storage và planning đã được xử lý theo [kế hoạch khép khoảng trống](plans/03-srs-core-gap-closure.md); cổng cuối đạt 91/91 test, typecheck, Prisma validate/migration deploy, Prettier và OpenAPI loader (92 path/122 operation). Đây chưa phải xác nhận toàn bộ SRS: UC-Board-09 phần Knowledge Base, BullMQ, Socket.IO và AI/RAG/Agent vẫn còn ngoài phạm vi.

@@ -129,9 +129,9 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **File:** `docs/api/openapi/collaboration.yaml`, `docs/api/endpoint-matrix.md`, `docs/CORE/implementation-order.md`, tài liệu triển khai storage và test liên quan nếu cổng phát hiện thiếu.
 
-- [ ] Sửa mô tả quyền xóa comment trong OpenAPI cho khớp code và SRS: chỉ tác giả được xóa, trừ khi có quyết định nghiệp vụ mới kèm test. Đối chiếu mọi `operationId`, route và response đã đổi trong ba nhánh.
-- [ ] Chạy `node --env-file=.env.local ./node_modules/prisma/build/index.js validate`, kiểm tra migration status và áp dụng migration mới trên DB test bằng `migrate deploy`; chạy `node ./node_modules/typescript/bin/tsc --noEmit`.
-- [ ] Chạy `node --env-file-if-exists=.env.local ./node_modules/tsx/dist/cli.mjs --test-concurrency=1 --test tests/**/*.test.ts`, `node node_modules/prettier/bin/prettier.cjs --check .` và `node --import tsx --input-type=module -e "import { loadOpenApiDocument } from './src/docs/openapi-loader.ts'; loadOpenApiDocument();"`. Kiểm tra lại trực tiếp các ca audit ban đầu, không chỉ dựa vào số test pass.
-- [ ] Cập nhật trạng thái tài liệu bằng kết quả mới; ghi rõ UC-Board-09 Knowledge Base, BullMQ, Socket.IO, AI/RAG/Agent còn ngoài phạm vi; commit docs riêng.
+- [x] Sửa mô tả quyền xóa comment trong OpenAPI cho khớp code và SRS: chỉ tác giả được xóa, trừ khi có quyết định nghiệp vụ mới kèm test. Đối chiếu mọi `operationId`, route và response đã đổi trong ba nhánh.
+- [x] Chạy `node --env-file=.env.local ./node_modules/prisma/build/index.js validate`, kiểm tra migration status và áp dụng migration mới trên DB test bằng `migrate deploy`; chạy `node ./node_modules/typescript/bin/tsc --noEmit`.
+- [x] Chạy `node --env-file-if-exists=.env.local ./node_modules/tsx/dist/cli.mjs --test-concurrency=1 --test tests/**/*.test.ts`, `node node_modules/prettier/bin/prettier.cjs --check .` và `node --import tsx --input-type=module -e "import { loadOpenApiDocument } from './src/docs/openapi-loader.ts'; loadOpenApiDocument();"`. Kiểm tra lại trực tiếp các ca audit ban đầu, không chỉ dựa vào số test pass.
+- [x] Cập nhật trạng thái tài liệu bằng kết quả mới; ghi rõ UC-Board-09 Knowledge Base, BullMQ, Socket.IO, AI/RAG/Agent còn ngoài phạm vi; commit docs riêng.
 
 **Nghiệm thu cuối:** Không còn các sai khác REST Core liệt kê trong audit; test và migration đạt trên PostgreSQL/Redis Docker; tài liệu không tuyên bố đáp ứng toàn bộ SRS khi các module hoãn vẫn thiếu.

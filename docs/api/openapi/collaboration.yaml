@@ -121,7 +121,7 @@ paths:
       tags:
         - Collaboration
       summary: Xóa bình luận Card
-      description: Xóa mềm bình luận khi Card, List, Board và Workspace còn hoạt động. Tác giả bình luận hoặc PM của Board được phép thực hiện.
+      description: Xóa mềm bình luận khi Card, List, Board và Workspace còn hoạt động. Chỉ tác giả của bình luận được phép thực hiện thao tác này.
       operationId: deleteComment
       security:
         - bearerAuth: []
