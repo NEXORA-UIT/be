@@ -81,6 +81,23 @@ components:
         createdAt:
           type: string
           format: date-time
+    TaskProgress:
+      type: object
+      required: [total, completed, percent]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          description: Number of current Tasks on the Card.
+        completed:
+          type: integer
+          minimum: 0
+          description: Number of current Tasks marked complete.
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Rounded completed-to-total percentage; zero when there are no Tasks.
     Card:
       type: object
       required:
@@ -93,6 +110,7 @@ components:
         - position
         - statusGroup
         - archivedAt
+        - taskProgress
         - updatedAt
         - createdAt
       description: Central work item card.
@@ -143,6 +161,8 @@ components:
             - IN_PROGRESS
             - DONE
           description: Derived from the Card's List.statusGroup; not stored independently.
+        taskProgress:
+          $ref: "#/components/schemas/TaskProgress"
         archivedAt:
           type: string
           format: date-time

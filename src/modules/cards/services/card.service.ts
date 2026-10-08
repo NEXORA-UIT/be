@@ -12,6 +12,7 @@ import {
   MAX_CARDS_PER_BOARD,
   POSITION_STEP,
   countBoardCards,
+  countTasksByCardIds,
   createCardRecord,
   findCardById,
   findCardList,
@@ -38,11 +39,20 @@ type CardCoreRecord = Pick<
   | 'updatedAt'
 > & { list: { statusGroup: string } };
 
+type TaskCounts = { total: number; completed: number };
+
+function toTaskProgress(counts: TaskCounts = { total: 0, completed: 0 }) {
+  return {
+    ...counts,
+    percent: counts.total === 0 ? 0 : Math.round((counts.completed / counts.total) * 100),
+  };
+}
+
 function conflict(code: string, message: string) {
   return new AppError(409, code, message);
 }
 
-function toCardResponse(card: CardCoreRecord) {
+function toCardResponse(card: CardCoreRecord, taskCounts?: TaskCounts) {
   return {
     id: card.id,
     boardId: card.boardId,
@@ -58,6 +68,7 @@ function toCardResponse(card: CardCoreRecord) {
     createdAt: card.createdAt,
     updatedAt: card.updatedAt,
     statusGroup: card.list.statusGroup,
+    taskProgress: toTaskProgress(taskCounts),
   };
 }
 
@@ -138,16 +149,22 @@ export async function createCard(userId: string, listId: string, input: CreateCa
 
 export async function listBoardCards(userId: string, boardId: string, includeArchived: boolean) {
   await requireBoardAccess(userId, boardId);
-  const cards = await prisma.card.findMany({
-    where: {
-      boardId,
-      deletedAt: null,
-      ...(includeArchived ? {} : { archivedAt: null }),
-    },
-    include: { list: { select: { statusGroup: true, position: true } } },
-    orderBy: [{ list: { position: 'asc' } }, { position: 'asc' }, { id: 'asc' }],
+  return prisma.$transaction(async (transaction) => {
+    const cards = await transaction.card.findMany({
+      where: {
+        boardId,
+        deletedAt: null,
+        ...(includeArchived ? {} : { archivedAt: null }),
+      },
+      include: { list: { select: { statusGroup: true, position: true } } },
+      orderBy: [{ list: { position: 'asc' } }, { position: 'asc' }, { id: 'asc' }],
+    });
+    const taskCounts = await countTasksByCardIds(
+      transaction,
+      cards.map((card) => card.id),
+    );
+    return { data: cards.map((card) => toCardResponse(card, taskCounts.get(card.id))) };
   });
-  return { data: cards.map(toCardResponse) };
 }
 
 export async function getCard(userId: string, cardId: string) {
@@ -157,7 +174,10 @@ export async function getCard(userId: string, cardId: string) {
   });
   if (!card) throw accessErrors.notFound('Card');
   await requireBoardAccess(userId, card.boardId);
-  return toCardResponse(card);
+  const taskCounts = await prisma.$transaction((transaction) =>
+    countTasksByCardIds(transaction, [card.id]),
+  );
+  return toCardResponse(card, taskCounts.get(card.id));
 }
 
 export async function updateCard(userId: string, cardId: string, input: UpdateCardDto) {
@@ -190,6 +210,7 @@ export async function updateCard(userId: string, cardId: string, input: UpdateCa
 
     const updatedCard = await findCardById(transaction, cardId);
     if (!updatedCard) throw accessErrors.notFound('Card');
+    const taskCounts = await countTasksByCardIds(transaction, [cardId]);
     await writeActivity(transaction, {
       boardId: card.boardId,
       cardId,
@@ -197,7 +218,7 @@ export async function updateCard(userId: string, cardId: string, input: UpdateCa
       action: 'CARD_UPDATED',
       details: { fields: Object.keys(input).filter((field) => field !== 'updatedAt') },
     });
-    return toCardResponse(updatedCard);
+    return toCardResponse(updatedCard, taskCounts.get(cardId));
   });
 }
 
@@ -241,6 +262,7 @@ export async function moveCard(userId: string, cardId: string, input: MoveCardDt
 
     const movedCard = await findCardById(transaction, card.id);
     if (!movedCard) throw accessErrors.notFound('Card');
+    const taskCounts = await countTasksByCardIds(transaction, [card.id]);
     await writeActivity(transaction, {
       boardId: card.boardId,
       cardId: card.id,
@@ -248,7 +270,7 @@ export async function moveCard(userId: string, cardId: string, input: MoveCardDt
       action: 'CARD_MOVED',
       details: { fromListId: card.listId, toListId: input.targetListId, position: insertionIndex },
     });
-    return toCardResponse(movedCard);
+    return toCardResponse(movedCard, taskCounts.get(card.id));
   });
 }
 

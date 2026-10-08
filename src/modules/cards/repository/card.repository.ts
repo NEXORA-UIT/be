@@ -29,6 +29,26 @@ export async function countBoardCards(transaction: CardTransaction, boardId: str
   return transaction.card.count({ where: { boardId, deletedAt: null } });
 }
 
+export async function countTasksByCardIds(transaction: CardTransaction, cardIds: string[]) {
+  const counts = new Map<string, { total: number; completed: number }>();
+  if (cardIds.length === 0) return counts;
+
+  const groups = await transaction.task.groupBy({
+    by: ['cardId', 'isCompleted'],
+    where: { cardId: { in: cardIds } },
+    _count: { _all: true },
+  });
+
+  for (const group of groups) {
+    const count = counts.get(group.cardId) ?? { total: 0, completed: 0 };
+    count.total += group._count._all;
+    if (group.isCompleted) count.completed += group._count._all;
+    counts.set(group.cardId, count);
+  }
+
+  return counts;
+}
+
 export async function listCardsForPositioning(
   transaction: CardTransaction,
   listId: string,

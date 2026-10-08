@@ -109,6 +109,83 @@ describe('Card Core REST flows', () => {
     assert.equal(activities[0]?.actorId, owner.user.id);
   });
 
+  it('returns live Task progress on Card reads without changing List-derived status', async () => {
+    const owner = await createActor('card-task-progress-owner');
+    const { board, lists } = await createBoardFixture(owner);
+    const todoList = lists.find((list) => list.statusGroup === 'TODO')!;
+    const doneList = lists.find((list) => list.statusGroup === 'DONE')!;
+    const created = await call(`/lists/${todoList.id}/cards`, 'POST', owner.accessToken, {
+      title: 'Task progress response',
+    });
+    const cardId = created.body.data.id as string;
+    assert.deepEqual(created.body.data.taskProgress, { total: 0, completed: 0, percent: 0 });
+
+    const firstTask = await call(`/cards/${cardId}/tasks`, 'POST', owner.accessToken, {
+      title: 'First task',
+    });
+    assert.equal(firstTask.status, 201, JSON.stringify(firstTask.body));
+    const afterFirstTask = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(afterFirstTask.body.data.taskProgress, { total: 1, completed: 0, percent: 0 });
+
+    const createdTasks = await Promise.all(
+      ['Second task', 'Third task'].map((title) =>
+        call(`/cards/${cardId}/tasks`, 'POST', owner.accessToken, { title }),
+      ),
+    );
+    for (const result of createdTasks)
+      assert.equal(result.status, 201, JSON.stringify(result.body));
+    const taskIds = [firstTask, ...createdTasks].map((result) => result.body.data.id as string);
+
+    const afterCreate = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(afterCreate.body.data.taskProgress, { total: 3, completed: 0, percent: 0 });
+    const listAfterCreate = await call(`/boards/${board.id}/cards`, 'GET', owner.accessToken);
+    assert.deepEqual(listAfterCreate.body.data[0].taskProgress, {
+      total: 3,
+      completed: 0,
+      percent: 0,
+    });
+
+    const concurrentCompletions = await Promise.all(
+      taskIds
+        .slice(0, 2)
+        .map((taskId) =>
+          call(`/tasks/${taskId}`, 'PATCH', owner.accessToken, { isCompleted: true }),
+        ),
+    );
+    for (const result of concurrentCompletions) {
+      assert.equal(result.status, 200, JSON.stringify(result.body));
+    }
+    const afterConcurrentCompletion = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(afterConcurrentCompletion.body.data.taskProgress, {
+      total: 3,
+      completed: 2,
+      percent: 67,
+    });
+    assert.equal(afterConcurrentCompletion.body.data.statusGroup, 'TODO');
+
+    await call(`/tasks/${taskIds[0]}`, 'PATCH', owner.accessToken, { isCompleted: false });
+    const afterReopen = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(afterReopen.body.data.taskProgress, { total: 3, completed: 1, percent: 33 });
+
+    await call(`/tasks/${taskIds[1]}`, 'DELETE', owner.accessToken);
+    const afterDelete = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(afterDelete.body.data.taskProgress, { total: 2, completed: 0, percent: 0 });
+
+    const moved = await call(`/cards/${cardId}/move`, 'PATCH', owner.accessToken, {
+      targetListId: doneList.id,
+      position: 0,
+      updatedAt: afterDelete.body.data.updatedAt,
+    });
+    assert.equal(moved.status, 200, JSON.stringify(moved.body));
+    const completedOnDone = await call(`/tasks/${taskIds[0]}`, 'PATCH', owner.accessToken, {
+      isCompleted: true,
+    });
+    assert.equal(completedOnDone.status, 200, JSON.stringify(completedOnDone.body));
+    const doneCard = await call(`/cards/${cardId}`, 'GET', owner.accessToken);
+    assert.deepEqual(doneCard.body.data.taskProgress, { total: 2, completed: 1, percent: 50 });
+    assert.equal(doneCard.body.data.statusGroup, 'DONE');
+  });
+
   it('lists only visible active Cards and enforces Board membership for detail access', async () => {
     const owner = await createActor('card-list-owner');
     const member = await createActor('card-list-member');

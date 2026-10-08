@@ -107,9 +107,9 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 **Giao diện:** `taskProgress = { total: number, completed: number, percent: number }`; `percent = 0` nếu `total = 0`, còn lại là `Math.round(completed / total * 100)`. Tính từ Task hiện hành khi đọc Card, không lưu một bản sao dễ lệch trong Card. Hoàn tất Task không tự chuyển Card sang Done.
 
-- [ ] Viết test đang fail cho 0/1/n Task, hoàn tất rồi mở lại, xóa Task, hai request cập nhật cạnh tranh và Card thuộc Done vẫn giữ trạng thái từ List.
-- [ ] Chạy test mục tiêu; bổ sung truy vấn đếm theo Card dạng batch cho list Board để tránh một query mỗi Card, thêm trường vào Card detail/list response và OpenAPI.
-- [ ] Chạy test Card/Task và xác minh response trên route thật; commit riêng.
+- [x] Viết test đang fail cho 0/1/n Task, hoàn tất rồi mở lại, xóa Task, hai request cập nhật cạnh tranh và Card thuộc Done vẫn giữ trạng thái từ List.
+- [x] Chạy test mục tiêu; bổ sung truy vấn đếm theo Card dạng batch cho list Board để tránh một query mỗi Card, thêm trường vào Card detail/list response và OpenAPI.
+- [x] Chạy test Card/Task và xác minh response trên route thật; commit riêng.
 
 **Nghiệm thu:** Tiến độ trả về đúng ngay sau mọi thay đổi Task, không tạo Card status độc lập.
 
