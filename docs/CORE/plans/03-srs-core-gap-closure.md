@@ -32,6 +32,10 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 4. Tệp đã ghi lên R2 nhưng DB lỗi, hoặc xóa Board gặp lỗi R2, có trạng thái retry xác định; không trả thành công giả.
 5. Card không có Task, không có dueDate, thuộc Done, hoặc có dependency thiếu mốc thời gian đều có kết quả tiến độ/cảnh báo xác định.
 
+## Việc phát hiện sau nghiệm thu
+
+Luồng xóa Attachment và Board hiện xóa object bên trong transaction DB. Nếu object đã bị xóa rồi transaction rollback, hoặc một object tiếp theo xóa lỗi, bản ghi DB có thể còn nhưng tệp đã mất. Test 91/91 chưa bao phủ điểm lỗi này; adapter R2 cũng chưa được kiểm thử với bucket thật. **Quyết định:** triển khai [cronjob dọn object sau khi transaction DB ghi yêu cầu cleanup thành công](../attachment-storage.md#quyết-định-cho-luồng-xóa-tệp). Đây là việc còn mở, không được hiểu là đã có cronjob chỉ vì `PendingObjectCleanup` hiện tồn tại.
+
 ## Bản đồ file
 
 | Trách nhiệm                        | File sở hữu chính                                                                                                                            |
