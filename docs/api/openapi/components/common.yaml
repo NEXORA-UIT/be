@@ -229,31 +229,27 @@ components:
       properties:
         field:
           type: string
-          example: title
-          description: Target input field name.
+          description: Tên trường đầu vào liên quan khi lỗi có chi tiết validation.
         message:
           type: string
-          example: Tiêu đề thẻ việc không được để trống.
-          description: Detailed validation message.
+          description: Mô tả chi tiết lỗi của trường đầu vào.
     ErrorObject:
       type: object
       required:
         - code
         - message
         - details
-      description: Standard error payload structure.
+      description: Cấu trúc lỗi chuẩn; giá trị cụ thể thay đổi theo endpoint và nguyên nhân.
       properties:
         code:
           type: string
-          example: CARD_NOT_FOUND
-          description: Standardized uppercase error code from Error Catalog.
+          description: Mã lỗi thực tế do API trả về.
         message:
           type: string
-          example: Không tìm thấy thẻ việc được yêu cầu hoặc thẻ đã bị xóa.
-          description: Human-readable error description.
+          description: Thông báo lỗi thực tế cho request.
         details:
           type: array
-          description: List of specific validation issues if applicable.
+          description: Danh sách chi tiết validation nếu có; có thể rỗng.
           items:
             $ref: "#/components/schemas/ErrorDetail"
     ErrorResponse:
