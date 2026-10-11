@@ -1,0 +1,546 @@
+paths:
+  /lists/{listId}/cards:
+    post:
+      tags:
+        - Cards
+      summary: Tạo Card công việc
+      description: Tạo Card trong List đang hoạt động thuộc Board mà người dùng được phép truy cập, cấp `cardKey` duy nhất trong Board và ghi `CARD_CREATED` vào ActivityLog trong cùng transaction. Mỗi Board giới hạn 2.000 Card chưa bị xóa.
+      operationId: createCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          description: UUID duy nhất của List đích.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCardRequest"
+      responses:
+        "201":
+          description: Đã tạo Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}:
+    get:
+      tags:
+        - Cards
+      summary: Lấy thông tin Card
+      description: Trả về các trường Core của Card, nhóm trạng thái suy ra từ List và thời điểm lưu trữ. Card đã lưu trữ vẫn đọc được; Card đã xóa mềm thì không.
+      operationId: getCardById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Các trường Core của Card cùng nhóm trạng thái suy ra từ List.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    patch:
+      tags:
+        - Cards
+      summary: Cập nhật thông tin Card
+      description: "Cập nhật thuộc tính Card và áp dụng Optimistic Concurrency Control (OCC): client phải gửi giá trị `updatedAt` mới nhất. Nếu giá trị đã cũ, server trả 409 Conflict (`CARD_CONFLICT`). Bảo đảm `startDate <= dueDate`."
+      operationId: updateCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCardRequest"
+      responses:
+        "200":
+          description: Đã cập nhật Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    delete:
+      tags:
+        - Cards
+      summary: Xóa Card
+      description: Xóa mềm Card, đồng thời giữ lại bình luận và lịch sử hoạt động.
+      operationId: deleteCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Đã xóa Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/move:
+    patch:
+      tags:
+        - Cards
+      summary: Di chuyển hoặc sắp xếp Card
+      description: "Di chuyển hoặc sắp xếp lại Card trong cùng Board đang hoạt động. Trạng thái được suy ra từ List đích. Áp dụng OCC qua `updatedAt`; điều kiện dependency được kiểm tra trước khi chuyển Card sang Done."
+      operationId: moveCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveCardRequest"
+      responses:
+        "200":
+          description: Đã di chuyển Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/archive:
+    patch:
+      tags:
+        - Cards
+      summary: Lưu trữ Card
+      description: Ẩn Card khỏi Board đang hoạt động nhưng giữ nguyên bình luận, nhật ký hoạt động và tệp đính kèm.
+      operationId: archiveCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Đã lưu trữ Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/restore:
+    patch:
+      tags:
+        - Cards
+      summary: Khôi phục Card đã lưu trữ
+      description: Khôi phục Card đã lưu trữ khi Workspace, Board và List cha đều đang hoạt động.
+      operationId: restoreCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Đã khôi phục Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+  /boards/{boardId}/cards:
+    get:
+      tags:
+        - Cards
+      summary: Lấy các Card của Board
+      description: Trả về Card đang hoạt động theo thứ tự List và vị trí Card. Đặt `includeArchived=true` để lấy cả Card đã lưu trữ. Bộ lọc của UC-Card-13 được áp dụng ở client trên dữ liệu Board đã tải.
+      operationId: listBoardCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          description: UUID duy nhất của Board.
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Các Card được sắp xếp theo List và vị trí.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+        - UC-Card-13
+  /cards/{id}/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Lấy danh sách Task của Card
+      description: Trả về các mục checklist theo thứ tự đã lưu. Thành viên Board vẫn đọc được khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
+      operationId: listCardTasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Các mục checklist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Card-12
+    post:
+      tags:
+        - Tasks
+      summary: Thêm Task vào Card
+      description: Thêm một mục checklist khi Card, List, Board và Workspace còn hoạt động. Mỗi Card có tối đa 50 Task.
+      operationId: createCardTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Đã tạo Task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-Card-12
+  /tasks/{id}:
+    patch:
+      tags:
+        - Tasks
+      summary: Cập nhật Task
+      description: Cập nhật tiêu đề hoặc trạng thái hoàn thành khi Card, List, Board và Workspace còn hoạt động. Hoàn thành Task chỉ tính lại tiến độ, không tự chuyển Card sang Done.
+      operationId: updateTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Đã cập nhật Task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-Card-12
+    delete:
+      tags:
+        - Tasks
+      summary: Xóa Task
+      description: Xóa một mục checklist khi Card, List, Board và Workspace còn hoạt động.
+      operationId: deleteTask
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TaskIdPath"
+      responses:
+        "200":
+          description: Đã xóa Task.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-Card-12
+  /cards/{id}/attachments:
+    get:
+      tags:
+        - Cards
+      summary: Lấy danh sách tệp đính kèm của Card
+      description: Thành viên Board vẫn xem metadata khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
+      operationId: listCardAttachments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Metadata của tệp đính kèm Card.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardAttachmentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-COL-17
+    post:
+      tags:
+        - Cards
+      summary: Tải tệp đính kèm lên Card
+      description: Tải tệp công việc dạng nhị phân lên Card thông qua object-storage adapter đã cấu hình khi Card, List, Board và Workspace còn hoạt động. Giới hạn 25 MiB và xác thực chữ ký MIME. Attachment là luồng riêng, không thuộc tài liệu Knowledge Base.
+      operationId: uploadCardAttachment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          text/plain:
+            schema:
+              type: string
+              format: binary
+          application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: X-File-Name
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Tên tệp gốc, có phần mở rộng khớp với MIME type được nhận diện.
+      responses:
+        "201":
+          description: Đã tải tệp đính kèm lên.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardAttachmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-COL-17
+  /attachments/{attachmentId}/content:
+    get:
+      tags:
+        - Cards
+      summary: Tải tệp đính kèm của Card
+      description: Thành viên Board vẫn tải được tệp khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
+      operationId: downloadCardAttachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: attachmentId
+          in: path
+          required: true
+          description: UUID của tệp đính kèm.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Dữ liệu nhị phân của tệp đính kèm.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-COL-17
+  /attachments/{attachmentId}:
+    delete:
+      tags:
+        - Cards
+      summary: Xóa tệp đính kèm của Card
+      description: Chỉ xóa khi Card, List, Board và Workspace còn hoạt động. Nếu cleanup object thất bại, metadata được giữ lại để có thể thử lại.
+      operationId: deleteCardAttachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: attachmentId
+          in: path
+          required: true
+          description: UUID của tệp đính kèm.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Đã xóa tệp đính kèm.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-implementation-status: IMPLEMENTED
+      x-related-use-cases:
+        - UC-Card-12

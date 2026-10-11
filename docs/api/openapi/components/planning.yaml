@@ -1,0 +1,87 @@
+components:
+  schemas:
+    PlanningDependencyWarning:
+      type: object
+      required: [prerequisiteCardId, kind]
+      properties:
+        prerequisiteCardId: { type: string, format: uuid }
+        kind: { type: string, enum: [SCHEDULE_CONFLICT] }
+    CalendarCard:
+      type: object
+      required:
+        [id, boardId, listId, listName, cardKey, title, priority, statusGroup, assigneeIds, isOverdue, dependencyWarnings]
+      properties:
+        id: { type: string, format: uuid }
+        boardId: { type: string, format: uuid }
+        listId: { type: string, format: uuid }
+        listName: { type: string }
+        cardKey: { type: string }
+        title: { type: string }
+        startDate: { type: string, format: date-time, nullable: true }
+        dueDate: { type: string, format: date-time, nullable: true }
+        priority: { type: string, enum: [LOW, MEDIUM, HIGH, URGENT] }
+        statusGroup: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        assigneeIds:
+          type: array
+          items: { type: string, format: uuid }
+        isOverdue:
+          type: boolean
+          description: Chỉ đúng khi Card và các cấp cha đang hoạt động, chưa DONE và hạn chót đã qua.
+        dependencyWarnings:
+          type: array
+          items: { $ref: "#/components/schemas/PlanningDependencyWarning" }
+    BoardCalendarResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarCard" }
+    PlanningCard:
+      type: object
+      required: [id, boardId, listId, cardKey, title, priority, position, statusGroup, assigneeIds, isOverdue]
+      properties:
+        id: { type: string, format: uuid }
+        boardId: { type: string, format: uuid }
+        listId: { type: string, format: uuid }
+        cardKey: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        startDate: { type: string, format: date-time, nullable: true }
+        dueDate: { type: string, format: date-time, nullable: true }
+        priority: { type: string, enum: [LOW, MEDIUM, HIGH, URGENT] }
+        position: { type: number }
+        statusGroup: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        assigneeIds:
+          type: array
+          items: { type: string, format: uuid }
+        isOverdue: { type: boolean }
+    BoardListView:
+      type: object
+      required: [id, boardId, name, statusGroup, position, cards]
+      properties:
+        id: { type: string, format: uuid }
+        boardId: { type: string, format: uuid }
+        name: { type: string }
+        statusGroup: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        position: { type: number }
+        cards:
+          type: array
+          items: { $ref: "#/components/schemas/PlanningCard" }
+    BoardListViewResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/BoardListView" }
+    CreateDependencyRequest:
+      type: object
+      required:
+        - dependsOnCardId
+      properties:
+        dependsOnCardId:
+          type: string
+          format: uuid

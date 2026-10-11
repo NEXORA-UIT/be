@@ -1,0 +1,406 @@
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - cardId
+        - title
+        - isCompleted
+        - position
+        - createdAt
+        - updatedAt
+      description: Atomic checklist sub-task within a card.
+      properties:
+        id:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Implement unit tests for auth service
+        isCompleted:
+          type: boolean
+          example: false
+        position:
+          type: number
+          example: 1024
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          example: Write OpenAPI specification
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        isCompleted:
+          type: boolean
+    CardAttachment:
+      type: object
+      required:
+        - id
+        - cardId
+        - userId
+        - fileName
+        - fileSize
+        - createdAt
+      description: Binary attachment file linked to a card.
+      properties:
+        id:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          example: architecture_diagram.png
+        fileSize:
+          type: integer
+          description: File size in bytes.
+          example: 1048576
+        mimeType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    TaskProgress:
+      type: object
+      required: [total, completed, percent]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          description: Số Task hiện hành của Card.
+        completed:
+          type: integer
+          minimum: 0
+          description: Số Task hiện hành đã hoàn thành.
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Tỷ lệ hoàn thành đã làm tròn; bằng 0 nếu Card chưa có Task.
+    Card:
+      type: object
+      required:
+        - id
+        - listId
+        - boardId
+        - cardKey
+        - title
+        - priority
+        - position
+        - statusGroup
+        - archivedAt
+        - taskProgress
+        - updatedAt
+        - createdAt
+      description: Central work item card.
+      properties:
+        id:
+          type: string
+          format: uuid
+        listId:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        cardKey:
+          type: string
+          description: Board-unique sequential business key.
+          example: CARD-001
+        title:
+          type: string
+          example: Design Authentication Service
+        description:
+          type: string
+          nullable: true
+          description: Markdown-formatted text description.
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - URGENT
+          example: HIGH
+        position:
+          type: number
+          example: 1024
+        statusGroup:
+          type: string
+          enum:
+            - TODO
+            - IN_PROGRESS
+            - DONE
+          description: Derived from the Card's List.statusGroup; not stored independently.
+        taskProgress:
+          $ref: "#/components/schemas/TaskProgress"
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Non-null when archived. Archived Cards remain readable.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Optimistic Concurrency Control (OCC) timestamp.
+        createdAt:
+          type: string
+          format: date-time
+    CardDetail:
+      allOf:
+        - $ref: "#/components/schemas/Card"
+        - type: object
+          properties:
+            tasks:
+              type: array
+              items:
+                $ref: "#/components/schemas/Task"
+            attachments:
+              type: array
+              items:
+                $ref: "#/components/schemas/CardAttachment"
+            assignees:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserSummary"
+            labels:
+              type: array
+              items:
+                $ref: "#/components/schemas/BoardLabel"
+    CreateCardRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          example: Setup Docker development environment
+        description:
+          type: string
+          nullable: true
+          maxLength: 20000
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - URGENT
+          default: MEDIUM
+    UpdateCardRequest:
+      type: object
+      required:
+        - updatedAt
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - URGENT
+        updatedAt:
+          type: string
+          format: date-time
+          description: Required OCC timestamp matching the server value. If stale, server returns 409 CARD_CONFLICT.
+    MoveCardRequest:
+      type: object
+      required:
+        - targetListId
+        - position
+        - updatedAt
+      properties:
+        targetListId:
+          type: string
+          format: uuid
+          description: Target List UUID.
+        position:
+          type: number
+          description: Zero-based destination index within the target List.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Required OCC timestamp for concurrency check.
+    CardDependency:
+      type: object
+      required:
+        - id
+        - cardId
+        - dependsOnCardId
+        - createdAt
+      description: Prerequisite dependency constraint between two cards.
+      properties:
+        id:
+          type: string
+          format: uuid
+        cardId:
+          type: string
+          format: uuid
+          description: Card that depends on prerequisite.
+        dependsOnCardId:
+          type: string
+          format: uuid
+          description: Prerequisite Card that must be completed first.
+        createdAt:
+          type: string
+          format: date-time
+    CardDependencySummary:
+      type: object
+      required: [id, cardKey, title, list, dependencyId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        cardKey: { type: string }
+        title: { type: string }
+        list:
+          type: object
+          required: [id, name, statusGroup]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            statusGroup: { type: string, enum: [TODO, IN_PROGRESS, DONE] }
+        dependencyId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    CardResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Card"
+    CardDetailResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/CardDetail"
+    CardListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Card"
+    TaskResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/Task"
+    TaskListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+    CardAttachmentResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/CardAttachment"
+    CardAttachmentListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CardAttachment"
+    CardDependencyResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/CardDependency"
