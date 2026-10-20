@@ -175,6 +175,37 @@ components:
         createdAt:
           type: string
           format: date-time
+    BoardCardSummary:
+      allOf:
+        - $ref: "#/components/schemas/Card"
+        - type: object
+          required: [assigneeIds, labels, commentsCount, attachmentsCount]
+          properties:
+            assigneeIds:
+              type: array
+              description: Danh sách người được giao để hiển thị trực tiếp trên Kanban.
+              items:
+                type: string
+                format: uuid
+            labels:
+              type: array
+              items:
+                $ref: "#/components/schemas/CardLabelSummary"
+            commentsCount:
+              type: integer
+              minimum: 0
+              description: Số bình luận chưa xóa mềm.
+            attachmentsCount:
+              type: integer
+              minimum: 0
+              description: Số tệp đính kèm còn tồn tại.
+    CardLabelSummary:
+      type: object
+      required: [id, name, color]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        color: { type: string }
     CardDetail:
       allOf:
         - $ref: "#/components/schemas/Card"
@@ -344,7 +375,7 @@ components:
         data:
           type: array
           items:
-            $ref: "#/components/schemas/Card"
+            $ref: "#/components/schemas/BoardCardSummary"
     TaskResponse:
       type: object
       required:

@@ -56,6 +56,7 @@ components:
         - id
         - boardId
         - actorId
+        - actor
         - action
         - createdAt
       description: Audit event log entry for card state changes.
@@ -73,6 +74,20 @@ components:
         actorId:
           type: string
           format: uuid
+        actor:
+          type: object
+          required: [id, fullName, avatarUrl]
+          description: Hồ sơ actor được tra từ User, không phụ thuộc membership hiện tại.
+          properties:
+            id:
+              type: string
+              format: uuid
+            fullName:
+              type: string
+            avatarUrl:
+              type: string
+              format: uri
+              nullable: true
         action:
           type: string
           example: CARD_MOVED
@@ -111,19 +126,17 @@ components:
       required:
         - success
         - data
+        - nextCursor
       properties:
         success:
           type: boolean
           example: true
         data:
-          type: object
-          required:
-            - items
-            - pagination
-          properties:
-            items:
-              type: array
-              items:
-                $ref: "#/components/schemas/ActivityLog"
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLog"
+        nextCursor:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID của sự kiện cuối trang để tải trang tiếp theo; null khi hết dữ liệu.
