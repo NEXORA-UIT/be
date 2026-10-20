@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import {
   handleGoogleOAuthCallbackController,
@@ -12,7 +13,11 @@ export const googleOAuthRouter = Router();
 
 const validateGoogleOAuthCallbackRequest = validateBody(googleOAuthCallbackSchema);
 
-googleOAuthRouter.post(AUTH_ROUTE.googleOAuthStart, startGoogleOAuthController);
+googleOAuthRouter.post(
+  AUTH_ROUTE.googleOAuthStart,
+  validateBody(z.strictObject({}).optional()),
+  startGoogleOAuthController,
+);
 googleOAuthRouter.post(
   AUTH_ROUTE.googleOAuthCallback,
   validateGoogleOAuthCallbackRequest,

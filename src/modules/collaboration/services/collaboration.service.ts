@@ -7,17 +7,13 @@ import { requireBoardWriteAccessInTransaction } from '../../../shared/authorizat
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
+import {
+  ATTACHMENT_MIME_EXTENSIONS as MIME_EXTENSIONS,
+  resolveAttachmentMime,
+} from '../utils/attachment-mime.util.js';
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const COMMENT_MAX_LENGTH = 10_000;
-const MIME_EXTENSIONS: Record<string, string> = {
-  'application/pdf': '.pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-  'text/plain': '.txt',
-  'image/png': '.png',
-  'image/jpeg': '.jpg',
-};
-
 function badRequest(code: string, message: string) {
   return new AppError(400, code, message);
 }
@@ -299,35 +295,11 @@ export async function listCardActivity(
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: pageSize + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: { actor: { select: { id: true, fullName: true, avatarUrl: true } } },
   });
   const hasMore = rows.length > pageSize;
   const data = hasMore ? rows.slice(0, pageSize) : rows;
   return { data, nextCursor: hasMore ? (data.at(-1)?.id ?? null) : null };
-}
-
-function sniffMime(content: Uint8Array): string | null {
-  const bytes = Buffer.from(content);
-  if (bytes.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
-  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
-    return 'image/png';
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (
-    bytes[0] === 0x50 &&
-    bytes[1] === 0x4b &&
-    bytes[2] === 0x03 &&
-    bytes[3] === 0x04 &&
-    bytes.includes(Buffer.from('word/document.xml'))
-  )
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (!bytes.includes(0)) {
-    try {
-      new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-      return 'text/plain';
-    } catch {
-      /* not UTF-8 text */
-    }
-  }
-  return null;
 }
 
 function normalizeFilename(fileName: string, mimeType: string) {
@@ -343,9 +315,12 @@ function normalizeFilename(fileName: string, mimeType: string) {
 }
 
 function assertAllowedFilename(fileName: string, mimeType: string) {
+  const expectedExtension = MIME_EXTENSIONS[mimeType];
+  if (!expectedExtension) {
+    throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không được hỗ trợ');
+  }
   const extension = fileName.split('.').at(-1)?.toLowerCase();
-  const expected =
-    mimeType === 'image/jpeg' ? ['jpg', 'jpeg'] : [MIME_EXTENSIONS[mimeType]!.slice(1)];
+  const expected = mimeType === 'image/jpeg' ? ['jpg', 'jpeg'] : [expectedExtension.slice(1)];
   if (!extension || !expected.includes(extension)) {
     throw badRequest(
       'ATTACHMENT_TYPE_INVALID',
@@ -392,14 +367,14 @@ export async function uploadCardAttachment(
   storage: ObjectStorage = attachmentStorage,
 ) {
   await authorizeCardAttachmentUpload(userId, cardId);
-  assertAllowedFilename(fileName, declaredMime);
   if (content.byteLength < 1) throw badRequest('ATTACHMENT_EMPTY', 'Tệp không được để trống');
   if (content.byteLength > MAX_ATTACHMENT_BYTES)
     throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Dung lượng tệp đính kèm tối đa là 25MB');
-  const mimeType = sniffMime(content);
-  if (!mimeType || mimeType !== declaredMime || !MIME_EXTENSIONS[mimeType]) {
+  const mimeType = resolveAttachmentMime(declaredMime, content);
+  if (!mimeType) {
     throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không hợp lệ');
   }
+  assertAllowedFilename(fileName, mimeType);
   await requireWritableCard(prisma, userId, cardId);
   await retryPendingObjectCleanups(storage);
   const storageKey = await storage.put(content);

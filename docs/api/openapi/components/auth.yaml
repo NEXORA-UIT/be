@@ -183,15 +183,19 @@ components:
               description: Raw one-time token. Frontend stores it in sessionStorage and compares it with callback state.
     UpdateProfileRequest:
       type: object
+      minProperties: 1
       properties:
         fullName:
           type: string
+          minLength: 1
+          maxLength: 100
           example: Phan Gia Đạt
         avatarUrl:
           type: string
           format: uri
           nullable: true
           example: https://res.cloudinary.com/nexora/image/upload/avatar.jpg
+      additionalProperties: false
     ChangePasswordRequest:
       type: object
       required:
