@@ -7,6 +7,7 @@ import {
   logoutAllController,
   logoutController,
   getCurrentUserController,
+  updateCurrentUserController,
   refreshController,
   registerController,
   resetPasswordController,
@@ -20,6 +21,7 @@ import {
   registerSchema,
   resetPasswordSchema,
   verifyRegistrationSchema,
+  updateProfileSchema,
 } from '../dto/auth.schema.js';
 import { requireAuth } from '../middlewares/require-auth.middleware.js';
 import { AUTH_ROUTE } from '../utils/auth.constants.js';
@@ -34,6 +36,7 @@ const validateChangePasswordBody = validateBody(changePasswordSchema);
 const validateForgotPasswordBody = validateBody(forgotPasswordSchema);
 const validateResetPasswordBody = validateBody(resetPasswordSchema);
 const validateVerifyRegistrationBody = validateBody(verifyRegistrationSchema);
+const validateUpdateProfileBody = validateBody(updateProfileSchema);
 
 authRouter.post(AUTH_ROUTE.register, validateRegisterBody, registerController);
 authRouter.post(
@@ -48,6 +51,12 @@ authRouter.post(AUTH_ROUTE.logout, requireAuth, logoutController);
 authRouter.post(AUTH_ROUTE.logoutAll, requireAuth, logoutAllController);
 
 authRouter.get(AUTH_ROUTE.me, requireAuth, getCurrentUserController);
+authRouter.patch(
+  AUTH_ROUTE.me,
+  requireAuth,
+  validateUpdateProfileBody,
+  updateCurrentUserController,
+);
 authRouter.post(
   AUTH_ROUTE.changePassword,
   requireAuth,
