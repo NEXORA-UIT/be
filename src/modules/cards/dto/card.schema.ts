@@ -43,16 +43,32 @@ export const moveCardSchema = z.strictObject({
   updatedAt: dateSchema,
 });
 
+const repeatedUuidFilterSchema = z
+  .union([z.uuid(), z.array(z.uuid()).min(1).max(100)])
+  .optional()
+  .transform((values) =>
+    values === undefined ? undefined : [...new Set(Array.isArray(values) ? values : [values])],
+  );
+
 const cardListQuerySchema = z.strictObject({
   includeArchived: z
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
+  q: z.string().trim().min(1).max(100).optional(),
+  assigneeId: repeatedUuidFilterSchema,
+  labelId: repeatedUuidFilterSchema,
+  statusGroup: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
+  isOverdue: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true')),
 });
 
 export type CreateCardDto = z.infer<typeof createCardSchema>;
 export type UpdateCardDto = z.infer<typeof updateCardSchema>;
 export type MoveCardDto = z.infer<typeof moveCardSchema>;
+export type CardListQuery = z.infer<typeof cardListQuerySchema>;
 
 function parseQuery<T>(schema: z.ZodType<T>, input: unknown, message: string): T {
   const result = schema.safeParse(input);

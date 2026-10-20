@@ -7,7 +7,12 @@ import { AppError } from '../../../shared/errors/app.error.js';
 import { nextMonotonicTimestamp } from '../../../shared/utils/timestamp.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
 import { assertCardCanEnterDone } from '../../planning/dependencies/dependency.service.js';
-import type { CreateCardDto, MoveCardDto, UpdateCardDto } from '../dto/card.schema.js';
+import type {
+  CardListQuery,
+  CreateCardDto,
+  MoveCardDto,
+  UpdateCardDto,
+} from '../dto/card.schema.js';
 import {
   MAX_CARDS_PER_BOARD,
   POSITION_STEP,
@@ -52,7 +57,16 @@ function conflict(code: string, message: string) {
   return new AppError(409, code, message);
 }
 
-function toCardResponse(card: CardCoreRecord, taskCounts?: TaskCounts) {
+function toCardResponse(
+  card: CardCoreRecord,
+  taskCounts?: TaskCounts,
+  summaries?: {
+    assigneeIds: string[];
+    labels: { id: string; name: string; color: string }[];
+    commentsCount: number;
+    attachmentsCount: number;
+  },
+) {
   return {
     id: card.id,
     boardId: card.boardId,
@@ -69,6 +83,7 @@ function toCardResponse(card: CardCoreRecord, taskCounts?: TaskCounts) {
     updatedAt: card.updatedAt,
     statusGroup: card.list.statusGroup,
     taskProgress: toTaskProgress(taskCounts),
+    ...(summaries ?? {}),
   };
 }
 
@@ -147,23 +162,102 @@ export async function createCard(userId: string, listId: string, input: CreateCa
   );
 }
 
-export async function listBoardCards(userId: string, boardId: string, includeArchived: boolean) {
+function createBoardCardListWhere(boardId: string, query: CardListQuery, now: Date) {
+  const filters: Prisma.CardWhereInput[] = [];
+
+  if (query.q) {
+    filters.push({
+      OR: [
+        { title: { contains: query.q, mode: 'insensitive' } },
+        { cardKey: { contains: query.q, mode: 'insensitive' } },
+        {
+          labelLinks: {
+            some: { label: { name: { contains: query.q, mode: 'insensitive' } } },
+          },
+        },
+        {
+          assignments: {
+            some: { user: { fullName: { contains: query.q, mode: 'insensitive' } } },
+          },
+        },
+      ],
+    });
+  }
+
+  if (query.assigneeId?.length) {
+    filters.push({ assignments: { some: { userId: { in: query.assigneeId } } } });
+  }
+  if (query.labelId?.length) {
+    filters.push({ labelLinks: { some: { labelId: { in: query.labelId } } } });
+  }
+  if (query.statusGroup) {
+    filters.push({ list: { statusGroup: query.statusGroup } });
+  }
+  if (query.isOverdue === true) {
+    filters.push({
+      dueDate: { lt: now },
+      list: {
+        statusGroup: { not: 'DONE' },
+        archivedAt: null,
+        board: { archivedAt: null, workspace: { archivedAt: null } },
+      },
+    });
+  } else if (query.isOverdue === false) {
+    filters.push({
+      OR: [
+        { dueDate: null },
+        { dueDate: { gte: now } },
+        { list: { statusGroup: 'DONE' } },
+        { list: { archivedAt: { not: null } } },
+        { list: { board: { archivedAt: { not: null } } } },
+        { list: { board: { workspace: { archivedAt: { not: null } } } } },
+      ],
+    });
+  }
+
+  return {
+    boardId,
+    deletedAt: null,
+    ...(query.includeArchived ? {} : { archivedAt: null }),
+    ...(filters.length > 0 ? { AND: filters } : {}),
+  } satisfies Prisma.CardWhereInput;
+}
+
+export async function listBoardCards(userId: string, boardId: string, query: CardListQuery) {
   await requireBoardAccess(userId, boardId);
   return prisma.$transaction(async (transaction) => {
     const cards = await transaction.card.findMany({
-      where: {
-        boardId,
-        deletedAt: null,
-        ...(includeArchived ? {} : { archivedAt: null }),
+      where: createBoardCardListWhere(boardId, query, new Date()),
+      include: {
+        list: { select: { statusGroup: true, position: true } },
+        assignments: { select: { userId: true }, orderBy: { userId: 'asc' } },
+        labelLinks: {
+          select: { label: { select: { id: true, name: true, color: true } } },
+          orderBy: { label: { name: 'asc' } },
+        },
+        _count: {
+          select: {
+            comments: { where: { deletedAt: null } },
+            attachments: true,
+          },
+        },
       },
-      include: { list: { select: { statusGroup: true, position: true } } },
       orderBy: [{ list: { position: 'asc' } }, { position: 'asc' }, { id: 'asc' }],
     });
     const taskCounts = await countTasksByCardIds(
       transaction,
       cards.map((card) => card.id),
     );
-    return { data: cards.map((card) => toCardResponse(card, taskCounts.get(card.id))) };
+    return {
+      data: cards.map((card) =>
+        toCardResponse(card, taskCounts.get(card.id), {
+          assigneeIds: card.assignments.map((assignment) => assignment.userId),
+          labels: card.labelLinks.map((link) => link.label),
+          commentsCount: card._count.comments,
+          attachmentsCount: card._count.attachments,
+        }),
+      ),
+    };
   });
 }
 

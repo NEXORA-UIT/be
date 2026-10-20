@@ -26,11 +26,7 @@ export async function listBoardCardsController(request: Request, response: Respo
   const query = parseCardListQuery(request.query);
   response.json({
     success: true,
-    ...(await listBoardCards(
-      request.auth.userId,
-      routeParam(request, 'boardId'),
-      query.includeArchived,
-    )),
+    ...(await listBoardCards(request.auth.userId, routeParam(request, 'boardId'), query)),
   });
 }
 
