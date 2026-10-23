@@ -1,5 +1,10 @@
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import {
+  broadcastToBoard,
+  resolveActor,
+  type UserOrActor,
+} from '../../../infrastructure/websocket/broadcaster.service.js';
 import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
 import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
@@ -7,17 +12,13 @@ import { requireBoardWriteAccessInTransaction } from '../../../shared/authorizat
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
+import {
+  ATTACHMENT_MIME_EXTENSIONS as MIME_EXTENSIONS,
+  resolveAttachmentMime,
+} from '../utils/attachment-mime.util.js';
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const COMMENT_MAX_LENGTH = 10_000;
-const MIME_EXTENSIONS: Record<string, string> = {
-  'application/pdf': '.pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-  'text/plain': '.txt',
-  'image/png': '.png',
-  'image/jpeg': '.jpg',
-};
-
 function badRequest(code: string, message: string) {
   return new AppError(400, code, message);
 }
@@ -154,29 +155,43 @@ export async function listComments(userId: string, cardId: string) {
   return { data: comments.map(mapComment) };
 }
 
-export async function createComment(userId: string, cardId: string, content: string) {
+export async function createComment(actorOrUserId: UserOrActor, cardId: string, content: string) {
+  const actor = await resolveActor(actorOrUserId);
   const normalized = validateContent(content);
-  return runBoardTransaction(async (transaction) => {
-    const card = await requireWritableCard(transaction, userId, cardId);
+  const result = await runBoardTransaction(async (transaction) => {
+    const card = await requireWritableCard(transaction, actor.userId, cardId);
     const mentionedUserIds = await validateMentions(normalized, card.boardId, transaction);
     const comment = await transaction.comment.create({
-      data: { cardId, userId, content: normalized },
+      data: { cardId, userId: actor.userId, content: normalized },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    const commentsCount = await transaction.comment.count({
+      where: { cardId, deletedAt: null },
     });
     await transaction.activityLog.create({
       data: {
         boardId: card.boardId,
         cardId,
-        actorId: userId,
+        actorId: actor.userId,
         action: 'COMMENT_CREATED',
         details: { commentId: comment.id },
       },
     });
-    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== userId);
+    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== actor.userId);
     if (recipients.length > 0) {
       await transaction.notification.createMany({
         data: recipients.map((mentionedUserId) => ({
           userId: mentionedUserId,
-          actorId: userId,
+          actorId: actor.userId,
           boardId: card.boardId,
           cardId,
           type: 'COMMENT_MENTION',
@@ -184,8 +199,44 @@ export async function createComment(userId: string, cardId: string, content: str
         })),
       });
     }
-    return mapComment(comment);
+    return {
+      comment: mapComment(comment),
+      rawComment: comment,
+      boardId: card.boardId,
+      commentsCount,
+    };
   });
+
+  broadcastToBoard({
+    boardId: result.boardId,
+    event: 'COMMENT_ADDED',
+    actor,
+    data: {
+      cardId,
+      comment: {
+        id: result.rawComment.id,
+        cardId: result.rawComment.cardId,
+        userId: result.rawComment.userId,
+        content: result.rawComment.content,
+        user: result.rawComment.user
+          ? {
+              id: result.rawComment.user.id,
+              fullName: result.rawComment.user.fullName,
+              email: result.rawComment.user.email,
+              avatarUrl: result.rawComment.user.avatarUrl,
+            }
+          : {
+              id: actor.userId,
+              fullName: actor.fullName,
+            },
+        createdAt: result.rawComment.createdAt.toISOString(),
+        updatedAt: result.rawComment.updatedAt.toISOString(),
+      },
+      commentsCount: result.commentsCount,
+    },
+  });
+
+  return result.comment;
 }
 
 export async function updateComment(userId: string, commentId: string, content: string) {
@@ -299,35 +350,11 @@ export async function listCardActivity(
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: pageSize + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: { actor: { select: { id: true, fullName: true, avatarUrl: true } } },
   });
   const hasMore = rows.length > pageSize;
   const data = hasMore ? rows.slice(0, pageSize) : rows;
   return { data, nextCursor: hasMore ? (data.at(-1)?.id ?? null) : null };
-}
-
-function sniffMime(content: Uint8Array): string | null {
-  const bytes = Buffer.from(content);
-  if (bytes.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
-  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
-    return 'image/png';
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (
-    bytes[0] === 0x50 &&
-    bytes[1] === 0x4b &&
-    bytes[2] === 0x03 &&
-    bytes[3] === 0x04 &&
-    bytes.includes(Buffer.from('word/document.xml'))
-  )
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (!bytes.includes(0)) {
-    try {
-      new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-      return 'text/plain';
-    } catch {
-      /* not UTF-8 text */
-    }
-  }
-  return null;
 }
 
 function normalizeFilename(fileName: string, mimeType: string) {
@@ -343,9 +370,12 @@ function normalizeFilename(fileName: string, mimeType: string) {
 }
 
 function assertAllowedFilename(fileName: string, mimeType: string) {
+  const expectedExtension = MIME_EXTENSIONS[mimeType];
+  if (!expectedExtension) {
+    throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không được hỗ trợ');
+  }
   const extension = fileName.split('.').at(-1)?.toLowerCase();
-  const expected =
-    mimeType === 'image/jpeg' ? ['jpg', 'jpeg'] : [MIME_EXTENSIONS[mimeType]!.slice(1)];
+  const expected = mimeType === 'image/jpeg' ? ['jpg', 'jpeg'] : [expectedExtension.slice(1)];
   if (!extension || !expected.includes(extension)) {
     throw badRequest(
       'ATTACHMENT_TYPE_INVALID',
@@ -392,14 +422,14 @@ export async function uploadCardAttachment(
   storage: ObjectStorage = attachmentStorage,
 ) {
   await authorizeCardAttachmentUpload(userId, cardId);
-  assertAllowedFilename(fileName, declaredMime);
   if (content.byteLength < 1) throw badRequest('ATTACHMENT_EMPTY', 'Tệp không được để trống');
   if (content.byteLength > MAX_ATTACHMENT_BYTES)
     throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Dung lượng tệp đính kèm tối đa là 25MB');
-  const mimeType = sniffMime(content);
-  if (!mimeType || mimeType !== declaredMime || !MIME_EXTENSIONS[mimeType]) {
+  const mimeType = resolveAttachmentMime(declaredMime, content);
+  if (!mimeType) {
     throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không hợp lệ');
   }
+  assertAllowedFilename(fileName, mimeType);
   await requireWritableCard(prisma, userId, cardId);
   await retryPendingObjectCleanups(storage);
   const storageKey = await storage.put(content);

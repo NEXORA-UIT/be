@@ -1,5 +1,10 @@
 import { CardPriority, Prisma, type Card } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import {
+  broadcastToBoard,
+  resolveActor,
+  type UserOrActor,
+} from '../../../infrastructure/websocket/broadcaster.service.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
@@ -7,7 +12,12 @@ import { AppError } from '../../../shared/errors/app.error.js';
 import { nextMonotonicTimestamp } from '../../../shared/utils/timestamp.js';
 import { runBoardTransaction } from '../../boards/services/board-transaction.service.js';
 import { assertCardCanEnterDone } from '../../planning/dependencies/dependency.service.js';
-import type { CreateCardDto, MoveCardDto, UpdateCardDto } from '../dto/card.schema.js';
+import type {
+  CardListQuery,
+  CreateCardDto,
+  MoveCardDto,
+  UpdateCardDto,
+} from '../dto/card.schema.js';
 import {
   MAX_CARDS_PER_BOARD,
   POSITION_STEP,
@@ -52,7 +62,16 @@ function conflict(code: string, message: string) {
   return new AppError(409, code, message);
 }
 
-function toCardResponse(card: CardCoreRecord, taskCounts?: TaskCounts) {
+function toCardResponse(
+  card: CardCoreRecord,
+  taskCounts?: TaskCounts,
+  summaries?: {
+    assigneeIds: string[];
+    labels: { id: string; name: string; color: string }[];
+    commentsCount: number;
+    attachmentsCount: number;
+  },
+) {
   return {
     id: card.id,
     boardId: card.boardId,
@@ -69,6 +88,7 @@ function toCardResponse(card: CardCoreRecord, taskCounts?: TaskCounts) {
     updatedAt: card.updatedAt,
     statusGroup: card.list.statusGroup,
     taskProgress: toTaskProgress(taskCounts),
+    ...(summaries ?? {}),
   };
 }
 
@@ -110,7 +130,7 @@ export async function createCardInTransaction(
 
   const cardCount = await countBoardCards(transaction, list.boardId);
   if (cardCount >= MAX_CARDS_PER_BOARD) {
-    throw conflict('CARD_LIMIT_REACHED', 'Board đã đạt giới hạn 2.000 Card');
+    throw conflict('CARD_LIMIT_REACHED', 'Board has reached the maximum limit of 2,000 cards');
   }
 
   const board = await transaction.board.update({
@@ -141,29 +161,118 @@ export async function createCardInTransaction(
   return toCardResponse(card);
 }
 
-export async function createCard(userId: string, listId: string, input: CreateCardDto) {
-  return runBoardTransaction((transaction) =>
-    createCardInTransaction(transaction, userId, listId, input),
+export async function createCard(actorOrUserId: UserOrActor, listId: string, input: CreateCardDto) {
+  const actor = await resolveActor(actorOrUserId);
+  const card = await runBoardTransaction((transaction) =>
+    createCardInTransaction(transaction, actor.userId, listId, input),
   );
+
+  broadcastToBoard({
+    boardId: card.boardId,
+    event: 'CARD_CREATED',
+    actor,
+    data: { card },
+  });
+
+  return card;
 }
 
-export async function listBoardCards(userId: string, boardId: string, includeArchived: boolean) {
+function createBoardCardListWhere(boardId: string, query: CardListQuery, now: Date) {
+  const filters: Prisma.CardWhereInput[] = [];
+
+  if (query.q) {
+    filters.push({
+      OR: [
+        { title: { contains: query.q, mode: 'insensitive' } },
+        { cardKey: { contains: query.q, mode: 'insensitive' } },
+        {
+          labelLinks: {
+            some: { label: { name: { contains: query.q, mode: 'insensitive' } } },
+          },
+        },
+        {
+          assignments: {
+            some: { user: { fullName: { contains: query.q, mode: 'insensitive' } } },
+          },
+        },
+      ],
+    });
+  }
+
+  if (query.assigneeId?.length) {
+    filters.push({ assignments: { some: { userId: { in: query.assigneeId } } } });
+  }
+  if (query.labelId?.length) {
+    filters.push({ labelLinks: { some: { labelId: { in: query.labelId } } } });
+  }
+  if (query.statusGroup) {
+    filters.push({ list: { statusGroup: query.statusGroup } });
+  }
+  if (query.isOverdue === true) {
+    filters.push({
+      dueDate: { lt: now },
+      list: {
+        statusGroup: { not: 'DONE' },
+        archivedAt: null,
+        board: { archivedAt: null, workspace: { archivedAt: null } },
+      },
+    });
+  } else if (query.isOverdue === false) {
+    filters.push({
+      OR: [
+        { dueDate: null },
+        { dueDate: { gte: now } },
+        { list: { statusGroup: 'DONE' } },
+        { list: { archivedAt: { not: null } } },
+        { list: { board: { archivedAt: { not: null } } } },
+        { list: { board: { workspace: { archivedAt: { not: null } } } } },
+      ],
+    });
+  }
+
+  return {
+    boardId,
+    deletedAt: null,
+    ...(query.includeArchived ? {} : { archivedAt: null }),
+    ...(filters.length > 0 ? { AND: filters } : {}),
+  } satisfies Prisma.CardWhereInput;
+}
+
+export async function listBoardCards(userId: string, boardId: string, query: CardListQuery) {
   await requireBoardAccess(userId, boardId);
   return prisma.$transaction(async (transaction) => {
     const cards = await transaction.card.findMany({
-      where: {
-        boardId,
-        deletedAt: null,
-        ...(includeArchived ? {} : { archivedAt: null }),
+      where: createBoardCardListWhere(boardId, query, new Date()),
+      include: {
+        list: { select: { statusGroup: true, position: true } },
+        assignments: { select: { userId: true }, orderBy: { userId: 'asc' } },
+        labelLinks: {
+          select: { label: { select: { id: true, name: true, color: true } } },
+          orderBy: { label: { name: 'asc' } },
+        },
+        _count: {
+          select: {
+            comments: { where: { deletedAt: null } },
+            attachments: true,
+          },
+        },
       },
-      include: { list: { select: { statusGroup: true, position: true } } },
       orderBy: [{ list: { position: 'asc' } }, { position: 'asc' }, { id: 'asc' }],
     });
     const taskCounts = await countTasksByCardIds(
       transaction,
       cards.map((card) => card.id),
     );
-    return { data: cards.map((card) => toCardResponse(card, taskCounts.get(card.id))) };
+    return {
+      data: cards.map((card) =>
+        toCardResponse(card, taskCounts.get(card.id), {
+          assigneeIds: card.assignments.map((assignment) => assignment.userId),
+          labels: card.labelLinks.map((link) => link.label),
+          commentsCount: card._count.comments,
+          attachmentsCount: card._count.attachments,
+        }),
+      ),
+    };
   });
 }
 
@@ -180,17 +289,18 @@ export async function getCard(userId: string, cardId: string) {
   return toCardResponse(card, taskCounts.get(card.id));
 }
 
-export async function updateCard(userId: string, cardId: string, input: UpdateCardDto) {
-  return runBoardTransaction(async (transaction) => {
+export async function updateCard(actorOrUserId: UserOrActor, cardId: string, input: UpdateCardDto) {
+  const actor = await resolveActor(actorOrUserId);
+  const updatedCard = await runBoardTransaction(async (transaction) => {
     const card = await findCardById(transaction, cardId);
     if (!card) throw accessErrors.notFound('Card');
-    await requireBoardWriteAccessInTransaction(transaction, userId, card.boardId);
+    await requireBoardWriteAccessInTransaction(transaction, actor.userId, card.boardId);
     if (card.archivedAt || card.list.archivedAt) throw accessErrors.archived();
 
     const startDate = input.startDate === undefined ? card.startDate : input.startDate;
     const dueDate = input.dueDate === undefined ? card.dueDate : input.dueDate;
     if (startDate && dueDate && startDate > dueDate) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'Ngày bắt đầu phải trước hoặc bằng hạn chót');
+      throw new AppError(400, 'VALIDATION_ERROR', 'Start date must be before or equal to due date');
     }
 
     const updatedAt = nextMonotonicTimestamp(card.updatedAt);
@@ -206,27 +316,37 @@ export async function updateCard(userId: string, cardId: string, input: UpdateCa
       },
     });
     if (result.count !== 1)
-      throw conflict(CARD_CONFLICT, 'Card đã được cập nhật; hãy tải lại dữ liệu');
+      throw conflict(CARD_CONFLICT, 'Card was modified by another session; please refresh data');
 
-    const updatedCard = await findCardById(transaction, cardId);
-    if (!updatedCard) throw accessErrors.notFound('Card');
+    const cardRecord = await findCardById(transaction, cardId);
+    if (!cardRecord) throw accessErrors.notFound('Card');
     const taskCounts = await countTasksByCardIds(transaction, [cardId]);
     await writeActivity(transaction, {
       boardId: card.boardId,
       cardId,
-      actorId: userId,
+      actorId: actor.userId,
       action: 'CARD_UPDATED',
       details: { fields: Object.keys(input).filter((field) => field !== 'updatedAt') },
     });
-    return toCardResponse(updatedCard, taskCounts.get(cardId));
+    return toCardResponse(cardRecord, taskCounts.get(cardId));
   });
+
+  broadcastToBoard({
+    boardId: updatedCard.boardId,
+    event: 'CARD_UPDATED',
+    actor,
+    data: { card: updatedCard },
+  });
+
+  return updatedCard;
 }
 
-export async function moveCard(userId: string, cardId: string, input: MoveCardDto) {
-  return runBoardTransaction(async (transaction) => {
+export async function moveCard(actorOrUserId: UserOrActor, cardId: string, input: MoveCardDto) {
+  const actor = await resolveActor(actorOrUserId);
+  const { movedCard, fromListId, oldPosition } = await runBoardTransaction(async (transaction) => {
     const card = await findCardById(transaction, cardId);
     if (!card) throw accessErrors.notFound('Card');
-    await requireBoardWriteAccessInTransaction(transaction, userId, card.boardId);
+    await requireBoardWriteAccessInTransaction(transaction, actor.userId, card.boardId);
     if (card.archivedAt || card.list.archivedAt) throw accessErrors.archived();
 
     const destination = await findCardList(transaction, input.targetListId);
@@ -236,8 +356,11 @@ export async function moveCard(userId: string, cardId: string, input: MoveCardDt
       await assertCardCanEnterDone(transaction, card.id);
     }
     if (card.updatedAt.getTime() !== input.updatedAt.getTime()) {
-      throw conflict(CARD_CONFLICT, 'Card đã được cập nhật; hãy tải lại dữ liệu');
+      throw conflict(CARD_CONFLICT, 'Card was modified by another session; please refresh data');
     }
+
+    const fromListId = card.listId;
+    const oldPosition = card.position;
 
     const destinationCards = await listCardsForPositioning(
       transaction,
@@ -260,33 +383,53 @@ export async function moveCard(userId: string, cardId: string, input: MoveCardDt
     );
     await transaction.card.update({ where: { id: card.id }, data: { updatedAt } });
 
-    const movedCard = await findCardById(transaction, card.id);
-    if (!movedCard) throw accessErrors.notFound('Card');
+    const moved = await findCardById(transaction, card.id);
+    if (!moved) throw accessErrors.notFound('Card');
     const taskCounts = await countTasksByCardIds(transaction, [card.id]);
     await writeActivity(transaction, {
       boardId: card.boardId,
       cardId: card.id,
-      actorId: userId,
+      actorId: actor.userId,
       action: 'CARD_MOVED',
-      details: { fromListId: card.listId, toListId: input.targetListId, position: insertionIndex },
+      details: { fromListId, toListId: input.targetListId, position: insertionIndex },
     });
-    return toCardResponse(movedCard, taskCounts.get(card.id));
+    return {
+      movedCard: toCardResponse(moved, taskCounts.get(card.id)),
+      fromListId,
+      oldPosition,
+    };
   });
+
+  broadcastToBoard({
+    boardId: movedCard.boardId,
+    event: 'CARD_MOVED',
+    actor,
+    data: {
+      cardId: movedCard.id,
+      fromListId,
+      toListId: movedCard.listId,
+      oldPosition,
+      newPosition: movedCard.position,
+      updatedAt: movedCard.updatedAt.toISOString(),
+    },
+  });
+
+  return movedCard;
 }
 
 async function changeCardArchiveState(
   userId: string,
   cardId: string,
   archived: boolean,
-): Promise<void> {
-  await runBoardTransaction(async (transaction) => {
+): Promise<{ card: CardCoreRecord; updatedAt: Date }> {
+  return runBoardTransaction(async (transaction) => {
     const card = await findCardById(transaction, cardId);
     if (!card) throw accessErrors.notFound('Card');
     await requireBoardWriteAccessInTransaction(transaction, userId, card.boardId);
     if (archived && card.archivedAt)
-      throw conflict('CARD_ALREADY_ARCHIVED', 'Card đã được archive');
+      throw conflict('CARD_ALREADY_ARCHIVED', 'Card is already archived');
     if (!archived && !card.archivedAt)
-      throw conflict('CARD_NOT_ARCHIVED', 'Card chưa được archive');
+      throw conflict('CARD_NOT_ARCHIVED', 'Card is not archived');
     if (card.list.archivedAt) throw accessErrors.archived();
 
     const updatedAt = nextMonotonicTimestamp(card.updatedAt);
@@ -301,32 +444,66 @@ async function changeCardArchiveState(
       actorId: userId,
       action: archived ? 'CARD_ARCHIVED' : 'CARD_RESTORED',
     });
+    return { card, updatedAt };
   });
 }
 
-export function archiveCard(userId: string, cardId: string) {
-  return changeCardArchiveState(userId, cardId, true);
+export async function archiveCard(actorOrUserId: UserOrActor, cardId: string): Promise<void> {
+  const actor = await resolveActor(actorOrUserId);
+  const { card, updatedAt } = await changeCardArchiveState(actor.userId, cardId, true);
+  broadcastToBoard({
+    boardId: card.boardId,
+    event: 'CARD_ARCHIVED',
+    actor,
+    data: {
+      cardId: card.id,
+      listId: card.listId,
+      status: 'ARCHIVED',
+      isArchived: true,
+      updatedAt: updatedAt.toISOString(),
+    },
+  });
 }
 
-export function restoreCard(userId: string, cardId: string) {
-  return changeCardArchiveState(userId, cardId, false);
+export async function restoreCard(actorOrUserId: UserOrActor, cardId: string): Promise<void> {
+  const actor = await resolveActor(actorOrUserId);
+  await changeCardArchiveState(actor.userId, cardId, false);
 }
 
-export async function deleteCard(userId: string, cardId: string): Promise<void> {
-  await runBoardTransaction(async (transaction) => {
+export async function deleteCard(actorOrUserId: UserOrActor, cardId: string): Promise<void> {
+  const actor = await resolveActor(actorOrUserId);
+  const deletedInfo = await runBoardTransaction(async (transaction) => {
     const card = await findCardById(transaction, cardId);
     if (!card) throw accessErrors.notFound('Card');
-    await requireBoardWriteAccessInTransaction(transaction, userId, card.boardId);
+    await requireBoardWriteAccessInTransaction(transaction, actor.userId, card.boardId);
     if (card.archivedAt || card.list.archivedAt) throw accessErrors.archived();
+    const now = new Date();
     await transaction.card.update({
       where: { id: cardId },
-      data: { deletedAt: new Date(), updatedAt: nextMonotonicTimestamp(card.updatedAt) },
+      data: { deletedAt: now, updatedAt: nextMonotonicTimestamp(card.updatedAt) },
     });
     await writeActivity(transaction, {
       boardId: card.boardId,
       cardId,
-      actorId: userId,
+      actorId: actor.userId,
       action: 'CARD_DELETED',
     });
+    return {
+      cardId: card.id,
+      boardId: card.boardId,
+      listId: card.listId,
+      deletedAt: now.toISOString(),
+    };
+  });
+
+  broadcastToBoard({
+    boardId: deletedInfo.boardId,
+    event: 'CARD_DELETED',
+    actor,
+    data: {
+      cardId: deletedInfo.cardId,
+      listId: deletedInfo.listId,
+      deletedAt: deletedInfo.deletedAt,
+    },
   });
 }

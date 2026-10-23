@@ -9,6 +9,8 @@ import {
   recordFailedLogin,
 } from './login-limiter.service.js';
 import { issueTokens, logoutAll } from './token.service.js';
+import type { UpdateProfileDto } from '../dto/auth.schema.js';
+import { profile } from '../utils/user.mapper.js';
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -39,4 +41,9 @@ export async function changePassword(userId: string, currentPassword: string, ne
   const passwordHash = await bcrypt.hash(newPassword, AUTH_SECURITY.bcryptRounds);
   await userRepository.updatePassword(userId, passwordHash);
   await logoutAll(userId);
+}
+
+export async function updateProfile(userId: string, input: UpdateProfileDto) {
+  const updatedUser = await userRepository.updateProfile(userId, input);
+  return profile(updatedUser);
 }

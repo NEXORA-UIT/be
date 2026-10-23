@@ -246,6 +246,11 @@ components:
       type: object
       required:
         - totalCards
+        - todoCards
+        - inProgressCards
+        - completedCards
+        - overdueCards
+        - completionRate
         - todo
         - inProgress
         - done
@@ -256,22 +261,45 @@ components:
         totalCards:
           type: integer
           minimum: 0
+        todoCards:
+          type: integer
+          minimum: 0
+        inProgressCards:
+          type: integer
+          minimum: 0
+        completedCards:
+          type: integer
+          minimum: 0
+        overdueCards:
+          type: integer
+          minimum: 0
+        completionRate:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Tỷ lệ hoàn thành làm tròn đến phần trăm nguyên; tên chuẩn dành cho client mới.
         todo:
           type: integer
           minimum: 0
+          deprecated: true
         inProgress:
           type: integer
           minimum: 0
+          deprecated: true
         done:
           type: integer
           minimum: 0
+          deprecated: true
         overdue:
           type: integer
           minimum: 0
+          deprecated: true
         completionPercent:
           type: integer
           minimum: 0
           maximum: 100
+          deprecated: true
+          description: Trường tương thích ngược với completionRate.
     BoardResponse:
       type: object
       required:

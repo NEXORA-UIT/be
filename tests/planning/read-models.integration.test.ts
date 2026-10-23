@@ -93,6 +93,11 @@ describe('authorized planning read models', () => {
       done: 1,
       overdue: 1,
       completionPercent: 33,
+      todoCards: 1,
+      inProgressCards: 1,
+      completedCards: 1,
+      overdueCards: 1,
+      completionRate: 33,
     });
     const calendar = await call(
       `/boards/${board.id}/calendar?from=${encodeURIComponent(past.toISOString())}&to=${encodeURIComponent(past.toISOString())}`,
@@ -226,6 +231,8 @@ describe('authorized planning read models', () => {
     const dashboard = await call(`/boards/${board.id}/dashboard`, owner.token);
     assert.equal(dashboard.body.data.totalCards, 11);
     assert.equal(dashboard.body.data.completionPercent, 18);
+    assert.equal(dashboard.body.data.completionRate, 18);
+    assert.equal(dashboard.body.data.completedCards, 2);
     assert.equal(
       (await call(`/boards/${board.id}/calendar`, foreignBoardMember.token)).status,
       403,
@@ -249,6 +256,11 @@ describe('authorized planning read models', () => {
       done: 0,
       overdue: 0,
       completionPercent: 0,
+      todoCards: 0,
+      inProgressCards: 0,
+      completedCards: 0,
+      overdueCards: 0,
+      completionRate: 0,
     });
     assert.equal((await call(`/boards/${board.id}/calendar`, owner.token)).body.data.length, 0);
     assert.equal(

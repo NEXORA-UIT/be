@@ -109,6 +109,46 @@ describe('Card Core REST flows', () => {
     assert.equal(activities[0]?.actorId, owner.user.id);
   });
 
+  it('returns assignment, label, comment, and attachment summaries with Board Cards', async () => {
+    const owner = await createActor('card-summary-owner');
+    const { board, lists } = await createBoardFixture(owner);
+    const todoList = lists.find((list) => list.statusGroup === 'TODO')!;
+    const created = await call(`/lists/${todoList.id}/cards`, 'POST', owner.accessToken, {
+      title: 'Kanban summary data',
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const cardId = created.body.data.id as string;
+    const label = await prisma.label.create({
+      data: { boardId: board.id, name: 'Frontend', color: '#12ab34' },
+    });
+    await prisma.cardAssignment.create({ data: { cardId, userId: owner.user.id } });
+    await prisma.cardLabel.create({ data: { cardId, labelId: label.id } });
+    await prisma.comment.createMany({
+      data: [
+        { cardId, userId: owner.user.id, content: 'Visible comment' },
+        { cardId, userId: owner.user.id, content: 'Deleted comment', deletedAt: new Date() },
+      ],
+    });
+    await prisma.attachment.create({
+      data: {
+        cardId,
+        userId: owner.user.id,
+        fileName: 'design.pdf',
+        fileUrl: '/attachments/design.pdf',
+        fileSize: 10,
+        mimeType: 'application/pdf',
+      },
+    });
+
+    const result = await call(`/boards/${board.id}/cards`, 'GET', owner.accessToken);
+    assert.equal(result.status, 200);
+    const card = result.body.data.find((item: any) => item.id === cardId);
+    assert.deepEqual(card.assigneeIds, [owner.user.id]);
+    assert.deepEqual(card.labels, [{ id: label.id, name: 'Frontend', color: '#12ab34' }]);
+    assert.equal(card.commentsCount, 1);
+    assert.equal(card.attachmentsCount, 1);
+  });
+
   it('returns live Task progress on Card reads without changing List-derived status', async () => {
     const owner = await createActor('card-task-progress-owner');
     const { board, lists } = await createBoardFixture(owner);
@@ -229,6 +269,167 @@ describe('Card Core REST flows', () => {
     );
     assert.equal(active.body.data.length, 0);
     assert.equal(includingArchived.body.data.length, 1);
+  });
+
+  it('filters Board Cards by text, assignee, label, status group, and overdue state', async () => {
+    const owner = await createActor('card-filter-owner');
+    const teammate = await createActor('card-filter-teammate');
+    const { board, lists } = await createBoardFixture(owner);
+    const todoList = lists.find((list) => list.statusGroup === 'TODO')!;
+    const progressList = lists.find((list) => list.statusGroup === 'IN_PROGRESS')!;
+    const doneList = lists.find((list) => list.statusGroup === 'DONE')!;
+    const pastDue = new Date(Date.now() - 86_400_000);
+    const futureDue = new Date(Date.now() + 86_400_000);
+    const filtered = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: todoList.id,
+        cardKey: 'SEARCH-PLAN',
+        title: 'Release plan',
+        dueDate: pastDue,
+      },
+    });
+    const regular = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: todoList.id,
+        cardKey: 'REGULAR-TODO',
+        title: 'Regular todo',
+        dueDate: futureDue,
+      },
+    });
+    const inProgress = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: progressList.id,
+        cardKey: 'OVERDUE-PROGRESS',
+        title: 'Overdue progress',
+        dueDate: pastDue,
+      },
+    });
+    const done = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: doneList.id,
+        cardKey: 'DONE-CARD',
+        title: 'Completed card',
+        dueDate: pastDue,
+      },
+    });
+    const label = await prisma.label.create({
+      data: { boardId: board.id, name: 'Backend', color: '#123456' },
+    });
+    const secondLabel = await prisma.label.create({
+      data: { boardId: board.id, name: 'Frontend', color: '#654321' },
+    });
+    await prisma.cardAssignment.create({ data: { cardId: filtered.id, userId: owner.user.id } });
+    await prisma.cardLabel.create({ data: { cardId: filtered.id, labelId: label.id } });
+    await prisma.cardAssignment.create({ data: { cardId: regular.id, userId: teammate.user.id } });
+    await prisma.cardLabel.create({ data: { cardId: regular.id, labelId: secondLabel.id } });
+
+    const all = await call(`/boards/${board.id}/cards`, 'GET', owner.accessToken);
+    assert.equal(all.status, 200);
+    assert.equal(all.body.data.length, 4);
+    const textSearch = await call(
+      `/boards/${board.id}/cards?q=${encodeURIComponent('backend')}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      textSearch.body.data.map((card: any) => card.id),
+      [filtered.id],
+    );
+    assert.deepEqual(textSearch.body.data[0].assigneeIds, [owner.user.id]);
+    assert.deepEqual(textSearch.body.data[0].labels, [
+      { id: label.id, name: 'Backend', color: '#123456' },
+    ]);
+
+    const cardKeySearch = await call(
+      `/boards/${board.id}/cards?q=SEARCH-PLAN`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      cardKeySearch.body.data.map((card: any) => card.id),
+      [filtered.id],
+    );
+    const byAssignee = await call(
+      `/boards/${board.id}/cards?assigneeId=${owner.user.id}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byAssignee.body.data.map((card: any) => card.id),
+      [filtered.id],
+    );
+    const byMultipleAssignees = await call(
+      `/boards/${board.id}/cards?assigneeId=${owner.user.id}&assigneeId=${teammate.user.id}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byMultipleAssignees.body.data.map((card: any) => card.id).sort(),
+      [filtered.id, regular.id].sort(),
+    );
+    const byLabel = await call(
+      `/boards/${board.id}/cards?labelId=${label.id}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byLabel.body.data.map((card: any) => card.id),
+      [filtered.id],
+    );
+    const byMultipleLabels = await call(
+      `/boards/${board.id}/cards?labelId=${label.id}&labelId=${secondLabel.id}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byMultipleLabels.body.data.map((card: any) => card.id).sort(),
+      [filtered.id, regular.id].sort(),
+    );
+    const byMultipleAssigneesAndLabels = await call(
+      `/boards/${board.id}/cards?assigneeId=${owner.user.id}&assigneeId=${teammate.user.id}&labelId=${label.id}&labelId=${secondLabel.id}`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byMultipleAssigneesAndLabels.body.data.map((card: any) => card.id).sort(),
+      [filtered.id, regular.id].sort(),
+    );
+    const byStatus = await call(
+      `/boards/${board.id}/cards?statusGroup=IN_PROGRESS`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      byStatus.body.data.map((card: any) => card.id),
+      [inProgress.id],
+    );
+    const overdue = await call(
+      `/boards/${board.id}/cards?isOverdue=true`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      overdue.body.data.map((card: any) => card.id).sort(),
+      [filtered.id, inProgress.id].sort(),
+    );
+    const notOverdue = await call(
+      `/boards/${board.id}/cards?isOverdue=false`,
+      'GET',
+      owner.accessToken,
+    );
+    assert.deepEqual(
+      notOverdue.body.data.map((card: any) => card.id).sort(),
+      [regular.id, done.id].sort(),
+    );
+    assert.equal(
+      (await call(`/boards/${board.id}/cards?statusGroup=INVALID`, 'GET', owner.accessToken))
+        .status,
+      400,
+    );
   });
 
   it('rejects invalid dates and stale OCC updates without losing the winning change', async () => {

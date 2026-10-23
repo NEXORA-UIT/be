@@ -14,11 +14,19 @@ import {
 } from '../services/collaboration.service.js';
 import { parseActivityQuery, parseUuid } from '../dto/collaboration.schema.js';
 import { AppError } from '../../../shared/errors/app.error.js';
+import { decodeAttachmentFilename } from '../utils/attachment-filename.util.js';
 
 function param(request: Request, name: string) {
   const value = request.params[name];
   if (typeof value !== 'string') throw new AppError(400, 'VALIDATION_ERROR', 'Thiếu ID tài nguyên');
   return parseUuid(value);
+}
+
+function actor(request: Request) {
+  return {
+    userId: request.auth.userId,
+    fullName: request.user?.fullName || 'Thành viên',
+  };
 }
 
 async function readRawFile(request: Request): Promise<Buffer> {
@@ -42,11 +50,7 @@ export async function listCommentsController(request: Request, response: Respons
 }
 
 export async function createCommentController(request: Request, response: Response) {
-  const comment = await createComment(
-    request.auth.userId,
-    param(request, 'cardId'),
-    request.body.content,
-  );
+  const comment = await createComment(actor(request), param(request, 'cardId'), request.body.content);
   response.status(201).json({ success: true, data: comment });
 }
 
@@ -87,10 +91,12 @@ export async function listCardAttachmentsController(request: Request, response: 
 export async function uploadCardAttachmentController(request: Request, response: Response) {
   const cardId = param(request, 'cardId');
   await authorizeCardAttachmentUpload(request.auth.userId, cardId);
-  const fileName = request.header('x-file-name');
+  const encodedFileName = request.header('x-file-name-b64');
+  const legacyFileName = request.header('x-file-name');
   const mimeType = request.header('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
-  if (!fileName || !mimeType)
+  if (!mimeType)
     throw new AppError(400, 'ATTACHMENT_METADATA_REQUIRED', 'Yêu cầu tên tệp và Content-Type');
+  const fileName = decodeAttachmentFilename(encodedFileName, legacyFileName);
   const content = await readRawFile(request);
   const attachment = await uploadCardAttachment(
     request.auth.userId,

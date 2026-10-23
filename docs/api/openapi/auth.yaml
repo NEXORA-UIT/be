@@ -326,9 +326,9 @@ paths:
       tags:
         - Profile
       summary: Update user profile
-      description: Updates full name and/or avatar image URL. If a new avatar is provided, previous media assets may be cleaned up asynchronously.
+      description: Updates the authenticated user's full name and/or externally hosted avatar URL. Send null to clear the avatar URL.
       operationId: updateCurrentUserProfile
-      x-implementation-status: planned-cloudinary
+      x-implementation-status: IMPLEMENTED
       security:
         - bearerAuth: []
       requestBody:

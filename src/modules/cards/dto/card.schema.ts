@@ -16,7 +16,7 @@ export const createCardSchema = z
     dueDate: dateSchema.nullable().optional(),
   })
   .refine((input) => !input.startDate || !input.dueDate || input.startDate <= input.dueDate, {
-    message: 'Ngày bắt đầu phải trước hoặc bằng hạn chót',
+    message: 'Start date must be before or equal to due date',
     path: ['dueDate'],
   });
 
@@ -30,10 +30,10 @@ export const updateCardSchema = z
     updatedAt: dateSchema,
   })
   .refine((input) => Object.keys(input).some((key) => key !== 'updatedAt'), {
-    message: 'Phải có ít nhất một trường cần cập nhật',
+    message: 'At least one field must be updated',
   })
   .refine((input) => !input.startDate || !input.dueDate || input.startDate <= input.dueDate, {
-    message: 'Ngày bắt đầu phải trước hoặc bằng hạn chót',
+    message: 'Start date must be before or equal to due date',
     path: ['dueDate'],
   });
 
@@ -43,16 +43,32 @@ export const moveCardSchema = z.strictObject({
   updatedAt: dateSchema,
 });
 
+const repeatedUuidFilterSchema = z
+  .union([z.uuid(), z.array(z.uuid()).min(1).max(100)])
+  .optional()
+  .transform((values) =>
+    values === undefined ? undefined : [...new Set(Array.isArray(values) ? values : [values])],
+  );
+
 const cardListQuerySchema = z.strictObject({
   includeArchived: z
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
+  q: z.string().trim().min(1).max(100).optional(),
+  assigneeId: repeatedUuidFilterSchema,
+  labelId: repeatedUuidFilterSchema,
+  statusGroup: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
+  isOverdue: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true')),
 });
 
 export type CreateCardDto = z.infer<typeof createCardSchema>;
 export type UpdateCardDto = z.infer<typeof updateCardSchema>;
 export type MoveCardDto = z.infer<typeof moveCardSchema>;
+export type CardListQuery = z.infer<typeof cardListQuerySchema>;
 
 function parseQuery<T>(schema: z.ZodType<T>, input: unknown, message: string): T {
   const result = schema.safeParse(input);
@@ -68,9 +84,9 @@ function parseQuery<T>(schema: z.ZodType<T>, input: unknown, message: string): T
 }
 
 export function parseCardId(input: unknown): string {
-  return parseQuery(cardIdSchema, input, 'Mã Card không hợp lệ');
+  return parseQuery(cardIdSchema, input, 'Invalid card ID');
 }
 
 export function parseCardListQuery(input: unknown) {
-  return parseQuery(cardListQuerySchema, input, 'Tham số truy vấn không hợp lệ');
+  return parseQuery(cardListQuerySchema, input, 'Invalid query parameters');
 }

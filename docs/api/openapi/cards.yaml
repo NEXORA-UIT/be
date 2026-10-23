@@ -229,7 +229,7 @@ paths:
       tags:
         - Cards
       summary: Lấy các Card của Board
-      description: Trả về Card đang hoạt động theo thứ tự List và vị trí Card. Đặt `includeArchived=true` để lấy cả Card đã lưu trữ. Bộ lọc của UC-Card-13 được áp dụng ở client trên dữ liệu Board đã tải.
+      description: Trả về Card theo thứ tự List và vị trí. Đặt `includeArchived=true` để lấy cả Card đã lưu trữ. Có thể lọc phía máy chủ theo từ khóa, người được giao, nhãn, nhóm trạng thái và trạng thái quá hạn. Khi không truyền bộ lọc, endpoint giữ nguyên danh sách và response hiện tại.
       operationId: listBoardCards
       security:
         - bearerAuth: []
@@ -247,6 +247,53 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: q
+          in: query
+          required: false
+          description: Tìm không phân biệt hoa thường trong tiêu đề, Card key, tên nhãn và họ tên người được giao.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: assigneeId
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: Lọc theo người được giao. Có thể lặp tham số để khớp một trong các UUID; giá trị đơn vẫn được hỗ trợ.
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+        - name: labelId
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: Lọc theo nhãn. Có thể lặp tham số để khớp một trong các UUID; giá trị đơn vẫn được hỗ trợ.
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+        - name: statusGroup
+          in: query
+          required: false
+          description: Nhóm trạng thái của List chứa Card.
+          schema:
+            type: string
+            enum: [TODO, IN_PROGRESS, DONE]
+        - name: isOverdue
+          in: query
+          required: false
+          description: Lọc Card quá hạn theo dueDate và statusGroup. Card chỉ quá hạn khi hạn đã qua, List không DONE và các cha đang hoạt động.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Các Card được sắp xếp theo List và vị trí.
@@ -448,14 +495,24 @@ paths:
             schema:
               type: string
               format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
       parameters:
         - $ref: "#/components/parameters/CardIdPath"
-        - name: X-File-Name
+        - name: x-file-name-b64
           in: header
-          required: true
+          required: false
           schema:
             type: string
-          description: Tên tệp gốc, có phần mở rộng khớp với MIME type được nhận diện.
+          description: Tên tệp gốc mã hóa Base64 từ UTF-8; ưu tiên dùng để hỗ trợ tên Unicode. Gửi ít nhất một trong hai header tên tệp.
+        - name: x-file-name
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Header tương thích ngược; hỗ trợ tên ASCII và tên đã mã hóa bằng encodeURIComponent.
       responses:
         "201":
           description: Đã tải tệp đính kèm lên.
@@ -473,6 +530,7 @@ paths:
           $ref: "#/components/responses/PayloadTooLarge"
       x-scope: SRS-CORE
       x-implementation-status: IMPLEMENTED
+      x-file-name-validation: "x-file-name-b64 takes precedence; otherwise x-file-name is URL-decoded when percent-encoded. MIME application/octet-stream is accepted only when content sniffing identifies an allowed format and the extension matches."
       x-related-use-cases:
         - UC-COL-17
   /attachments/{attachmentId}/content:

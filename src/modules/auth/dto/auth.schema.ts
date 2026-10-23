@@ -21,6 +21,17 @@ export const resetPasswordSchema = z.strictObject({
   newPassword: password,
 });
 export const verifyRegistrationSchema = z.strictObject({ token: z.string().min(1) });
+export const updateProfileSchema = z
+  .strictObject({
+    fullName: z.string().trim().min(1).max(100).optional(),
+    avatarUrl: z
+      .url({ protocol: /^https?$/ })
+      .nullable()
+      .optional(),
+  })
+  .refine((profile) => profile.fullName !== undefined || profile.avatarUrl !== undefined, {
+    message: 'Cần cung cấp ít nhất một trường hồ sơ để cập nhật',
+  });
 
 export type RegisterDto = z.infer<typeof registerSchema>;
 export type LoginDto = z.infer<typeof loginSchema>;
@@ -29,3 +40,4 @@ export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
 export type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
 export type VerifyRegistrationDto = z.infer<typeof verifyRegistrationSchema>;
+export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;

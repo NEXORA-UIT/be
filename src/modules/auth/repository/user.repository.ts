@@ -30,6 +30,9 @@ export const userRepository = {
   updatePassword(id: string, passwordHash: string) {
     return prisma.user.update({ where: { id }, data: { passwordHash } });
   },
+  updateProfile(id: string, data: { fullName?: string; avatarUrl?: string | null }) {
+    return prisma.user.update({ where: { id }, data, select: profileSelect });
+  },
   isUniqueViolation(error: unknown) {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
   },

@@ -1,5 +1,10 @@
 import { ListStatusGroup, Prisma } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import {
+  broadcastToBoard,
+  resolveActor,
+  type UserOrActor,
+} from '../../../infrastructure/websocket/broadcaster.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { AppError } from '../../../shared/errors/app.error.js';
@@ -39,7 +44,7 @@ async function requireWritableList(
 ) {
   const list = await transaction.list.findUnique({
     where: { id: listId },
-    select: { id: true, boardId: true, archivedAt: true },
+    select: { id: true, boardId: true, archivedAt: true, position: true },
   });
   if (!list) throw accessErrors.notFound('List');
   const board = await requireBoardManagementInTransaction(transaction, userId, list.boardId);
@@ -132,9 +137,11 @@ export async function updateList(userId: string, listId: string, input: UpdateLi
   });
 }
 
-export async function reorderList(userId: string, listId: string, position: number) {
-  return runBoardTransaction(async (transaction) => {
-    const { list } = await requireWritableList(transaction, userId, listId);
+export async function reorderList(actorOrUserId: UserOrActor, listId: string, position: number) {
+  const actor = await resolveActor(actorOrUserId);
+  const result = await runBoardTransaction(async (transaction) => {
+    const { list } = await requireWritableList(transaction, actor.userId, listId);
+    const oldPosition = list.position;
     await transaction.list.update({ where: { id: listId }, data: { position } });
 
     const orderedLists = await transaction.list.findMany({
@@ -147,8 +154,27 @@ export async function reorderList(userId: string, listId: string, position: numb
     );
     if (hasPositionCollision) await reindexActiveLists(transaction, list.boardId);
 
-    return transaction.list.findUniqueOrThrow({ where: { id: listId } });
+    const updated = await transaction.list.findUniqueOrThrow({ where: { id: listId } });
+    return {
+      list: updated,
+      oldPosition,
+      boardId: list.boardId,
+    };
   });
+
+  broadcastToBoard({
+    boardId: result.boardId,
+    event: 'LIST_REORDERED',
+    actor,
+    data: {
+      listId: result.list.id,
+      oldPosition: result.oldPosition,
+      newPosition: result.list.position,
+      updatedAt: result.list.updatedAt.toISOString(),
+    },
+  });
+
+  return result.list;
 }
 
 export async function archiveList(userId: string, listId: string, input: ArchiveListDto) {

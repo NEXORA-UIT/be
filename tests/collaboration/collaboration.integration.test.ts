@@ -201,6 +201,11 @@ describe('Collaboration and Card attachments', () => {
     assert.equal(first.status, 200);
     assert.equal(first.body.data.length, 20);
     assert.equal(first.body.data[0].action, 'EVENT_104');
+    assert.deepEqual(first.body.data[0].actor, {
+      id: owner.user.id,
+      fullName: owner.user.fullName,
+      avatarUrl: owner.user.avatarUrl,
+    });
     assert.ok(first.body.nextCursor);
     const page = await call(`/cards/${card.id}/activity?limit=100`, 'GET', member.accessToken);
     assert.equal(page.body.data.length, 100);
@@ -350,14 +355,14 @@ describe('Collaboration and Card attachments', () => {
       headers: {
         authorization: `Bearer ${member.accessToken}`,
         'content-type': 'application/pdf',
-        'x-file-name': '..\\private/report.pdf',
+        'x-file-name-b64': Buffer.from('Báo cáo quý 1.pdf', 'utf8').toString('base64'),
       },
       body: small,
     });
     const uploadBody = await upload.text();
     assert.equal(upload.status, 201, uploadBody);
     const attachment = (JSON.parse(uploadBody) as any).data;
-    assert.equal(attachment.fileName.includes('..\\'), false);
+    assert.equal(attachment.fileName, 'Báo cáo quý 1.pdf');
     assert.equal(attachment.mimeType, 'application/pdf');
     assert.equal(
       (await call(`/attachments/${attachment.id}/content`, 'GET', outsider.accessToken)).status,
@@ -370,6 +375,31 @@ describe('Collaboration and Card attachments', () => {
     );
     assert.equal(downloaded.status, 200);
     assert.deepEqual(downloaded.body, small);
+
+    const octetStream = await uploadCardAttachment(
+      member.user.id,
+      card.id,
+      'proposal.docx',
+      'application/octet-stream',
+      Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from('word/document.xml')]),
+      storage,
+    );
+    assert.equal(
+      octetStream.mimeType,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    await assert.rejects(
+      () =>
+        uploadCardAttachment(
+          member.user.id,
+          card.id,
+          'proposal.pdf',
+          'application/octet-stream',
+          Buffer.from('valid UTF-8 text'),
+          storage,
+        ),
+      { code: 'ATTACHMENT_TYPE_INVALID' },
+    );
     assert.equal(
       (
         await fetch(`${baseUrl}/cards/${card.id}/attachments`, {

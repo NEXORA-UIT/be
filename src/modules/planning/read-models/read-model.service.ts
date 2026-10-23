@@ -109,5 +109,15 @@ export async function getBoardDashboard(userId: string, boardId: string, now = n
   }
   const completionPercent =
     totals.totalCards === 0 ? 0 : Math.round((totals.done / totals.totalCards) * 100);
-  return { data: { ...totals, completionPercent } };
+  return {
+    data: {
+      ...totals,
+      completionPercent,
+      todoCards: totals.todo,
+      inProgressCards: totals.inProgress,
+      completedCards: totals.done,
+      overdueCards: totals.overdue,
+      completionRate: completionPercent,
+    },
+  };
 }
