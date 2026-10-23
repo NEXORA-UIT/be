@@ -13,6 +13,7 @@ import { changePassword, login, updateProfile } from '../services/auth.service.j
 import { requestRegistration, verifyRegistration } from '../services/registration.service.js';
 import { forgotPassword, resetPassword } from '../services/password-reset.service.js';
 import { logout, logoutAll, refresh } from '../services/token.service.js';
+import { connectionRegistry } from '../../../infrastructure/websocket/connection.registry.js';
 
 export async function registerController(request: Request, response: Response) {
   const input = request.body as RegisterDto;
@@ -44,11 +45,13 @@ export async function refreshController(request: Request, response: Response) {
 
 export async function logoutController(request: Request, response: Response) {
   await logout(request.auth.refreshTokenId);
+  connectionRegistry.closeByRefreshTokenId(request.auth.refreshTokenId);
   response.status(200).json({ success: true, data: {} });
 }
 
 export async function logoutAllController(request: Request, response: Response) {
   await logoutAll(request.auth.userId);
+  connectionRegistry.closeByUserId(request.auth.userId);
   response.status(200).json({ success: true, data: {} });
 }
 

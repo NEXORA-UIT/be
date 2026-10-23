@@ -22,6 +22,13 @@ function param(request: Request, name: string) {
   return parseUuid(value);
 }
 
+function actor(request: Request) {
+  return {
+    userId: request.auth.userId,
+    fullName: request.user?.fullName || 'Thành viên',
+  };
+}
+
 async function readRawFile(request: Request): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -43,11 +50,7 @@ export async function listCommentsController(request: Request, response: Respons
 }
 
 export async function createCommentController(request: Request, response: Response) {
-  const comment = await createComment(
-    request.auth.userId,
-    param(request, 'cardId'),
-    request.body.content,
-  );
+  const comment = await createComment(actor(request), param(request, 'cardId'), request.body.content);
   response.status(201).json({ success: true, data: comment });
 }
 

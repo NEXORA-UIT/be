@@ -1,5 +1,10 @@
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import {
+  broadcastToBoard,
+  resolveActor,
+  type UserOrActor,
+} from '../../../infrastructure/websocket/broadcaster.service.js';
 import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
 import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
@@ -150,29 +155,43 @@ export async function listComments(userId: string, cardId: string) {
   return { data: comments.map(mapComment) };
 }
 
-export async function createComment(userId: string, cardId: string, content: string) {
+export async function createComment(actorOrUserId: UserOrActor, cardId: string, content: string) {
+  const actor = await resolveActor(actorOrUserId);
   const normalized = validateContent(content);
-  return runBoardTransaction(async (transaction) => {
-    const card = await requireWritableCard(transaction, userId, cardId);
+  const result = await runBoardTransaction(async (transaction) => {
+    const card = await requireWritableCard(transaction, actor.userId, cardId);
     const mentionedUserIds = await validateMentions(normalized, card.boardId, transaction);
     const comment = await transaction.comment.create({
-      data: { cardId, userId, content: normalized },
+      data: { cardId, userId: actor.userId, content: normalized },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    const commentsCount = await transaction.comment.count({
+      where: { cardId, deletedAt: null },
     });
     await transaction.activityLog.create({
       data: {
         boardId: card.boardId,
         cardId,
-        actorId: userId,
+        actorId: actor.userId,
         action: 'COMMENT_CREATED',
         details: { commentId: comment.id },
       },
     });
-    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== userId);
+    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== actor.userId);
     if (recipients.length > 0) {
       await transaction.notification.createMany({
         data: recipients.map((mentionedUserId) => ({
           userId: mentionedUserId,
-          actorId: userId,
+          actorId: actor.userId,
           boardId: card.boardId,
           cardId,
           type: 'COMMENT_MENTION',
@@ -180,8 +199,44 @@ export async function createComment(userId: string, cardId: string, content: str
         })),
       });
     }
-    return mapComment(comment);
+    return {
+      comment: mapComment(comment),
+      rawComment: comment,
+      boardId: card.boardId,
+      commentsCount,
+    };
   });
+
+  broadcastToBoard({
+    boardId: result.boardId,
+    event: 'COMMENT_ADDED',
+    actor,
+    data: {
+      cardId,
+      comment: {
+        id: result.rawComment.id,
+        cardId: result.rawComment.cardId,
+        userId: result.rawComment.userId,
+        content: result.rawComment.content,
+        user: result.rawComment.user
+          ? {
+              id: result.rawComment.user.id,
+              fullName: result.rawComment.user.fullName,
+              email: result.rawComment.user.email,
+              avatarUrl: result.rawComment.user.avatarUrl,
+            }
+          : {
+              id: actor.userId,
+              fullName: actor.fullName,
+            },
+        createdAt: result.rawComment.createdAt.toISOString(),
+        updatedAt: result.rawComment.updatedAt.toISOString(),
+      },
+      commentsCount: result.commentsCount,
+    },
+  });
+
+  return result.comment;
 }
 
 export async function updateComment(userId: string, commentId: string, content: string) {
