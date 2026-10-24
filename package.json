@@ -9,6 +9,10 @@
     "dev:production": "pnpm build && node --env-file=.env.production dist/server.js",
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file=.env.production dist/server.js",
+    "jobs:run:local": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs src/jobs/run-scheduled-jobs.ts",
+    "jobs:run": "node --env-file=.env.production dist/jobs/run-scheduled-jobs.js",
+    "worker:dev": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs src/jobs/worker-entry.ts",
+    "worker:start": "node --env-file=.env.production dist/jobs/worker-entry.js",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,13 +30,17 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
     "@prisma/client": "^6.19.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^6.4.0",
     "dotenv": "^18.0.4",
     "express": "^5.1.0",
     "google-auth-library": "^11.1.0",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.12",
     "nodemailer": "^10.0.12",
     "redis": "^6.2.1",
+    "socket.io": "^4.8.4",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.9.1",
     "zod": "^4.6.5"
@@ -45,6 +53,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "prettier": "^3.9.9",
     "prisma": "^6.19.0",
+    "socket.io-client": "^4.8.4",
     "tsx": "^4.20.0",
     "typescript": "~5.9.0"
   }
