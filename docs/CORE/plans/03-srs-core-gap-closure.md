@@ -34,7 +34,7 @@ BullMQ, Socket.IO, AI, RAG, Agent và pipeline Knowledge Base vẫn theo [quyế
 
 ## Việc phát hiện sau nghiệm thu
 
-Luồng xóa Attachment và Board hiện xóa object bên trong transaction DB. Nếu object đã bị xóa rồi transaction rollback, hoặc một object tiếp theo xóa lỗi, bản ghi DB có thể còn nhưng tệp đã mất. Test 91/91 chưa bao phủ điểm lỗi này; adapter R2 cũng chưa được kiểm thử với bucket thật. **Quyết định:** triển khai [cronjob dọn object sau khi transaction DB ghi yêu cầu cleanup thành công](../attachment-storage.md#quyết-định-cho-luồng-xóa-tệp). Đây là việc còn mở, không được hiểu là đã có cronjob chỉ vì `PendingObjectCleanup` hiện tồn tại.
+Luồng xóa Attachment và Board trước đây xóa object bên trong transaction DB. Đã khép khoảng trống bằng cách ghi `PendingObjectCleanup` trong cùng transaction với xóa metadata và xử lý object sau commit. Cách chạy, backoff và giới hạn: [tác vụ định kỳ](../scheduled-jobs.md). R2 thật vẫn cần xác minh bằng cấu hình môi trường triển khai.
 
 ## Bản đồ file
 
@@ -85,7 +85,7 @@ Luồng xóa Attachment và Board hiện xóa object bên trong transaction DB. 
 **Giao diện:** Guard đọc yêu cầu membership hiện hành nhưng chấp nhận cha hoặc Card đã archive/frozen; Card đã soft-delete vẫn trả 404. Guard ghi yêu cầu Card, List, Board, Workspace hoạt động và Workspace không frozen. Dùng cùng quy tắc cho comment, Task, attachment và activity.
 
 - [x] Viết test đang fail: người có quyền đọc comment/Task/activity/attachment sau khi Card hoặc cha archive/frozen; người ngoài Board vẫn bị 403; Card soft-delete vẫn 404; xóa attachment của Card/List đã archive hoặc Workspace frozen bị từ chối và object còn nguyên.
-- [x] Chạy test mục tiêu, sau đó thay `activeCard`/`requireActiveBoardAccess` ở read path bằng guard đọc. `deleteCardAttachment` phải kiểm tra trạng thái Card/List/cha trước khi gọi `storage.delete`; kiểm tra lại quyền và trạng thái gần thời điểm ghi để giảm cửa sổ thu hồi quyền.
+- [x] Chạy test mục tiêu, sau đó thay `activeCard`/`requireActiveBoardAccess` ở read path bằng guard đọc. `deleteCardAttachment` kiểm tra trạng thái Card/List/cha và quyền trước khi ghi yêu cầu cleanup trong transaction; scheduler xóa object sau commit.
 - [x] Chạy test Card/Board/Collaboration và kiểm tra OpenAPI mô tả đúng hành vi archive; commit riêng.
 
 **Nghiệm thu:** Archive/frozen nhất quán là chỉ đọc trên mọi tài nguyên Core; không có đường xóa tệp thuộc Card đã archive.
@@ -94,14 +94,14 @@ Luồng xóa Attachment và Board hiện xóa object bên trong transaction DB. 
 
 **File:** `src/infrastructure/storage/object-storage.ts`, `src/infrastructure/storage/r2-object-storage.ts` (mới), `src/modules/collaboration/services/collaboration.service.ts`, `src/modules/boards/services/board.service.ts`, `package.json`, `pnpm-lock.yaml`, cấu hình môi trường mẫu/README triển khai, `tests/collaboration/collaboration.integration.test.ts`, `tests/boards/board-list.integration.test.ts`.
 
-**Giao diện:** Giữ `ObjectStorage.put/get/delete`; `R2ObjectStorage` dùng `@aws-sdk/client-s3`. `ATTACHMENT_STORAGE_PROVIDER=filesystem|r2` chọn provider; R2 yêu cầu `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` và dùng region `auto`. Production yêu cầu `r2` và fail sớm nếu thiếu cấu hình; filesystem chỉ dùng cho local/test. `deleteArchivedBoard` nhận `ObjectStorage` tùy chọn để test lỗi bằng fake storage. Không đổi route hoặc ID attachment.
+**Giao diện:** Giữ `ObjectStorage.put/get/delete`; `R2ObjectStorage` dùng `@aws-sdk/client-s3`. `ATTACHMENT_STORAGE_PROVIDER=filesystem|r2` chọn provider; R2 yêu cầu `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` và dùng region `auto`. Production yêu cầu `r2` và fail sớm nếu thiếu cấu hình; filesystem chỉ dùng cho local/test. Xóa Attachment/Board enqueue `storageKey` trong transaction; scheduler dọn sau commit. Không đổi route hoặc ID attachment.
 
-- [x] Viết test provider bằng fake S3 client: put/get/delete, thiếu cấu hình, lỗi upload, lỗi xóa, gọi delete lặp; test Board delete giữ DB rows khi cleanup tệp thất bại và retry thành công khi storage hoạt động lại.
+- [x] Viết test provider bằng fake S3 client: put/get/delete, thiếu cấu hình, lỗi upload, lỗi xóa, gọi delete lặp. Sau khi chuyển sang scheduler, test Board delete giữ DB rows nếu key thiếu/sai định dạng; test cleanup giữ mục chờ khi storage lỗi và retry thành công khi storage hoạt động lại.
 - [x] Chạy test mục tiêu để xác nhận fail; triển khai R2 adapter và cấu hình. Không đưa credentials vào repo hoặc log. Giữ `PendingObjectCleanup` cho object đã upload nhưng DB ghi thất bại.
 - [x] Xác định đường di chuyển blob filesystem đã tồn tại trước khi bật R2; nếu không có dữ liệu production, ghi rõ điều kiện đó trong tài liệu triển khai. Không đổi provider khi các attachment cũ chưa đọc được ở provider mới.
 - [x] Chạy test Collaboration/Board, xác minh upload/download qua fake storage và cleanup lỗi; commit riêng.
 
-**Nghiệm thu:** Card Attachment và Board delete dùng đúng provider đã cấu hình, lỗi storage không báo thành công giả. Tác vụ xóa Document Knowledge Base của UC-Board-09 vẫn là dependency của module Knowledge Base, chưa đánh dấu hoàn tất.
+**Nghiệm thu:** API xóa Card Attachment/Board chỉ trả thành công sau khi metadata và yêu cầu cleanup đã commit; thành công của API không có nghĩa object đã được dọn. Scheduler dùng đúng provider đã cấu hình và giữ mục để retry khi storage lỗi. Tác vụ xóa Document Knowledge Base của UC-Board-09 vẫn là dependency của module Knowledge Base, chưa đánh dấu hoàn tất.
 
 ## Nhánh 3 — Tiến độ và dữ liệu planning
 
