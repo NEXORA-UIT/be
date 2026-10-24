@@ -22,6 +22,45 @@ type RealtimeMutationDependencies = {
   disconnectUser: (userId: string) => Promise<void>;
 };
 
+export function createWorkspaceIdResolver(
+  findBoardWorkspaceId: (boardId: string) => Promise<string | undefined> = async (boardId) =>
+    (await prisma.board.findUnique({ where: { id: boardId }, select: { workspaceId: true } }))
+      ?.workspaceId,
+) {
+  return async (path: string) => {
+    const segments = path.split('/').filter(Boolean);
+    if (
+      segments[0] === 'boards' &&
+      segments[1] &&
+      (segments.length === 2 || ['archive', 'unarchive', 'pm', 'members'].includes(segments[2] ?? ''))
+    ) {
+      return findBoardWorkspaceId(segments[1]);
+    }
+    if (segments[0] !== 'workspaces' || segments[1] !== 'invitations') {
+      return segments[0] === 'workspaces' ? segments[1] : undefined;
+    }
+    const invitationKey = segments[2];
+    if (!invitationKey) return undefined;
+    const invitation =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        invitationKey,
+      )
+        ? await prisma.workspaceInvitation.findUnique({
+            where: { id: invitationKey },
+            select: { workspaceId: true },
+          })
+        : null;
+    if (invitation) return invitation.workspaceId;
+    const tokenHash = hashToken(invitationKey);
+    return (
+      await prisma.workspaceInvitation.findUnique({
+        where: { tokenHash },
+        select: { workspaceId: true },
+      })
+    )?.workspaceId;
+  };
+}
+
 const defaultDependencies: RealtimeMutationDependencies = {
   resolveBoardId: async (path, request) => {
     const segments = path.split('/').filter(Boolean);
@@ -78,31 +117,7 @@ const defaultDependencies: RealtimeMutationDependencies = {
     }
     return undefined;
   },
-  resolveWorkspaceId: async (path) => {
-    const segments = path.split('/').filter(Boolean);
-    if (segments[0] !== 'workspaces' || segments[1] !== 'invitations') {
-      return segments[0] === 'workspaces' ? segments[1] : undefined;
-    }
-    const invitationKey = segments[2];
-    if (!invitationKey) return undefined;
-    const invitation =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        invitationKey,
-      )
-        ? await prisma.workspaceInvitation.findUnique({
-            where: { id: invitationKey },
-            select: { workspaceId: true },
-          })
-        : null;
-    if (invitation) return invitation.workspaceId;
-    const tokenHash = hashToken(invitationKey);
-    return (
-      await prisma.workspaceInvitation.findUnique({
-        where: { tokenHash },
-        select: { workspaceId: true },
-      })
-    )?.workspaceId;
-  },
+  resolveWorkspaceId: createWorkspaceIdResolver(),
   resolveBoardPmUsers: async (path, request) => {
     const segments = path.split('/').filter(Boolean);
     if (

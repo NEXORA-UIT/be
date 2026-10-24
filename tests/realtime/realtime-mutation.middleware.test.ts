@@ -2,9 +2,20 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { EventEmitter } from 'node:events';
 import type { NextFunction, Request, Response } from 'express';
-import { createRealtimeMutationMiddleware } from '../../src/infrastructure/realtime/realtime-mutation.middleware.js';
+import {
+  createRealtimeMutationMiddleware,
+  createWorkspaceIdResolver,
+} from '../../src/infrastructure/realtime/realtime-mutation.middleware.js';
 
 describe('realtime mutation middleware', () => {
+  it('resolves Workspace scope when Board membership changes', async () => {
+    const resolveWorkspaceId = createWorkspaceIdResolver(async (boardId) =>
+      boardId === 'board-1' ? 'workspace-1' : undefined,
+    );
+
+    assert.equal(await resolveWorkspaceId('/boards/board-1/members'), 'workspace-1');
+  });
+
   async function finishRequest(
     middleware: ReturnType<typeof createRealtimeMutationMiddleware>,
     path: string,
