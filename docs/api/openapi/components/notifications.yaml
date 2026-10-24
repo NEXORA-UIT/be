@@ -31,7 +31,7 @@ components:
           nullable: true
         type:
           type: string
-          enum: [CARD_ASSIGNED, COMMENT_MENTION]
+          enum: [CARD_ASSIGNED, COMMENT_MENTION, CARD_DUE_SOON]
         message:
           type: string
           example: You were assigned to CARD-001
