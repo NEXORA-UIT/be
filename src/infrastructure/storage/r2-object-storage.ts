@@ -5,7 +5,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import type { ObjectStorage } from './object-storage.js';
+import { assertValidAttachmentStorageKey, type ObjectStorage } from './object-storage.js';
 
 export interface R2StorageConfiguration {
   endpoint: string;
@@ -13,8 +13,6 @@ export interface R2StorageConfiguration {
   accessKeyId: string;
   secretAccessKey: string;
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type StorageCommand = PutObjectCommand | GetObjectCommand | DeleteObjectCommand;
 
@@ -75,7 +73,7 @@ export class R2ObjectStorage implements ObjectStorage {
   }
 
   async get(storageKey: string): Promise<Buffer> {
-    this.validateStorageKey(storageKey);
+    assertValidAttachmentStorageKey(storageKey);
     const response = (await this.client.send(
       new GetObjectCommand({ Bucket: this.configuration.bucket, Key: storageKey }),
     )) as { Body?: { transformToByteArray(): Promise<Uint8Array> } | null };
@@ -84,13 +82,9 @@ export class R2ObjectStorage implements ObjectStorage {
   }
 
   async delete(storageKey: string): Promise<void> {
-    this.validateStorageKey(storageKey);
+    assertValidAttachmentStorageKey(storageKey);
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.configuration.bucket, Key: storageKey }),
     );
-  }
-
-  private validateStorageKey(storageKey: string): void {
-    if (!UUID_PATTERN.test(storageKey)) throw new Error('Invalid attachment storage key');
   }
 }

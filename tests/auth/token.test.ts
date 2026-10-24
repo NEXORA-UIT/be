@@ -10,7 +10,11 @@ test('access token validates identity and rejects expired, unsigned or incomplet
   assert.equal(payload.userId, 'user-1');
   assert.equal(payload.sub, undefined);
   const identity = await verifyAccessToken(token);
-  assert.deepEqual(identity, { userId: 'user-1', refreshTokenId: 'refresh-token-1' });
+  assert.deepEqual(identity, {
+    userId: 'user-1',
+    refreshTokenId: 'refresh-token-1',
+    expiresAt: payload.exp,
+  });
 
   const expiredJwt = new SignJWT({ userId: 'user-1', refreshTokenId: 'refresh-token-1', exp: 1 });
   expiredJwt.setProtectedHeader({ alg: 'HS256' });

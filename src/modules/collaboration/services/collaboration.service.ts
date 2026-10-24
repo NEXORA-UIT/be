@@ -1,7 +1,11 @@
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import { emitUserChange } from '../../../infrastructure/realtime/events.js';
 import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
-import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
+import {
+  assertValidAttachmentStorageKey,
+  type ObjectStorage,
+} from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
@@ -152,7 +156,7 @@ export async function listComments(userId: string, cardId: string) {
 
 export async function createComment(userId: string, cardId: string, content: string) {
   const normalized = validateContent(content);
-  return runBoardTransaction(async (transaction) => {
+  const result = await runBoardTransaction(async (transaction) => {
     const card = await requireWritableCard(transaction, userId, cardId);
     const mentionedUserIds = await validateMentions(normalized, card.boardId, transaction);
     const comment = await transaction.comment.create({
@@ -180,13 +184,17 @@ export async function createComment(userId: string, cardId: string, content: str
         })),
       });
     }
-    return mapComment(comment);
+    return { comment: mapComment(comment), notificationRecipients: recipients };
   });
+  for (const recipientId of result.notificationRecipients) {
+    emitUserChange(recipientId, 'notifications');
+  }
+  return result.comment;
 }
 
 export async function updateComment(userId: string, commentId: string, content: string) {
   const normalized = validateContent(content);
-  return runBoardTransaction(async (transaction) => {
+  const result = await runBoardTransaction(async (transaction) => {
     const comment = await transaction.comment.findUnique({
       where: { id: commentId },
       include: {
@@ -237,8 +245,12 @@ export async function updateComment(userId: string, commentId: string, content: 
         })),
       });
     }
-    return mapComment(updated);
+    return { comment: mapComment(updated), notificationRecipients: newRecipients };
   });
+  for (const recipientId of result.notificationRecipients) {
+    emitUserChange(recipientId, 'notifications');
+  }
+  return result.comment;
 }
 
 export async function deleteComment(userId: string, commentId: string): Promise<void> {
@@ -336,26 +348,55 @@ export async function authorizeCardAttachmentUpload(userId: string, cardId: stri
 export async function retryPendingObjectCleanups(
   storage: ObjectStorage = attachmentStorage,
   limit = 100,
+  now = new Date(),
+  onlyStorageKey?: string,
 ) {
   const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 1_000);
   const pending = await prisma.pendingObjectCleanup.findMany({
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    where: {
+      nextAttemptAt: { lte: now },
+      ...(onlyStorageKey ? { storageKey: onlyStorageKey } : {}),
+    },
+    orderBy: [{ nextAttemptAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     take: pageSize,
   });
   let cleaned = 0;
   let failed = 0;
+  let skippedReferenced = 0;
 
   for (const item of pending) {
+    const activeAttachment = await prisma.attachment.findFirst({
+      where: { storageKey: item.storageKey },
+      select: { id: true },
+    });
+    if (activeAttachment) {
+      await prisma.pendingObjectCleanup.updateMany({
+        where: { id: item.id },
+        data: { nextAttemptAt: new Date(now.getTime() + 10 * 60_000) },
+      });
+      skippedReferenced += 1;
+      continue;
+    }
+
     try {
       await storage.delete(item.storageKey);
-      await prisma.pendingObjectCleanup.delete({ where: { id: item.id } });
+      await prisma.pendingObjectCleanup.deleteMany({ where: { id: item.id } });
       cleaned += 1;
     } catch {
+      const attemptCount = item.attemptCount + 1;
+      const backoffMinutes = Math.min(24 * 60, 2 ** Math.min(attemptCount, 10));
+      await prisma.pendingObjectCleanup.updateMany({
+        where: { id: item.id },
+        data: {
+          attemptCount,
+          nextAttemptAt: new Date(now.getTime() + backoffMinutes * 60_000),
+        },
+      });
       failed += 1;
     }
   }
 
-  return { attempted: pending.length, cleaned, failed };
+  return { attempted: pending.length, cleaned, failed, skippedReferenced };
 }
 
 export async function uploadCardAttachment(
@@ -376,7 +417,6 @@ export async function uploadCardAttachment(
   }
   assertAllowedFilename(fileName, mimeType);
   await requireWritableCard(prisma, userId, cardId);
-  await retryPendingObjectCleanups(storage);
   const storageKey = await storage.put(content);
   try {
     return await prisma.$transaction(async (transaction) => {
@@ -460,27 +500,20 @@ export async function readCardAttachment(
   return { attachment: mapAttachment(attachment), content };
 }
 
-export async function cleanupAttachmentObject(
-  attachmentId: string,
-  storage: ObjectStorage = attachmentStorage,
-) {
-  const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
-  if (!attachment) return;
-  if (!attachment.storageKey)
-    throw new Error('Attachment has no storage key; refusing to delete metadata');
-  await storage.delete(attachment.storageKey);
-  await prisma.attachment.deleteMany({ where: { id: attachmentId } });
-}
-
-export async function deleteCardAttachment(
-  userId: string,
-  attachmentId: string,
-  storage: ObjectStorage = attachmentStorage,
-) {
+export async function deleteCardAttachment(userId: string, attachmentId: string) {
   await runBoardTransaction(async (transaction) => {
     const attachment = await transaction.attachment.findUnique({ where: { id: attachmentId } });
     if (!attachment) throw accessErrors.notFound('Attachment');
     if (!attachment.storageKey) throw accessErrors.notFound('Attachment');
+    try {
+      assertValidAttachmentStorageKey(attachment.storageKey);
+    } catch {
+      throw new AppError(
+        503,
+        'ATTACHMENT_CLEANUP_FAILED',
+        'Không thể xác định tệp đính kèm; dữ liệu được giữ lại để kiểm tra',
+      );
+    }
     const card = await requireWritableCard(transaction, userId, attachment.cardId);
     const board = await transaction.board.findUniqueOrThrow({
       where: { id: card.boardId },
@@ -499,7 +532,11 @@ export async function deleteCardAttachment(
     if (attachment.userId !== userId && role !== 'OWNER' && role !== 'PM') {
       throw accessErrors.forbidden();
     }
-    await storage.delete(attachment.storageKey);
+    await transaction.pendingObjectCleanup.upsert({
+      where: { storageKey: attachment.storageKey },
+      create: { storageKey: attachment.storageKey },
+      update: {},
+    });
     await transaction.attachment.delete({ where: { id: attachmentId } });
     await transaction.activityLog.create({
       data: {

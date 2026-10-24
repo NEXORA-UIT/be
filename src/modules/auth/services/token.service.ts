@@ -6,6 +6,10 @@ import { userRepository } from '../repository/user.repository.js';
 
 import { hashToken, randomToken, signAccessToken, verifyAccessToken } from '../utils/token.util.js';
 import { profile } from '../utils/user.mapper.js';
+import {
+  disconnectRealtimeSession,
+  disconnectRealtimeUser,
+} from '../../../infrastructure/realtime/events.js';
 
 export type AuthContext = {
   userId: string;
@@ -35,10 +39,12 @@ export async function authenticate(header: string | undefined) {
 
   let userId: string;
   let refreshTokenId: string;
+  let accessExpiresAt: number;
   try {
     const claims = await verifyAccessToken(token);
     userId = claims.userId;
     refreshTokenId = claims.refreshTokenId;
+    accessExpiresAt = claims.expiresAt;
   } catch {
     throw authErrors.invalidAccessToken();
   }
@@ -54,7 +60,7 @@ export async function authenticate(header: string | undefined) {
   const userProfile = profile(user);
   const auth = { userId, refreshTokenId };
 
-  return { auth, user: userProfile };
+  return { auth, user: userProfile, accessExpiresAt };
 }
 
 export async function refresh(rawToken: string) {
@@ -75,8 +81,10 @@ export async function refresh(rawToken: string) {
 
 export async function logout(refreshTokenId: string) {
   await refreshTokenRepository.revoke(refreshTokenId);
+  await disconnectRealtimeSession(refreshTokenId);
 }
 
 export async function logoutAll(userId: string) {
   await refreshTokenRepository.revokeAll(userId);
+  await disconnectRealtimeUser(userId);
 }

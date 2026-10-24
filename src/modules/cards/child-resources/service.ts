@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import { emitUserChange } from '../../../infrastructure/realtime/events.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
@@ -92,7 +93,7 @@ export async function listCardAssignments(userId: string, cardId: string) {
 }
 
 export async function assignCardUser(userId: string, cardId: string, input: AssignUserDto) {
-  return runBoardTransaction(async (transaction) => {
+  const assignment = await runBoardTransaction(async (transaction) => {
     const card = await requireEditableCard(transaction, userId, cardId);
     await requireBoardAssignee(transaction, input.userId, card.boardId);
     const existing = await transaction.cardAssignment.findUnique({
@@ -124,6 +125,8 @@ export async function assignCardUser(userId: string, cardId: string, input: Assi
     }
     return assignment;
   });
+  if (input.userId !== userId) emitUserChange(input.userId, 'notifications');
+  return assignment;
 }
 
 export async function unassignCardUser(userId: string, cardId: string, assigneeId: string) {

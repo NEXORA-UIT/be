@@ -20,7 +20,7 @@ export async function inviteWorkspaceMemberController(request: Request, response
     param(request, 'id'),
     request.body.email,
   );
-  response.status(201).json({ success: true, data: invitation });
+  response.status(202).json({ success: true, data: invitation });
 }
 
 export async function listWorkspaceInvitationsController(request: Request, response: Response) {
@@ -40,7 +40,7 @@ export async function rejectWorkspaceInvitationController(request: Request, resp
 
 export async function resendWorkspaceInvitationController(request: Request, response: Response) {
   const invitation = await resendWorkspaceInvitation(request.auth.userId, param(request, 'id'));
-  response.json({ success: true, data: invitation });
+  response.status(202).json({ success: true, data: invitation });
 }
 
 export async function cancelWorkspaceInvitationController(request: Request, response: Response) {

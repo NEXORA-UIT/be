@@ -2,6 +2,15 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, open, rename, rm } from 'node:fs/promises';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 
+const ATTACHMENT_STORAGE_KEY_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function assertValidAttachmentStorageKey(storageKey: string): void {
+  if (!ATTACHMENT_STORAGE_KEY_PATTERN.test(storageKey)) {
+    throw new Error('Invalid attachment storage key');
+  }
+}
+
 export interface ObjectStorage {
   put(content: Uint8Array): Promise<string>;
   get(storageKey: string): Promise<Buffer>;
@@ -19,11 +28,7 @@ export class FileSystemObjectStorage implements ObjectStorage {
   }
 
   private pathFor(storageKey: string): string {
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(storageKey)
-    ) {
-      throw new Error('Invalid attachment storage key');
-    }
+    assertValidAttachmentStorageKey(storageKey);
     const path = resolve(this.root, storageKey);
     if (!path.startsWith(`${this.root}${sep}`)) throw new Error('Invalid attachment storage key');
     return path;

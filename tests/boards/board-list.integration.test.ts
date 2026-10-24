@@ -7,7 +7,6 @@ import { app } from '../../src/app.js';
 import { prisma } from '../../src/infrastructure/database/prisma.js';
 import { createWorkspace } from '../../src/modules/workspaces/services/workspace.service.js';
 import { deleteArchivedBoard } from '../../src/modules/boards/services/board.service.js';
-import type { ObjectStorage } from '../../src/infrastructure/storage/object-storage.js';
 import { issueTokens } from '../../src/modules/auth/services/token.service.js';
 
 describe('Board and List REST flows', () => {
@@ -703,24 +702,10 @@ describe('Board and List REST flows', () => {
     );
     const storageKey = randomUUID();
     await prisma.attachment.update({ where: { id: attachment.id }, data: { storageKey } });
-    let storageAvailable = false;
-    const retryableStorage: ObjectStorage = {
-      put: async () => storageKey,
-      get: async () => Buffer.alloc(0),
-      delete: async (key) => {
-        assert.equal(key, storageKey);
-        if (!storageAvailable) throw new Error('simulated storage outage');
-      },
-    };
-    await assert.rejects(
-      () => deleteArchivedBoard(owner.user.id, board.id, persistedBoard.name, retryableStorage),
-      { code: 'ATTACHMENT_CLEANUP_FAILED' },
-    );
-    assert.ok(await prisma.board.findUnique({ where: { id: board.id } }));
-    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
-
-    storageAvailable = true;
-    await deleteArchivedBoard(owner.user.id, board.id, persistedBoard.name, retryableStorage);
+    await deleteArchivedBoard(owner.user.id, board.id, persistedBoard.name);
     assert.equal(await prisma.board.findUnique({ where: { id: board.id } }), null);
+    assert.equal(await prisma.attachment.findUnique({ where: { id: attachment.id } }), null);
+    assert.ok(await prisma.pendingObjectCleanup.findUnique({ where: { storageKey } }));
+    await prisma.pendingObjectCleanup.delete({ where: { storageKey } });
   });
 });
