@@ -50,6 +50,8 @@ Khi xóa Board hoặc thu hồi membership, backend ngắt kết nối các phi�
 
 Redis adapter chuyển room/broadcast giữa nhiều backend process. BullMQ dùng cùng Redis nhưng giữ queue riêng, không phải kênh realtime. Sau khi kết nối lại, FE join lại và tải snapshot REST; hệ thống không dựa vào event replay. Vì vậy thay đổi vẫn đọc được sau reconnect, kể cả khi client bỏ lỡ event.
 
+Khi backend chủ động ngắt kết nối để thu hồi quyền hoặc xử lý archive, Socket.IO client không tự reconnect với lý do `io server disconnect`. FE gọi `connect()` lại nếu phiên chưa hết hạn, join lại room và tải snapshot REST kể cả khi join bị từ chối. Phản hồi 403/404 sẽ xóa dữ liệu Board/membership cũ trên giao diện. Xem [luồng quyền xem Board theo Workspace](../CORE/board-visibility-realtime.md).
+
 ## Chạy local
 
 1. Khởi động Docker PostgreSQL và Redis.

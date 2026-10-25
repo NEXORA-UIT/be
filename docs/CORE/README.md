@@ -7,6 +7,7 @@ Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Tr�
 ## Chỉ mục
 
 - [Quy tắc nghiệp vụ và phân quyền](business-rules.md)
+- [Luồng dữ liệu và quyền xem Board theo Workspace](board-visibility-realtime.md)
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
