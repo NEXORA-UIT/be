@@ -8,6 +8,7 @@ import {
   getBoard,
   listBoardMembers,
   listWorkspaceBoards,
+  leaveBoard,
   removeBoardMember,
   restoreBoard,
   updateBoard,
@@ -93,5 +94,10 @@ export async function removeBoardMemberController(request: Request, response: Re
     routeParam(request, 'id'),
     routeParam(request, 'userId'),
   );
+  response.json({ success: true, data: {} });
+}
+
+export async function leaveBoardController(request: Request, response: Response) {
+  await leaveBoard(request.auth.userId, routeParam(request, 'id'));
   response.json({ success: true, data: {} });
 }

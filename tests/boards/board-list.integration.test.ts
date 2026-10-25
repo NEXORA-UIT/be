@@ -622,6 +622,57 @@ describe('Board and List REST flows', () => {
     assert.equal((await call(`/boards/${board.id}`, 'GET', member.accessToken)).status, 403);
   });
 
+  it('allows a Board member to leave while preserving Workspace membership and blocks its PM', async () => {
+    const owner = await createActor('leave-board-owner');
+    const pm = await createActor('leave-board-pm');
+    const member = await createActor('leave-board-member');
+    const workspace = await createWorkspaceFor(owner.user.id);
+    await prisma.workspaceMembership.createMany({
+      data: [
+        { workspaceId: workspace.id, userId: pm.user.id, role: 'MEMBER' },
+        { workspaceId: workspace.id, userId: member.user.id, role: 'MEMBER' },
+      ],
+    });
+    const board = await createBoard(owner, workspace.id, pm.user.id);
+    await call(`/boards/${board.id}/members`, 'POST', owner.accessToken, {
+      userId: member.user.id,
+    });
+    const list = await prisma.list.findFirstOrThrow({ where: { boardId: board.id } });
+    const card = await prisma.card.create({
+      data: {
+        boardId: board.id,
+        listId: list.id,
+        cardKey: 'LEAVE-001',
+        title: 'Keep historical Card data',
+      },
+    });
+    const comment = await prisma.comment.create({
+      data: { cardId: card.id, userId: member.user.id, content: 'Leaving the Board' },
+    });
+    await prisma.cardAssignment.create({ data: { cardId: card.id, userId: member.user.id } });
+
+    const left = await call(`/boards/${board.id}/leave`, 'POST', member.accessToken);
+
+    assert.equal(left.status, 200);
+    assert.equal(
+      await prisma.boardMembership.findUnique({
+        where: { boardId_userId: { boardId: board.id, userId: member.user.id } },
+      }),
+      null,
+    );
+    assert.ok(
+      await prisma.workspaceMembership.findUnique({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: member.user.id } },
+      }),
+    );
+    assert.equal(await prisma.cardAssignment.count({ where: { cardId: card.id } }), 0);
+    assert.ok(await prisma.comment.findUnique({ where: { id: comment.id } }));
+    assert.equal((await call(`/boards/${board.id}`, 'GET', member.accessToken)).status, 403);
+
+    const pmLeave = await call(`/boards/${board.id}/leave`, 'POST', pm.accessToken);
+    assert.equal(pmLeave.status, 409);
+  });
+
   it('permanently deletes only an archived Board after confirmed and retryable file cleanup', async () => {
     const owner = await createActor('delete-board-owner');
     const member = await createActor('delete-board-member');

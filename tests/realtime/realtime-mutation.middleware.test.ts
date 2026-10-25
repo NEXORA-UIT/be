@@ -16,6 +16,27 @@ describe('realtime mutation middleware', () => {
     assert.equal(await resolveWorkspaceId('/boards/board-1/members'), 'workspace-1');
   });
 
+  it('invalidates the Workspace Board list after a Board member is added', async () => {
+    const workspaceChanges: Array<[string, string]> = [];
+    const middleware = createRealtimeMutationMiddleware({
+      resolveBoardId: async () => 'board-1',
+      resolveWorkspaceId: createWorkspaceIdResolver(async () => 'workspace-1'),
+      resolveBoardPmUsers: async () => [],
+      emitBoardChange: async () => undefined,
+      emitWorkspaceChange: async (workspaceId, change) => {
+        workspaceChanges.push([workspaceId, change]);
+      },
+      emitUserChange: () => undefined,
+      disconnectBoard: async () => undefined,
+      disconnectWorkspace: async () => undefined,
+      disconnectUser: async () => undefined,
+    });
+
+    await finishRequest(middleware, '/boards/board-1/members', 'POST');
+
+    assert.deepEqual(workspaceChanges, [['workspace-1', 'WORKSPACE_CHANGED']]);
+  });
+
   async function finishRequest(
     middleware: ReturnType<typeof createRealtimeMutationMiddleware>,
     path: string,

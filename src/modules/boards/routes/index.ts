@@ -21,6 +21,7 @@ import {
   getBoardController,
   listBoardMembersController,
   listWorkspaceBoardsController,
+  leaveBoardController,
   removeBoardMemberController,
   restoreBoardController,
   updateBoardController,
@@ -72,6 +73,7 @@ boardsRouter.post(
   addBoardMemberController,
 );
 boardsRouter.delete('/boards/:id/members/:userId', requireAuth, removeBoardMemberController);
+boardsRouter.post('/boards/:id/leave', requireAuth, leaveBoardController);
 
 boardsRouter.get('/boards/:boardId/lists', requireAuth, listBoardListsController);
 boardsRouter.post(

@@ -2,6 +2,8 @@ import { Prisma, WorkspaceRole } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
 import { requireWorkspaceAccess } from '../../../shared/authorization/access.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
+import { AppError } from '../../../shared/errors/app.error.js';
+import { ERROR_CODE } from '../../../shared/errors/error-code.js';
 import { createPaginationMeta } from '../../../shared/pagination/pagination.util.js';
 import type {
   CreateWorkspaceDto,
@@ -206,6 +208,18 @@ export async function leaveWorkspace(userId: string, workspaceId: string) {
   return runSerializable(async (transaction) => {
     const access = await requireWorkspaceMutationAccess(transaction, userId, workspaceId);
     if (access.role === WorkspaceRole.OWNER) throw accessErrors.forbidden();
+
+    const managesBoard = await transaction.boardMembership.findFirst({
+      where: { userId, role: 'PM', board: { workspaceId } },
+      select: { id: true },
+    });
+    if (managesBoard) {
+      throw new AppError(
+        403,
+        ERROR_CODE.workspacePmTransferRequired,
+        'Chuyển quyền PM của các Board trước khi rời Workspace',
+      );
+    }
 
     return removeMemberFromWorkspace(transaction, workspaceId, userId, userId);
   });

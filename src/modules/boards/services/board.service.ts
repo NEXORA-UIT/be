@@ -352,3 +352,40 @@ export async function removeBoardMember(userId: string, boardId: string, targetU
     await transaction.boardMembership.delete({ where: { id: membership.id } });
   });
 }
+
+export async function leaveBoard(userId: string, boardId: string) {
+  return runBoardTransaction(async (transaction) => {
+    const board = await transaction.board.findUnique({
+      where: { id: boardId },
+      select: {
+        workspaceId: true,
+        archivedAt: true,
+        workspace: { select: { archivedAt: true, isFrozen: true } },
+      },
+    });
+    if (!board) throw accessErrors.notFound('Board');
+
+    const workspaceMembership = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId, endedAt: null },
+      select: { role: true },
+    });
+    if (!workspaceMembership) throw accessErrors.forbidden();
+
+    const boardMembership = await transaction.boardMembership.findUnique({
+      where: { boardId_userId: { boardId, userId } },
+      select: { id: true, role: true },
+    });
+    if (!boardMembership) throw accessErrors.notFound('Thành viên Board');
+    if (workspaceMembership.role === WorkspaceRole.OWNER) {
+      throw conflict('Chủ Workspace luôn có quyền truy cập Board này và không thể rời riêng Board');
+    }
+    if (boardMembership.role === BoardRole.PM) {
+      throw conflict('Hãy phân công PM thay thế trước khi rời Board');
+    }
+    if (board.workspace.archivedAt || board.archivedAt) throw accessErrors.archived();
+    if (board.workspace.isFrozen) throw accessErrors.frozen();
+
+    await removeCardAssignments(transaction, { userId, card: { boardId } }, userId);
+    await transaction.boardMembership.delete({ where: { id: boardMembership.id } });
+  });
+}
