@@ -7,7 +7,7 @@ Socket.IO đồng bộ các thay đổi Core cho người đang mở Workspace h
 ## Kết nối và xác thực
 
 - Socket.IO path: `/realtime/socket.io` trên cùng cổng với API.
-- Transport hiện dùng WebSocket.
+- Realtime dùng giao thức Socket.IO (transport WebSocket) tại path trên; không cung cấp endpoint WebSocket thuần. FE cần dùng `socket.io-client`.
 - FE gửi access token trong handshake `auth.token`, tuyệt đối không đưa token lên URL.
 - Backend kiểm tra JWT và phiên đăng nhập, tự gán room `user:{userId}` và `session:{refreshTokenId}`; client không tự chọn các room này.
 - Access token hết hạn thì server báo `session:expired` và đóng socket. FE gọi `/auth/me` qua Axios client hiện có để kích hoạt refresh token; khi access token mới được lưu, socket kết nối lại và join lại room.
