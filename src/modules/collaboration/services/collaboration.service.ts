@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
 import { emitUserChange } from '../../../infrastructure/realtime/events.js';
@@ -55,6 +56,7 @@ async function findNonDeletedCard(
       archivedAt: true,
       deletedAt: true,
       list: { select: { archivedAt: true } },
+      board: { select: { workspaceId: true } },
     },
   });
   if (!card) throw accessErrors.notFound('Card');
@@ -416,16 +418,31 @@ export async function uploadCardAttachment(
     throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không hợp lệ');
   }
   assertAllowedFilename(fileName, mimeType);
-  await requireWritableCard(prisma, userId, cardId);
-  const storageKey = await storage.put(content);
+  const writableCard = await requireWritableCard(prisma, userId, cardId);
+  const attachmentId = randomUUID();
+  const normalizedFileName = normalizeFilename(fileName, mimeType);
+  const encodedFileName = encodeURIComponent(normalizedFileName).replace(
+    /[!'()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  const storageKey = [
+    'workspaces',
+    writableCard.board.workspaceId,
+    'boards',
+    writableCard.boardId,
+    attachmentId,
+    encodedFileName,
+  ].join('/');
+  await storage.put(content, { storageKey, contentType: mimeType, fileName: normalizedFileName });
   try {
     return await prisma.$transaction(async (transaction) => {
       const card = await requireWritableCard(transaction, userId, cardId);
       const attachment = await transaction.attachment.create({
         data: {
+          id: attachmentId,
           cardId,
           userId,
-          fileName: normalizeFilename(fileName, mimeType),
+          fileName: normalizedFileName,
           fileUrl: `/attachments/${storageKey}`,
           fileSize: content.byteLength,
           mimeType,

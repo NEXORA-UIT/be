@@ -1,11 +1,14 @@
-import { randomUUID } from 'node:crypto';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { assertValidAttachmentStorageKey, type ObjectStorage } from './object-storage.js';
+import {
+  assertValidAttachmentStorageKey,
+  type ObjectStorage,
+  type ObjectStoragePutOptions,
+} from './object-storage.js';
 
 export interface R2StorageConfiguration {
   endpoint: string;
@@ -60,13 +63,20 @@ export class R2ObjectStorage implements ObjectStorage {
       })) as unknown as S3CommandClient;
   }
 
-  async put(content: Uint8Array): Promise<string> {
-    const storageKey = randomUUID();
+  async put(content: Uint8Array, options: ObjectStoragePutOptions): Promise<string> {
+    const { storageKey, contentType, fileName } = options;
+    assertValidAttachmentStorageKey(storageKey);
+    const encodedFileName = encodeURIComponent(fileName).replace(
+      /[!'()*]/g,
+      (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.configuration.bucket,
         Key: storageKey,
         Body: content,
+        ContentType: contentType,
+        ContentDisposition: `attachment; filename*=UTF-8''${encodedFileName}`,
       }),
     );
     return storageKey;

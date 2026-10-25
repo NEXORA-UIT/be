@@ -445,7 +445,7 @@ describe('Collaboration and Card attachments', () => {
     );
     const now = new Date();
     const failingStorage: ObjectStorage = {
-      put: (bytes) => storage.put(bytes),
+      put: (bytes, options) => storage.put(bytes, options),
       get: (key) => storage.get(key),
       delete: async () => {
         throw new Error('simulated storage outage');
