@@ -1,0 +1,156 @@
+paths:
+  /boards/{id}/documents:
+    post:
+      tags:
+        - Knowledge Base
+      summary: Upload document to Knowledge Base
+      description: Uploads a project document (PDF, DOCX, TXT; max 15MB, max 50 pages or 100,000 raw characters). Immediately stores file in Cloudflare R2 and enqueues background processing job in BullMQ for text extraction via Apache Tika and chunk embedding into PostgreSQL pgvector. Returns 202 Accepted.
+      operationId: uploadKnowledgeBaseDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "Supported formats: .pdf, .docx, .txt (max 15MB)."
+      responses:
+        "202":
+          description: Document accepted for asynchronous text extraction and embedding.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeBaseDocumentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-KB-20
+    get:
+      tags:
+        - Knowledge Base
+      summary: List board knowledge documents
+      description: Retrieves documents uploaded to this board's Knowledge Base along with their vectorization status (PENDING, PROCESSING, READY, FAILED).
+      operationId: listKnowledgeBaseDocuments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: List of documents.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeBaseDocumentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-KB-20
+  /documents/{id}/download:
+    get:
+      tags:
+        - Knowledge Base
+      summary: Download knowledge document
+      description: Generates a secure pre-signed download URL or redirects to download the original binary document.
+      operationId: downloadDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DocumentIdPath"
+      responses:
+        "302":
+          description: Redirect to pre-signed download URL.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-KB-20
+  /documents/{id}:
+    delete:
+      tags:
+        - Knowledge Base
+      summary: Delete knowledge document
+      description: Deletes the document file from storage and purges all corresponding text chunks and vector embeddings from PostgreSQL pgvector.
+      operationId: deleteKnowledgeBaseDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DocumentIdPath"
+      responses:
+        "200":
+          description: Document and all related vector chunks purged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-KB-20
+  /boards/{id}/rag/query:
+    post:
+      tags:
+        - Knowledge Base
+      summary: Query board Knowledge Base (RAG)
+      description: Performs semantic vector search strictly partitioned by `board_id` and synthesizes an answer with exact source citations (file name and page numbers).
+      operationId: queryKnowledgeBaseRAG
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RAGQueryRequest"
+      responses:
+        "200":
+          description: Grounded answer with citations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RAGAnswerResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-KB-21

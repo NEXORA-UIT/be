@@ -1,0 +1,266 @@
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT Access Token (15-minute expiration). Transmitted via `Authorization: Bearer <token>` header."
+  parameters:
+    WorkspaceIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Workspace.
+      schema:
+        type: string
+        format: uuid
+    BoardIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Board.
+      schema:
+        type: string
+        format: uuid
+    ListIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the List.
+      schema:
+        type: string
+        format: uuid
+    CardIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Card.
+      schema:
+        type: string
+        format: uuid
+    TaskIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Task.
+      schema:
+        type: string
+        format: uuid
+    CommentIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Comment.
+      schema:
+        type: string
+        format: uuid
+    DocumentIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique UUID of the Knowledge Base Document.
+      schema:
+        type: string
+        format: uuid
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: Unique UUID of the target User.
+      schema:
+        type: string
+        format: uuid
+    ProposalIdPath:
+      name: proposalId
+      in: path
+      required: true
+      description: Unique UUID of the AI Proposal (Action Card).
+      schema:
+        type: string
+        format: uuid
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Page number for pagination (starts at 1).
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitQuery:
+      name: limit
+      in: query
+      required: false
+      description: Number of records per page (default 20, max 100).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Mandatory UUID idempotency key to prevent double execution of AI proposal approvals.
+      schema:
+        type: string
+        format: uuid
+    GithubSignatureHeader:
+      name: X-Hub-Signature-256
+      in: header
+      required: true
+      description: HMAC-SHA256 signature calculated with the repository webhook secret.
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Bad Request - Input data malformed or business rule violated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized - Missing, invalid, or expired authentication token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden - Authenticated user lacks required permissions or role for this resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not Found - The specified resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict - Optimistic Concurrency Control failure (CARD_CONFLICT) or state constraint conflict.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PayloadTooLarge:
+      description: Payload Too Large - Uploaded file exceeds size constraints (images > 5MB, docs > 15MB, attachments > 25MB).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Too Many Requests - Rate limit exceeded or monthly AI quota exhausted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: Internal Server Error - Unexpected server condition encountered.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Gone:
+      description: The requested resource has expired and is no longer available.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+      description: Standard success envelope for action/mutation operations without payload data.
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          example: {}
+          description: Empty payload object.
+    EmptySuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+      description: Standard success envelope for action/mutation operations without payload data.
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          example: {}
+          description: Empty object for acknowledgment.
+    PaginationMeta:
+      type: object
+      required:
+        - page
+        - limit
+        - totalItems
+        - totalPages
+      description: Standard pagination metadata for list responses.
+      properties:
+        page:
+          type: integer
+          example: 1
+          description: Current page index (1-based).
+        limit:
+          type: integer
+          example: 20
+          description: Number of items per page.
+        totalItems:
+          type: integer
+          example: 45
+          description: Total number of available items.
+        totalPages:
+          type: integer
+          example: 3
+          description: Total number of pages.
+    ErrorDetail:
+      type: object
+      required:
+        - message
+      description: Granular field-level error description for validation failures.
+      properties:
+        field:
+          type: string
+          description: Tên trường đầu vào liên quan khi lỗi có chi tiết validation.
+        message:
+          type: string
+          description: Mô tả chi tiết lỗi của trường đầu vào.
+    ErrorObject:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      description: Cấu trúc lỗi chuẩn; giá trị cụ thể thay đổi theo endpoint và nguyên nhân.
+      properties:
+        code:
+          type: string
+          description: Mã lỗi thực tế do API trả về.
+        message:
+          type: string
+          description: Thông báo lỗi thực tế cho request.
+        details:
+          type: array
+          description: Danh sách chi tiết validation nếu có; có thể rỗng.
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      description: Standardized error envelope returned for all 4xx and 5xx responses.
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: "#/components/schemas/ErrorObject"

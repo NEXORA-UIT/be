@@ -1,0 +1,39 @@
+export const AUTH_TOKEN = {
+  algorithm: 'HS256',
+  refreshBytes: 48,
+} as const;
+
+export const AUTH_SECURITY = {
+  bcryptRounds: 12,
+  loginMaxAttempts: 5,
+  loginWindowSeconds: 60,
+} as const;
+
+export const AUTH_ROUTE = {
+  register: '/register',
+  verifyRegistration: '/verify-registration',
+  login: '/login',
+  refresh: '/refresh',
+  logout: '/logout',
+  logoutAll: '/logout-all',
+  me: '/me',
+  changePassword: '/change-password',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
+  googleOAuth: '/oauth/google',
+  googleOAuthStart: '/start',
+  googleOAuthCallback: '/callback',
+} as const;
+
+export const AUTH_CACHE_KEY = {
+  reset: (hash: string) => `reset:${hash}`,
+  loginAttempts: (ip: string) => `login-attempts:${ip}`,
+  pendingRegistration: (tokenHash: string) => `pending-registration:${tokenHash}`,
+  oauthLogin: (tokenHash: string) => `oauth-login:${tokenHash}`,
+  workspaceInvitation: (tokenHash: string) => `workspace-invitation:${tokenHash}`,
+} as const;
+
+export const GOOGLE_OAUTH = {
+  provider: 'GOOGLE',
+  scopes: ['openid', 'email', 'profile'],
+} as const;

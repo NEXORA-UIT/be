@@ -1,0 +1,146 @@
+paths:
+  /boards/{id}/github/config:
+    post:
+      tags:
+        - GitHub
+      summary: Configure GitHub repository connection
+      description: Connects an external GitHub repository to the board (Proof-of-Concept connector). Encrypts webhook secret in database storage.
+      operationId: configureGitHubIntegration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GitHubConfigRequest"
+      responses:
+        "200":
+          description: GitHub integration configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubConfigurationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-GIT-26
+    get:
+      tags:
+        - GitHub
+      summary: Get GitHub configuration
+      description: Retrieves the active repository connection status. The webhook secret is masked and never returned.
+      operationId: getGitHubConfiguration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Configuration metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubConfigurationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-GIT-26
+    delete:
+      tags:
+        - GitHub
+      summary: Remove GitHub integration
+      description: Disconnects the repository from the board and disables webhook parsing.
+      operationId: removeGitHubIntegration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Integration disconnected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-GIT-26
+  /github/webhooks:
+    post:
+      tags:
+        - GitHub
+      summary: Receive GitHub Webhook event
+      description: Public webhook endpoint for GitHub push and pull_request events. Verifies HMAC-SHA256 signature in X-Hub-Signature-256 header and links commits/PRs mentioning card keys.
+      operationId: receiveGitHubWebhook
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/GithubSignatureHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw payload from GitHub webhook delivery.
+      responses:
+        "200":
+          description: Webhook received and processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-GIT-27
+  /cards/{id}/git-activity:
+    get:
+      tags:
+        - GitHub
+      summary: Get card Git activity
+      description: Retrieves commits and pull requests linked to this card via ticket references.
+      operationId: getCardGitActivity
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      responses:
+        "200":
+          description: Linked Git commits and PRs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitActivityListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-GIT-27

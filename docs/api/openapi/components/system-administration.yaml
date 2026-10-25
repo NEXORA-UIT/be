@@ -1,0 +1,354 @@
+components:
+  schemas:
+    RegistrationPendingResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Kiểm tra email để hoàn tất đăng ký
+    UpdateMemberRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum:
+            - OWNER
+    AddBoardMemberRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User must belong to the parent Workspace.
+    CreateLabelRequest:
+      type: object
+      required:
+        - name
+        - color
+      properties:
+        name:
+          type: string
+          example: Frontend
+        color:
+          type: string
+          example: "#F2D600"
+    ProposalDecisionRequest:
+      type: object
+      required:
+        - decision
+      properties:
+        decision:
+          type: string
+          enum:
+            - APPROVE
+            - REJECT
+          example: APPROVE
+    AdminUserItem:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - status
+        - role
+        - createdAt
+      description: System administration user account representation.
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - LOCKED
+        role:
+          type: string
+          enum:
+            - USER
+            - SYSTEM_ADMIN
+        createdAt:
+          type: string
+          format: date-time
+    UpdateUserStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - LOCKED
+        reason:
+          type: string
+          example: "Policy violation report #102"
+    AdminWorkspaceItem:
+      type: object
+      required:
+        - id
+        - name
+        - domainCategory
+        - status
+        - memberCount
+        - boardCount
+        - createdAt
+      description: System administration workspace overview.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        domainCategory:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+            - FROZEN
+        memberCount:
+          type: integer
+          example: 8
+        boardCount:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+    FreezeWorkspaceRequest:
+      type: object
+      required:
+        - isFrozen
+      properties:
+        isFrozen:
+          type: boolean
+        reason:
+          type: string
+          example: Administrative audit investigation
+    WorkspaceQuotas:
+      type: object
+      required:
+        - workspaceId
+        - tokenCeiling
+        - requestLimitPerDay
+        - storageLimitMb
+        - currentTokensUsed
+        - currentRequestsToday
+        - currentStorageMb
+      description: Resource quotas and current consumption of a workspace.
+      properties:
+        workspaceId:
+          type: string
+          format: uuid
+        tokenCeiling:
+          type: integer
+          example: 500000
+        requestLimitPerDay:
+          type: integer
+          example: 1000
+        storageLimitMb:
+          type: integer
+          example: 2048
+        currentTokensUsed:
+          type: integer
+          example: 124500
+        currentRequestsToday:
+          type: integer
+          example: 85
+        currentStorageMb:
+          type: integer
+          example: 420
+    UpdateQuotaRequest:
+      type: object
+      properties:
+        tokenCeiling:
+          type: integer
+          example: 1000000
+        requestLimitPerDay:
+          type: integer
+          example: 2000
+        storageLimitMb:
+          type: integer
+          example: 5120
+    KillSwitchRequest:
+      type: object
+      required:
+        - isAiDisabled
+      properties:
+        isAiDisabled:
+          type: boolean
+        reason:
+          type: string
+          example: Vendor LLM API billing anomaly detected
+    QueueMetricItem:
+      type: object
+      required:
+        - queueName
+        - active
+        - waiting
+        - completed
+        - failed
+        - delayed
+      description: BullMQ queue operational health metric.
+      properties:
+        queueName:
+          type: string
+          example: document-parsing
+        active:
+          type: integer
+          example: 1
+        waiting:
+          type: integer
+          example: 3
+        completed:
+          type: integer
+          example: 150
+        failed:
+          type: integer
+          example: 2
+        delayed:
+          type: integer
+          example: 0
+    SystemAuditLog:
+      type: object
+      required:
+        - id
+        - timestamp
+        - actorId
+        - actionType
+        - targetResource
+        - ipAddress
+        - status
+      description: Immutable security and audit log record.
+      properties:
+        id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          format: uuid
+        actionType:
+          type: string
+          example: KILL_SWITCH_TOGGLED
+        targetResource:
+          type: string
+          example: AI_SUBSYSTEM
+        ipAddress:
+          type: string
+          example: 192.168.1.100
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - FAILURE
+          example: SUCCESS
+        details:
+          type: object
+          nullable: true
+    AdminUserPaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminUserItem"
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+    AdminWorkspacePaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminWorkspaceItem"
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+    WorkspaceQuotasResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: "#/components/schemas/WorkspaceQuotas"
+    QueueMetricListResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueMetricItem"
+    SystemAuditLogPaginatedResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/SystemAuditLog"
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"

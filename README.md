@@ -8,14 +8,14 @@ Tài liệu này mô tả tổng quan kiến trúc, hiện trạng triển khai,
 
 ## Thông tin Dự án & Nhóm thực hiện
 
-* **Tên đồ án:** Hệ thống Quản lý Dự án Thông minh Tích hợp Trợ lý Trí tuệ Nhân tạo (Intelligent Project Management System Integrated with AI Agent).
-* **Môn học:** Đồ án 1.
-* **Thành viên thực hiện:**
+- **Tên đồ án:** Hệ thống Quản lý Dự án Thông minh Tích hợp Trợ lý Trí tuệ Nhân tạo (Intelligent Project Management System Integrated with AI Agent).
+- **Môn học:** Đồ án 1.
+- **Thành viên thực hiện:**
 
-| Họ và tên | Mã số sinh viên | Vai trò |
-| :--- | :---: | :--- |
-| Phan Gia Đạt | 24520287 | Sinh viên thực hiện |
-| Nguyễn Gia Bảo | 24520168 | Sinh viên thực hiện |
+| Họ và tên      | Mã số sinh viên | Vai trò             |
+| :------------- | :-------------: | :------------------ |
+| Phan Gia Đạt   |    24520287     | Sinh viên thực hiện |
+| Nguyễn Gia Bảo |    24520168     | Sinh viên thực hiện |
 
 ---
 
@@ -29,53 +29,52 @@ Kho lưu trữ này (`be`) là phần **Backend** của hệ thống, chịu tr�
 
 ## 2. Hiện trạng Dự án (Project Status)
 
-Dự án hiện đang ở giai đoạn **thiết lập nền tảng kỹ thuật và hoàn thiện hợp đồng đặc tả API (API Contract Documentation)**.
+Dự án đang triển khai backend theo từng module; trạng thái tính năng cụ thể cần xem mã nguồn và tài liệu của module tương ứng.
 
 ### 2.1. Đã triển khai trong mã nguồn (Currently Implemented)
-* Cấu hình TypeScript nghiêm ngặt (`strict: true`, module resolution `NodeNext`, chuẩn ESM).
-* Ứng dụng nền tảng Express 5 và điểm cuối kiểm tra trạng thái máy chủ `GET /` (`Hello World!`).
-* Cấu trúc khung định tuyến phân tầng modular monolith (Router tổng `/api/v1` gắn kết 10 module rỗng).
-* Tích hợp Swagger UI tại đường dẫn `/api/docs` để duyệt và kiểm tra trực quan hợp đồng API.
-* Bộ tài liệu hợp đồng API đầy đủ và chuẩn hóa trong thư mục `docs/api/`.
+
+- Cấu hình TypeScript nghiêm ngặt (`strict: true`, module resolution `NodeNext`, chuẩn ESM).
+- API Express 5 theo kiến trúc modular monolith, được mount dưới `/api/v1`.
+- AUTH, Workspace/membership/invitation và các module Core khác có implementation trong `src/modules/`; mức độ hoàn tất cần xem service, contract và trạng thái kiểm tra tương ứng.
+- Prisma/PostgreSQL, Redis và email adapter đang được dùng trong các flow hiện có.
+- Tích hợp Swagger UI tại đường dẫn `/api/docs` để duyệt và kiểm tra trực quan hợp đồng API.
+- OpenAPI được chia thành fragment theo module trong `docs/api/openapi/` và được ghép khi server khởi động.
 
 ### 2.2. Đặc tả tài liệu (Documentation Only)
-* **Đặc tả WebSocket Realtime (Phase 6):** Bản hợp đồng chuẩn hóa cấu trúc gói tin, sự kiện Kanban và quản lý phòng kết nối tại `docs/api/websocket.md`.
-* **Đặc tả OpenAPI 3.0.3:** Toàn bộ 72 điểm cuối REST API và 123 DTO schema được tài liệu hóa chi tiết tại `docs/api/openapi.yaml`.
 
-### 2.3. Hạ tầng dự kiến trong tương lai (Planned / Future Infrastructure)
-Các công nghệ sau đây **chưa được cài đặt mã nguồn hoặc khởi tạo kết nối** trong repository; các thư mục hiện chỉ là khung giữ chỗ bằng `.gitkeep`:
-* Cơ sở dữ liệu quan hệ: PostgreSQL và Prisma ORM.
-* Tìm kiếm ngữ nghĩa: Phần mở rộng pgvector.
-* Bộ nhớ đệm & Hàng đợi: Redis và BullMQ workers.
-* Lưu trữ tệp tin: Cloudflare R2 hoặc Cloudinary.
-* Xác thực mở rộng: Google OAuth 2.0 và GitHub OAuth 2.0.
-* Trí tuệ nhân tạo: Pipeline RAG, tích hợp LLM, Langfuse tracing, Apache Tika document parser.
-* Tích hợp kỹ thuật: GitHub repository connector và webhook processor.
-* Runtime kết nối mạng thời gian thực: WebSocket runtime (`ws` hoặc Socket.IO).
+- **Đặc tả WebSocket Realtime (Phase 6):** Bản hợp đồng chuẩn hóa cấu trúc gói tin, sự kiện Kanban và quản lý phòng kết nối tại `docs/api/websocket.md`.
+- **Đặc tả OpenAPI 3.0.3:** Các fragment theo module tạo thành một hợp đồng hoàn chỉnh; xem `docs/api/openapi/README.md`.
+
+### 2.3. Hạ tầng được hoãn
+
+- BullMQ workers cho email AUTH và lời mời Workspace; các flow hiện tại vẫn gửi email trực tiếp.
+- Socket.IO cho cộng tác thời gian thực.
+
+Quyết định triển khai chi tiết nằm trong [docs/CORE/deferred-infrastructure.md](docs/CORE/deferred-infrastructure.md).
 
 ---
 
 ## 3. Ngăn xếp Công nghệ (Technology Stack)
 
-| Công nghệ | Trạng thái | Mục đích sử dụng |
-| :--- | :---: | :--- |
-| **Node.js (>=22)** | Đang sử dụng | Môi trường runtime JavaScript phía máy chủ |
-| **pnpm** | Đang sử dụng | Trình quản lý gói phụ thuộc hiệu năng cao |
-| **TypeScript (~5.9)** | Đang sử dụng | Ngôn ngữ lập trình chính với cấu hình tĩnh nghiêm ngặt (`strict: true`) |
-| **Express (5.1)** | Đang sử dụng | Web framework nền tảng cho hệ thống REST API |
-| **Swagger UI Express (5.0)** | Đang sử dụng | Giao diện hiển thị và tương tác trực quan với tài liệu OpenAPI |
-| **YAML parser (2.9)** | Đang sử dụng | Bộ nạp tệp đặc tả `openapi.yaml` vào bộ nhớ máy chủ |
-| **tsx (4.20)** | Đang sử dụng | Công cụ thực thi TypeScript trực tiếp hỗ trợ hot reload khi phát triển |
-| **PostgreSQL** | Dự kiến (Planned) | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững |
-| **Prisma ORM** | Dự kiến (Planned) | Bộ công cụ quản lý lược đồ dữ liệu, migration và truy vấn |
-| **pgvector** | Dự kiến (Planned) | Vector database mở rộng lưu trữ embedding cho hệ thống RAG |
-| **Redis** | Dự kiến (Planned) | Bộ nhớ tạm (caching), quản lý phiên và điều phối phân tán |
-| **BullMQ** | Dự kiến (Planned) | Hệ thống quản lý hàng đợi và tác vụ nền bất đồng bộ |
-| **Cloudinary / R2** | Dự kiến (Planned) | Lưu trữ tệp đính kèm, ảnh đại diện và tài liệu Knowledge Base |
-| **OAuth 2.0 (Google, GitHub)** | Dự kiến (Planned) | Đăng nhập một chạm tiện lợi và bảo mật |
-| **LLM Orchestration / Langfuse** | Dự kiến (Planned) | Điều phối Trợ lý AI, theo dõi token và giám sát cuộc gọi mô hình |
-| **Apache Tika** | Dự kiến (Planned) | Trích xuất văn bản từ tài liệu tải lên (PDF, DOCX) phục vụ RAG |
-| **WebSocket Runtime** | Dự kiến (Planned) | Thư viện socket thời gian thực cho tính năng cộng tác bảng Kanban |
+| Công nghệ                        |    Trạng thái     | Mục đích sử dụng                                                        |
+| :------------------------------- | :---------------: | :---------------------------------------------------------------------- |
+| **Node.js (>=22)**               |   Đang sử dụng    | Môi trường runtime JavaScript phía máy chủ                              |
+| **pnpm**                         |   Đang sử dụng    | Trình quản lý gói phụ thuộc hiệu năng cao                               |
+| **TypeScript (~5.9)**            |   Đang sử dụng    | Ngôn ngữ lập trình chính với cấu hình tĩnh nghiêm ngặt (`strict: true`) |
+| **Express (5.1)**                |   Đang sử dụng    | Web framework nền tảng cho hệ thống REST API                            |
+| **Swagger UI Express (5.0)**     |   Đang sử dụng    | Giao diện hiển thị và tương tác trực quan với tài liệu OpenAPI          |
+| **YAML parser (2.9)**            |   Đang sử dụng    | Đọc và ghép các fragment OpenAPI khi server khởi động                   |
+| **tsx (4.20)**                   |   Đang sử dụng    | Công cụ thực thi TypeScript trực tiếp hỗ trợ hot reload khi phát triển  |
+| **PostgreSQL**                   |   Đang sử dụng    | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững              |
+| **Prisma ORM**                   |   Đang sử dụng    | Quản lý lược đồ dữ liệu, migration và truy vấn                          |
+| **pgvector**                     | Dự kiến (Planned) | Vector database mở rộng lưu trữ embedding cho hệ thống RAG              |
+| **Redis**                        |   Đang sử dụng    | Lưu token ngắn hạn, OAuth state và dữ liệu tạm                          |
+| **BullMQ**                       | Dự kiến (Planned) | Hệ thống quản lý hàng đợi và tác vụ nền bất đồng bộ                     |
+| **Cloudinary / R2**              | Dự kiến (Planned) | Lưu trữ tệp đính kèm, ảnh đại diện và tài liệu Knowledge Base           |
+| **OAuth 2.0 (Google, GitHub)**   | Dự kiến (Planned) | Đăng nhập một chạm tiện lợi và bảo mật                                  |
+| **LLM Orchestration / Langfuse** | Dự kiến (Planned) | Điều phối Trợ lý AI, theo dõi token và giám sát cuộc gọi mô hình        |
+| **Apache Tika**                  | Dự kiến (Planned) | Trích xuất văn bản từ tài liệu tải lên (PDF, DOCX) phục vụ RAG          |
+| **WebSocket Runtime**            | Dự kiến (Planned) | Thư viện socket thời gian thực cho tính năng cộng tác bảng Kanban       |
 
 ---
 
@@ -83,59 +82,100 @@ Các công nghệ sau đây **chưa được cài đặt mã nguồn hoặc kh�
 
 Toàn bộ hợp đồng giao tiếp giữa Frontend và Backend đã được hoàn thiện trong thư mục `docs/api/`:
 
-* **Swagger UI:** Có sẵn trực tiếp khi khởi động máy chủ tại:
-  * Tuyến đường (Route): `/api/docs`
-  * Địa chỉ cục bộ: `http://localhost:3000/api/docs`
-* **Tệp đặc tả OpenAPI:** `docs/api/openapi.yaml` (Quy chuẩn OpenAPI 3.0.3 đầy đủ dữ liệu, phân quyền, OCC và mã lỗi).
-* **Ma trận điểm cuối:** `docs/api/endpoint-matrix.md` (Đối chiếu 16 cột chuẩn cho 32 Use Case theo tài liệu SRS).
-* **Quy ước API & Xử lý lỗi:** `docs/api/conventions.md` (Quy định cấu trúc phản hồi JSON chuẩn, mã lỗi chuẩn hóa, phân trang và kiểm soát tương tranh lạc quan OCC).
-* **Đặc tả WebSocket Realtime:** `docs/api/websocket.md` (Đặc tả các gói tin sự kiện cộng tác thời gian thực).
-* **Báo cáo kiểm định WebSocket:** `docs/api/websocket-validation.md` (Báo cáo thẩm định tính nhất quán của hợp đồng Phase 6).
+- **Swagger UI:** Có sẵn trực tiếp khi khởi động máy chủ tại:
+  - Tuyến đường (Route): `/api/docs`
+  - Địa chỉ cục bộ: `http://localhost:3000/api/docs`
+- **Tệp đặc tả OpenAPI:** các fragment tại `docs/api/openapi/`, được ghép thành một tài liệu OpenAPI 3.0.3 khi khởi động.
+- **Ma trận điểm cuối:** `docs/api/endpoint-matrix.md` (Đối chiếu 16 cột chuẩn cho 32 Use Case theo tài liệu SRS).
+- **Quy ước API & Xử lý lỗi:** `docs/api/conventions.md` (Quy định cấu trúc phản hồi JSON chuẩn, mã lỗi chuẩn hóa, phân trang và kiểm soát tương tranh lạc quan OCC).
+- **Đặc tả WebSocket Realtime:** `docs/api/websocket.md` (Đặc tả các gói tin sự kiện cộng tác thời gian thực).
 
 ### Lưu ý về Giai đoạn Phase 6 (WebSocket Documentation)
-* Phase 6 **hoàn toàn là tài liệu hóa hợp đồng đặc tả**.
-* **Nguyên tắc thẩm quyền:** REST API vẫn là nguồn thẩm quyền duy nhất thực hiện biến đổi dữ liệu bền vững (Create, Update, Move, Archive, Delete). WebSocket chỉ đóng vai trò kênh lan truyền thông báo sự kiện một chiều từ máy chủ tới các máy khách trong cùng phòng Bảng (`board:{boardId}`).
-* **Chưa có mã nguồn WebSocket runtime:** Chưa có thư viện kết nối thời gian thực nào được cài đặt vào mã nguồn trong giai đoạn này.
+
+- Phase 6 **hoàn toàn là tài liệu hóa hợp đồng đặc tả**.
+- **Nguyên tắc thẩm quyền:** REST API vẫn là nguồn thẩm quyền duy nhất thực hiện biến đổi dữ liệu bền vững (Create, Update, Move, Archive, Delete). WebSocket chỉ đóng vai trò kênh lan truyền thông báo sự kiện một chiều từ máy chủ tới các máy khách trong cùng phòng Bảng (`board:{boardId}`).
+- **Chưa có mã nguồn WebSocket runtime:** Chưa có thư viện kết nối thời gian thực nào được cài đặt vào mã nguồn trong giai đoạn này.
 
 ---
 
 ## 5. Hướng dẫn Chạy Dự án (Running the Project)
 
 ### 5.1. Yêu cầu Môi trường
-* **Node.js:** Phiên bản `>= 22.0.0`
-* **Package Manager:** `pnpm` (khuyến nghị phiên bản 9 trở lên)
+
+- **Node.js:** Phiên bản `>= 22.0.0`
+- **Package Manager:** `pnpm` (khuyến nghị phiên bản 9 trở lên)
 
 ### 5.2. Các Lệnh Thực thi
 
 Cài đặt các gói phụ thuộc:
+
 ```sh
 pnpm install
 ```
 
-Khởi chạy máy chủ ở chế độ phát triển (Hot reload):
+Khởi chạy local với hot reload và `.env.local`:
+
 ```sh
-pnpm dev
+pnpm dev:local
 ```
+
+Build rồi chạy bằng `.env.production`:
+
+```sh
+pnpm dev:production
+```
+
 Sau khi khởi động, truy cập:
-* Kiểm tra máy chủ: `http://localhost:3000/` (Phản hồi: `Hello World!`)
-* Giao diện Swagger UI: `http://localhost:3000/api/docs`
+
+- Kiểm tra máy chủ: `http://localhost:3000/` (Phản hồi: `Hello World!`)
+- Giao diện Swagger UI: `http://localhost:3000/api/docs`
 
 Kiểm tra kiểu dữ liệu TypeScript (Strict Typecheck):
+
 ```sh
 pnpm typecheck
 ```
 
 Biên dịch dự án sang mã nguồn JavaScript:
+
 ```sh
 pnpm build
 ```
 
-Khởi chạy bản biên dịch trong thư mục `dist/`:
+Khởi chạy bản đã build trong `dist/` bằng `.env.production`:
+
 ```sh
 pnpm start
 ```
 
-*Lưu ý: Biến môi trường `PORT` cho phép thay đổi cổng lắng nghe của máy chủ (mặc định là `3000`). Ở giai đoạn hiện tại, dự án không yêu cầu kết nối cơ sở dữ liệu hay khóa API bên ngoài để chạy.*
+`PORT` cho phép thay đổi cổng lắng nghe, mặc định là `3000`. `.env.local` và `.env.production` chứa secret nên không được commit.
+
+### 5.3. PostgreSQL và Redis local bằng Docker
+
+Docker Compose cho PostgreSQL và Redis local nằm tại `infrastructure/docker/compose.yaml`. Backend chạy trên host bằng `pnpm dev:local`. Cần Docker Desktop hoặc Docker daemon đang chạy.
+
+Trong PowerShell, tại gốc repo:
+
+```powershell
+Copy-Item .env.local.example .env.local
+```
+
+Sửa các placeholder trong `.env.local`. Nếu cổng 5432 hoặc 6379 đang bận, đổi `POSTGRES_PORT` hoặc `REDIS_PORT` trong file này.
+
+```powershell
+pnpm infra:up:local
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml ps
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml exec redis redis-cli ping
+```
+
+`ps` cần hiển thị cả `postgres` và `redis` ở trạng thái `healthy`; lệnh Redis trả `PONG`. Dừng các container khi không dùng:
+
+```powershell
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml down
+```
+
+`down` giữ hai named volumes nên dữ liệu còn sau khi khởi động lại. Chỉ dùng `down --volumes` khi muốn xóa dữ liệu local.
 
 ---
 
@@ -191,7 +231,7 @@ src/
     schedulers/                Đăng ký lịch trình chạy job định kỳ
 ```
 
-*Lưu ý: Các thư mục đánh dấu `[Giữ chỗ]` hiện chứa tệp `.gitkeep` để duy trì cấu trúc khung kiến trúc chuẩn, chưa chứa logic kết nối runtime.*
+_Lưu ý: Các thư mục đánh dấu `[Giữ chỗ]` hiện chứa tệp `.gitkeep` để duy trì cấu trúc khung kiến trúc chuẩn, chưa chứa logic kết nối runtime._
 
 ---
 
@@ -199,20 +239,21 @@ src/
 
 Việc hiện diện thư mục module không đồng nghĩa nghiệp vụ đã được triển khai. Bảng dưới đây định vị trách nhiệm khi bước vào giai đoạn cài đặt mã nguồn:
 
-| Module | Nhóm SRS | Trách nhiệm khi triển khai nghiệp vụ |
-| :--- | :---: | :--- |
-| `auth` | AUTH | Đăng ký, đăng nhập cục bộ, cấp phát JWT, làm mới token, Google/GitHub OAuth |
-| `workspaces` | WS | Ranh giới Workspace, quản lý thành viên, lời mời, phân quyền Owner |
-| `boards` | BOARD | Vòng đời Board dự án, trạng thái cột List, phân công quyền PM cho từng Board |
-| `cards` | CARD | Thẻ công việc, checklist tác vụ, hạn chót, nhãn màu, tệp đính kèm, kéo thả thứ tự |
-| `collaboration` | COL | Bình luận trao đổi, thông báo in-app, nhật ký hoạt động, sự kiện thời gian thực |
-| `planning` | PLAN | Lịch biểu (Calendar), Inbox ghi chú nhanh (Quick Notes), liên kết phụ thuộc thẻ |
-| `knowledge-base` | KB | Lưu trữ tài liệu theo Board, xử lý trích xuất văn bản, lập chỉ mục vector RAG |
-| `ai` | AI | Trợ lý hội thoại ngữ cảnh, điều phối công cụ (Tools), tóm tắt tiến độ, cơ chế Human-in-the-Loop |
-| `github` | GIT | Kết nối kho GitHub, tiếp nhận webhook sự kiện commit/pull request gắn với Card |
-| `system-admin` | SYS | Quản trị nền tảng, khóa tài khoản, đóng băng Workspace, kill switch AI, kiểm toán |
+| Module           | Nhóm SRS | Trách nhiệm khi triển khai nghiệp vụ                                                            |
+| :--------------- | :------: | :---------------------------------------------------------------------------------------------- |
+| `auth`           |   AUTH   | Đăng ký, đăng nhập cục bộ, cấp phát JWT, làm mới token, Google/GitHub OAuth                     |
+| `workspaces`     |    WS    | Ranh giới Workspace, quản lý thành viên, lời mời, phân quyền Owner                              |
+| `boards`         |  BOARD   | Vòng đời Board dự án, trạng thái cột List, phân công quyền PM cho từng Board                    |
+| `cards`          |   CARD   | Thẻ công việc, checklist tác vụ, hạn chót, nhãn màu, tệp đính kèm, kéo thả thứ tự               |
+| `collaboration`  |   COL    | Bình luận trao đổi, thông báo in-app, nhật ký hoạt động, sự kiện thời gian thực                 |
+| `planning`       |   PLAN   | Lịch biểu (Calendar), Inbox ghi chú nhanh (Quick Notes), liên kết phụ thuộc thẻ                 |
+| `knowledge-base` |    KB    | Lưu trữ tài liệu theo Board, xử lý trích xuất văn bản, lập chỉ mục vector RAG                   |
+| `ai`             |    AI    | Trợ lý hội thoại ngữ cảnh, điều phối công cụ (Tools), tóm tắt tiến độ, cơ chế Human-in-the-Loop |
+| `github`         |   GIT    | Kết nối kho GitHub, tiếp nhận webhook sự kiện commit/pull request gắn với Card                  |
+| `system-admin`   |   SYS    | Quản trị nền tảng, khóa tài khoản, đóng băng Workspace, kill switch AI, kiểm toán               |
 
 Mỗi module được thiết kế đồng nhất theo cấu trúc nội bộ:
+
 ```text
 modules/<tên-module>/
   routes/index.ts              Express Router của module
@@ -244,7 +285,8 @@ modules/<tên-module>/
 ## 9. Cập nhật Mô hình Vai trò & Phân quyền (RBAC)
 
 Dựa trên kết quả thảo luận kỹ thuật và chuẩn hóa yêu cầu:
-* **Workspace Owner:** Người khởi tạo Workspace có toàn quyền sở hữu Workspace đó, quản lý thành viên và chỉ định PM cho từng Board.
-* **Board PM (Project Manager):** Mỗi Board có 1 PM chịu trách nhiệm quản lý trực tiếp các thành viên và quy trình công việc trong phạm vi Board đó.
-* **Board Member:** Thành viên tham gia thực hiện nhiệm vụ, trao đổi và cập nhật thẻ việc trong Board được phân quyền.
-* **System Admin:** Quản trị viên cấp cao của toàn hệ thống, quản lý tài khoản và hạn ngạch, không mặc định truy cập vào nội dung dự án riêng tư của người dùng.
+
+- **Workspace Owner:** Người khởi tạo Workspace có toàn quyền sở hữu Workspace đó, quản lý thành viên và chỉ định PM cho từng Board.
+- **Board PM (Project Manager):** Mỗi Board có 1 PM chịu trách nhiệm quản lý trực tiếp các thành viên và quy trình công việc trong phạm vi Board đó.
+- **Board Member:** Thành viên tham gia thực hiện nhiệm vụ, trao đổi và cập nhật thẻ việc trong Board được phân quyền.
+- **System Admin:** Quản trị viên cấp cao của toàn hệ thống, quản lý tài khoản và hạn ngạch, không mặc định truy cập vào nội dung dự án riêng tư của người dùng.

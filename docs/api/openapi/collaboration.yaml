@@ -1,0 +1,180 @@
+paths:
+  /realtime:
+    get:
+      tags:
+        - Collaboration
+      summary: Đồng bộ Board thời gian thực (để triển khai sau)
+      description: Endpoint dành cho Socket.IO, chưa thuộc phạm vi REST Core hiện tại.
+      operationId: connectRealtimeWebSocket
+      security:
+        - bearerAuth: []
+      responses:
+        "101":
+          description: Đã chuyển giao thức; kết nối WebSocket được thiết lập thành công.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      x-scope: SRS-CORE
+      x-implementation-status: OUT OF SCOPE - Socket.IO deferred
+      x-related-use-cases:
+        - UC-COL-15
+  /cards/{id}/comments:
+    post:
+      tags:
+        - Collaboration
+      summary: Tạo bình luận cho Card
+      description: Thêm bình luận Markdown và tạo thông báo trong ứng dụng cho các lượt @mention hợp lệ mới. Từ chối khi Card, List, Board hoặc Workspace đã lưu trữ/đóng băng. Gửi email và thông báo thời gian thực sẽ triển khai sau.
+      operationId: createCardComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: Đã lưu bình luận và tạo thông báo trong ứng dụng cho các lượt mention.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+    get:
+      tags:
+        - Collaboration
+      summary: Xem bình luận của Card
+      description: Trả về các bình luận theo thứ tự thời gian. Người có quyền Board vẫn đọc được khi Card/cha đã lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
+      operationId: listCardComments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/LimitQuery"
+      responses:
+        "200":
+          description: Danh sách bình luận.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: PROPOSED
+      x-related-use-cases:
+        - UC-COL-16
+  /comments/{id}:
+    patch:
+      tags:
+        - Collaboration
+      summary: Sửa bình luận Card
+      description: "Cập nhật nội dung bình luận. Chỉ tác giả ban đầu được sửa khi Card, List, Board và Workspace còn hoạt động."
+      operationId: updateComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentRequest"
+      responses:
+        "200":
+          description: Đã cập nhật bình luận.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+    delete:
+      tags:
+        - Collaboration
+      summary: Xóa bình luận Card
+      description: Xóa mềm bình luận khi Card, List, Board và Workspace còn hoạt động. Chỉ tác giả của bình luận được phép thực hiện thao tác này.
+      operationId: deleteComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentIdPath"
+      responses:
+        "200":
+          description: Đã xóa bình luận.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-16
+  /cards/{id}/activity:
+    get:
+      tags:
+        - Collaboration
+      summary: Xem lịch sử hoạt động của Card
+      description: Trả về lịch sử hoạt động bất biến của Card, mới nhất trước, phân trang bằng cursor với tối đa 100 mục mỗi trang. Thành viên Board được đọc sau khi Card/cha lưu trữ hoặc Workspace đóng băng; Card xóa mềm không đọc được.
+      operationId: listCardActivities
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CardIdPath"
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Các sự kiện hoạt động đã phân trang.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityLogPaginatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-COL-17
