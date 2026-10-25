@@ -15,13 +15,6 @@ function routeParam(request: Request, name: string): string {
   return value;
 }
 
-function actor(request: Request) {
-  return {
-    userId: request.auth.userId,
-    fullName: request.user?.fullName || 'Thành viên',
-  };
-}
-
 export async function createListController(request: Request, response: Response) {
   const list = await createList(request.auth.userId, routeParam(request, 'boardId'), request.body);
   response.status(201).json({ success: true, data: list });
@@ -45,7 +38,11 @@ export async function updateListController(request: Request, response: Response)
 }
 
 export async function reorderListController(request: Request, response: Response) {
-  const list = await reorderList(actor(request), routeParam(request, 'id'), request.body.position);
+  const list = await reorderList(
+    request.auth.userId,
+    routeParam(request, 'id'),
+    request.body.position,
+  );
   response.json({ success: true, data: list });
 }
 

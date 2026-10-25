@@ -43,6 +43,7 @@ enum CardPriority {
 enum NotificationType {
   CARD_ASSIGNED
   COMMENT_MENTION
+  CARD_DUE_SOON
 }
 
 enum WorkspaceInvitationStatus {
@@ -80,6 +81,7 @@ model User {
   workspaceAuditEventsAsActor  WorkspaceAuditLog[]   @relation("WorkspaceAuditActor")
   workspaceAuditEventsAsTarget WorkspaceAuditLog[]   @relation("WorkspaceAuditTarget")
   notifications                Notification[]
+  dueReminders                 CardDueReminder[]
   notificationsSent            Notification[]        @relation("NotificationActor")
   quickNotes                   QuickNote[]
 }
@@ -261,6 +263,7 @@ model Card {
   attachments     Attachment[]
   activityLogs    ActivityLog[]
   notifications   Notification[]
+  dueReminders    CardDueReminder[]
   sourceQuickNote QuickNote?
 
   @@unique([boardId, cardKey])
@@ -382,11 +385,26 @@ model Attachment {
 }
 
 model PendingObjectCleanup {
-  id         String   @id @default(uuid()) @db.Uuid
-  storageKey String   @unique
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  id            String   @id @default(uuid()) @db.Uuid
+  storageKey    String   @unique
+  attemptCount  Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
-  @@index([createdAt])
+  @@index([nextAttemptAt, createdAt])
+}
+
+model CardDueReminder {
+  cardId       String    @db.Uuid
+  userId       String    @db.Uuid
+  dueDate      DateTime  @db.Timestamptz(3)
+  emailQueuedAt DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  card         Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId, dueDate])
+  @@index([userId, createdAt])
 }
 
 model Notification {

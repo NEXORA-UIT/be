@@ -7,13 +7,17 @@ Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Tr�
 ## Chỉ mục
 
 - [Quy tắc nghiệp vụ và phân quyền](business-rules.md)
+- [Luồng dữ liệu và quyền xem Board theo Workspace](board-visibility-realtime.md)
 - [Nhóm việc và thứ tự triển khai REST Core](implementation-order.md)
 - [Plan authorization](plans/01-authorization.md)
 - [Plan Workspace và membership](plans/02-workspace-membership.md)
 - [Kế hoạch khép khoảng trống REST Core so với SRS](plans/03-srs-core-gap-closure.md)
 - [Checklist kiểm thử Swagger trước bàn giao BE](plans/04-swagger-handover-test.md)
+- [Kế hoạch hoàn thiện realtime Socket.IO theo SRS](plans/05-socketio-realtime-srs.md)
+- [Kế hoạch hoàn thiện tác vụ bất đồng bộ BullMQ](plans/06-async-bullmq.md)
 - [Cấu hình và di chuyển Card Attachment sang R2](attachment-storage.md)
-- [Quyết định hoãn BullMQ và Socket.IO](deferred-infrastructure.md)
+- [Tác vụ định kỳ: nhắc hạn và dọn Attachment](scheduled-jobs.md)
+- [Trạng thái quyết định BullMQ và Socket.IO](deferred-infrastructure.md)
 - [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)
 - [Hợp đồng API hiện có](../api/README.md)
@@ -47,11 +51,11 @@ Kế hoạch hoàn thiện REST Core được chia thành ba nhánh tích hợp 
 - Assignment, Label, Task, Comment, Card Attachment, Activity query, Dependency, truy vấn Calendar/List View/Dashboard, Notification Center REST và QuickNote.
 - Phân quyền, cô lập dữ liệu, vòng đời archive, transaction và kiểm thử nghiệp vụ.
 
-Calendar/List View, Dependency và Dashboard được ghi là nhóm mở rộng `[E]` trong SRS, nhưng nằm trong phạm vi REST Core đã chọn cho kế hoạch này. Notification Center và QuickNote được đưa vào vì là use case REST trong SRS; phần realtime delivery vẫn bị loại.
+Calendar/List View, Dependency và Dashboard được ghi là nhóm mở rộng `[E]` trong SRS, nhưng nằm trong phạm vi REST Core đã chọn cho kế hoạch này. Notification Center và QuickNote được đưa vào vì là use case REST trong SRS; Socket.IO đồng bộ thêm cho người dùng đang online.
 
-Ngoài kế hoạch: BullMQ/email queue, Socket.IO/WebSocket delivery, AI, RAG/embedding/Tika, AI Agent/Tool Calling/Proposal, pipeline tài liệu Knowledge Base, GitHub connector và quản trị quota AI nâng cao. Card Attachment vẫn là luồng riêng, không tự trở thành tài liệu Knowledge Base. Các gap SRS bị loại phải được ghi nhận, không tuyên bố đã hoàn thành toàn bộ SRS.
+Ngoài phạm vi hiện tại: AI, RAG/embedding/Tika, AI Agent/Tool Calling/Proposal, pipeline tài liệu Knowledge Base, GitHub connector và quản trị quota AI nâng cao. Card Attachment vẫn là luồng riêng, không tự trở thành tài liệu Knowledge Base. BullMQ và Socket.IO đang được hoàn thiện theo hai kế hoạch phía trên.
 
-SRS yêu cầu email lời mời đi qua hàng đợi. Theo quyết định triển khai hiện tại, [BullMQ được hoãn](deferred-infrastructure.md) cùng đợt realtime Socket.IO; flow Workspace REST trước mắt dùng email adapter hiện có.
+SRS yêu cầu email lời mời đi qua hàng đợi. BullMQ hiện được triển khai theo [kế hoạch tác vụ bất đồng bộ](plans/06-async-bullmq.md); worker chạy cùng API theo mặc định hoặc bằng process riêng.
 
 ## Kiến trúc định hướng
 
@@ -65,8 +69,8 @@ HTTP route / middleware
     → PostgreSQL / Redis theo trách nhiệm
 ```
 
-Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và điều phối transaction. HTTP validation không thay thế business validation. AI Tool Layer, realtime và worker trong tương lai phải dùng lại Core services thay vì tự query dữ liệu và tái tạo permission logic.
+Service chịu trách nhiệm kiểm tra quyền, quy tắc nghiệp vụ và điều phối transaction. HTTP validation không thay thế business validation. Socket.IO command và BullMQ worker dùng lại Core services thay vì tự query dữ liệu và tái tạo permission logic.
 
 ## Trạng thái triển khai
 
-Ba nhánh `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã triển khai phạm vi REST Core ban đầu. Các khoảng trống về membership, audit vai trò, archive/storage và planning đã được xử lý theo [kế hoạch khép khoảng trống](plans/03-srs-core-gap-closure.md); cổng cuối đạt 91/91 test, typecheck, Prisma validate/migration deploy, Prettier và OpenAPI loader (92 path/122 operation). Đây chưa phải xác nhận toàn bộ SRS: UC-Board-09 phần Knowledge Base, BullMQ, Socket.IO và AI/RAG/Agent vẫn còn ngoài phạm vi.
+Ba nhánh `feature/core-board-list`, `feature/core-card` và `feature/core-rest-completion` đã triển khai phạm vi REST Core ban đầu. Các khoảng trống về membership, audit vai trò, archive/storage và planning đã được xử lý theo [kế hoạch khép khoảng trống](plans/03-srs-core-gap-closure.md). Đợt hiện tại hoàn thiện BullMQ và Socket.IO; trạng thái nghiệm thu cần đối chiếu với test/build mới nhất. UC-Board-09 phần Knowledge Base và các module AI/RAG/Agent vẫn ngoài phạm vi.

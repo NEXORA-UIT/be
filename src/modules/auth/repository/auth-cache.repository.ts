@@ -16,6 +16,10 @@ export const authCacheRepository = {
     const key = AUTH_CACHE_KEY.reset(tokenHash);
     return redis.getDel(key);
   },
+  async removeReset(tokenHash: string) {
+    const key = AUTH_CACHE_KEY.reset(tokenHash);
+    await redis.del(key);
+  },
   async savePendingRegistration(
     tokenHash: string,
     registration: PendingRegistration,

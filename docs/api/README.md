@@ -1,6 +1,6 @@
 # Tài liệu API Nexora
 
-Thư mục này chứa hợp đồng HTTP, bảng truy vết REST Core, quy ước dùng chung và hợp đồng realtime đang được hoãn.
+Thư mục này chứa hợp đồng HTTP, bảng truy vết REST Core, quy ước dùng chung và hợp đồng realtime Socket.IO.
 
 ## Nguồn OpenAPI
 
@@ -16,4 +16,4 @@ Hợp đồng HTTP vẫn là một tài liệu OpenAPI 3.0.3 thống nhất cho 
 
 - [Quy ước API](conventions.md) mô tả hành vi HTTP, response envelope, phân trang và mã lỗi.
 - [Bảng truy vết endpoint](endpoint-matrix.md) ánh xạ các luồng REST Core đã triển khai sang use case trong SRS. OpenAPI là nguồn chuẩn cho hợp đồng chi tiết.
-- [Hợp đồng WebSocket](websocket.md) ghi nhận giao thức realtime dự kiến; phần triển khai Socket.IO đang được hoãn.
+- [Hợp đồng Socket.IO realtime](websocket.md) ghi path kết nối, xác thực, room, command, event và cách chạy local.

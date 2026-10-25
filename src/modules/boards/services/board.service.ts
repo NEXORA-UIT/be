@@ -1,12 +1,11 @@
 import { AppointmentProvenance, BoardRole, Prisma, WorkspaceRole } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
+import { assertValidAttachmentStorageKey } from '../../../infrastructure/storage/object-storage.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
 import { requireWorkspaceAccess } from '../../../shared/authorization/access.service.js';
 import { AppError } from '../../../shared/errors/app.error.js';
 import { ERROR_CODE } from '../../../shared/errors/error-code.js';
 import { removeCardAssignments } from '../../cards/child-resources/assignment-cleanup.js';
-import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
-import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
 import type { CreateBoardDto, UpdateBoardDto } from '../dto/board.schema.js';
 import { runBoardTransaction } from './board-transaction.service.js';
 
@@ -195,7 +194,6 @@ export async function deleteArchivedBoard(
   userId: string,
   boardId: string,
   confirmationName: string,
-  storage: ObjectStorage = attachmentStorage,
 ): Promise<void> {
   await runBoardTransaction(async (transaction) => {
     const board = await requireBoardManagementInTransaction(transaction, userId, boardId, {
@@ -227,14 +225,20 @@ export async function deleteArchivedBoard(
     }
     for (const storageKey of storageKeys) {
       try {
-        await storage.delete(storageKey);
+        assertValidAttachmentStorageKey(storageKey);
       } catch {
         throw new AppError(
           503,
           'ATTACHMENT_CLEANUP_FAILED',
-          'Không thể dọn tệp đính kèm; dữ liệu Board được giữ lại để thử lại',
+          'Không thể xác định tệp đính kèm; dữ liệu Board được giữ lại để kiểm tra',
         );
       }
+    }
+    if (storageKeys.length > 0) {
+      await transaction.pendingObjectCleanup.createMany({
+        data: storageKeys.map((storageKey) => ({ storageKey })),
+        skipDuplicates: true,
+      });
     }
 
     await transaction.board.delete({ where: { id: boardId } });
@@ -346,5 +350,42 @@ export async function removeBoardMember(userId: string, boardId: string, targetU
     }
     await removeCardAssignments(transaction, { userId: targetUserId, card: { boardId } }, userId);
     await transaction.boardMembership.delete({ where: { id: membership.id } });
+  });
+}
+
+export async function leaveBoard(userId: string, boardId: string) {
+  return runBoardTransaction(async (transaction) => {
+    const board = await transaction.board.findUnique({
+      where: { id: boardId },
+      select: {
+        workspaceId: true,
+        archivedAt: true,
+        workspace: { select: { archivedAt: true, isFrozen: true } },
+      },
+    });
+    if (!board) throw accessErrors.notFound('Board');
+
+    const workspaceMembership = await transaction.workspaceMembership.findFirst({
+      where: { workspaceId: board.workspaceId, userId, endedAt: null },
+      select: { role: true },
+    });
+    if (!workspaceMembership) throw accessErrors.forbidden();
+
+    const boardMembership = await transaction.boardMembership.findUnique({
+      where: { boardId_userId: { boardId, userId } },
+      select: { id: true, role: true },
+    });
+    if (!boardMembership) throw accessErrors.notFound('Thành viên Board');
+    if (workspaceMembership.role === WorkspaceRole.OWNER) {
+      throw conflict('Chủ Workspace luôn có quyền truy cập Board này và không thể rời riêng Board');
+    }
+    if (boardMembership.role === BoardRole.PM) {
+      throw conflict('Hãy phân công PM thay thế trước khi rời Board');
+    }
+    if (board.workspace.archivedAt || board.archivedAt) throw accessErrors.archived();
+    if (board.workspace.isFrozen) throw accessErrors.frozen();
+
+    await removeCardAssignments(transaction, { userId, card: { boardId } }, userId);
+    await transaction.boardMembership.delete({ where: { id: boardMembership.id } });
   });
 }

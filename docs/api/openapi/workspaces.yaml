@@ -144,7 +144,7 @@ paths:
       tags:
         - Members
       summary: Mời thành viên vào workspace
-      description: Tạo lời mời với token bảo mật có hiệu lực trong 7 ngày và gửi email qua bộ điều hợp email hiện tại. Yêu cầu vai trò Owner của workspace.
+      description: Tạo lời mời với token bảo mật có hiệu lực trong 7 ngày và enqueue email gửi lời mời bằng BullMQ. API chỉ xác nhận job đã vào hàng đợi; worker sẽ gửi và retry khi SMTP tạm lỗi. Yêu cầu vai trò Owner của workspace.
       operationId: inviteWorkspaceMember
       security:
         - bearerAuth: []
@@ -157,8 +157,8 @@ paths:
             schema:
               $ref: "#/components/schemas/InviteMemberRequest"
       responses:
-        "201":
-          description: Đã tạo lời mời và gửi email.
+        "202":
+          description: Đã tạo lời mời và chấp nhận job gửi email vào hàng đợi.
           content:
             application/json:
               schema:
@@ -274,7 +274,7 @@ paths:
       tags:
         - Members
       summary: Gửi lại lời mời workspace
-      description: Vô hiệu hóa token lời mời cũ, cấp token mới có hiệu lực 7 ngày và gửi email mới.
+      description: Enqueue email gửi lại lời mời với token mới có hiệu lực 7 ngày. API chỉ xác nhận job đã vào hàng đợi; worker sẽ gửi và retry khi SMTP tạm lỗi.
       operationId: resendWorkspaceInvitation
       security:
         - bearerAuth: []
@@ -287,8 +287,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
-          description: Đã cấp token lời mời mới và gửi email.
+        "202":
+          description: Đã cấp token lời mời mới và chấp nhận job gửi email vào hàng đợi.
           content:
             application/json:
               schema:

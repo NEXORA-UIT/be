@@ -4,7 +4,7 @@ paths:
       tags:
         - Authentication
       summary: Request local account registration
-      description: Stores a pending registration in Redis for 15 minutes and sends a verification link through Gmail. No user or token is created until the link is verified.
+      description: Stores a pending registration in Redis for 15 minutes and enqueues a verification email in BullMQ. No user or access token is created until the link is verified.
       operationId: registerUser
       security: []
       requestBody:
@@ -15,7 +15,7 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "202":
-          description: Verification email accepted for delivery.
+          description: Verification email job accepted by the queue; delivery is processed asynchronously with retries.
           content:
             application/json:
               schema:
@@ -25,7 +25,7 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
         "503":
-          description: Gmail delivery is not configured.
+          description: Email delivery is not configured or the queue is unavailable.
           content:
             application/json:
               schema:

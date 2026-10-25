@@ -31,5 +31,9 @@ export async function verifyAccessToken(token: string) {
   if (typeof payload.userId !== 'string' || typeof payload.refreshTokenId !== 'string') {
     throw new Error('Invalid claims');
   }
-  return { userId: payload.userId, refreshTokenId: payload.refreshTokenId };
+  return {
+    userId: payload.userId,
+    refreshTokenId: payload.refreshTokenId,
+    expiresAt: payload.exp ?? 0,
+  };
 }

@@ -338,6 +338,35 @@ paths:
       x-scope: SRS-CORE
       x-related-use-cases:
         - UC-Board-09
+  /boards/{id}/leave:
+    post:
+      tags:
+        - Boards
+      summary: Tự rời khỏi Board
+      description: Thành viên Board có thể tự rời. Assignment của họ trên Board được gỡ; Workspace membership và lịch sử Card được giữ nguyên. PM phải chuyển quyền trước, Workspace Owner không thể rời riêng Board vì luôn có quyền truy cập.
+      operationId: leaveBoard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BoardIdPath"
+      responses:
+        "200":
+          description: Đã rời Board và gỡ assignment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+      x-scope: SRS-CORE
+      x-related-use-cases:
+        - UC-Board-09
   /boards/{id}/lists:
     post:
       tags:

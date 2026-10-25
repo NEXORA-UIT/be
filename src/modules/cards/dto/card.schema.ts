@@ -16,7 +16,7 @@ export const createCardSchema = z
     dueDate: dateSchema.nullable().optional(),
   })
   .refine((input) => !input.startDate || !input.dueDate || input.startDate <= input.dueDate, {
-    message: 'Start date must be before or equal to due date',
+    message: 'Ngày bắt đầu phải trước hoặc bằng hạn chót',
     path: ['dueDate'],
   });
 
@@ -30,10 +30,10 @@ export const updateCardSchema = z
     updatedAt: dateSchema,
   })
   .refine((input) => Object.keys(input).some((key) => key !== 'updatedAt'), {
-    message: 'At least one field must be updated',
+    message: 'Phải có ít nhất một trường cần cập nhật',
   })
   .refine((input) => !input.startDate || !input.dueDate || input.startDate <= input.dueDate, {
-    message: 'Start date must be before or equal to due date',
+    message: 'Ngày bắt đầu phải trước hoặc bằng hạn chót',
     path: ['dueDate'],
   });
 
@@ -84,9 +84,9 @@ function parseQuery<T>(schema: z.ZodType<T>, input: unknown, message: string): T
 }
 
 export function parseCardId(input: unknown): string {
-  return parseQuery(cardIdSchema, input, 'Invalid card ID');
+  return parseQuery(cardIdSchema, input, 'Mã Card không hợp lệ');
 }
 
 export function parseCardListQuery(input: unknown) {
-  return parseQuery(cardListQuerySchema, input, 'Invalid query parameters');
+  return parseQuery(cardListQuerySchema, input, 'Tham số truy vấn không hợp lệ');
 }

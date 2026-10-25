@@ -1,6 +1,6 @@
 import { randomToken, hashToken } from '../../auth/utils/token.util.js';
 import { redis } from '../../../infrastructure/redis/client.js';
-import { sendEmail } from '../../../infrastructure/email/email.client.js';
+import { enqueueEmail } from '../../../infrastructure/queue/queue.client.js';
 import { emailConfig } from '../../../config/email/email.config.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
@@ -14,7 +14,7 @@ import { recordWorkspaceAudit } from './workspace-audit.service.js';
 
 export const WORKSPACE_INVITATION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-type EmailSender = (message: EmailMessage) => Promise<void>;
+type EmailSender = (message: EmailMessage, idempotencyKey: string) => Promise<unknown>;
 
 function toPublicInvitation<
   T extends {
@@ -98,7 +98,7 @@ export async function inviteWorkspaceMember(
   actorId: string,
   workspaceId: string,
   email: string,
-  deliver: EmailSender = sendEmail,
+  deliver: EmailSender = enqueueEmail,
 ) {
   const access = await requireWorkspaceOwner(actorId, workspaceId);
   if (access.archivedAt || access.isFrozen) throw accessErrors.forbidden();
@@ -138,11 +138,14 @@ export async function inviteWorkspaceMember(
 
   try {
     await redis.set(redisKey, invitation.id, { EX: WORKSPACE_INVITATION_TTL_SECONDS });
-    await deliver({
-      to: normalizedEmail,
-      subject: 'Lời mời tham gia Nexora Workspace',
-      text: `Bạn được mời tham gia Workspace. Sử dụng liên kết này trước ${expiresAt.toISOString()}: ${link}`,
-    });
+    await deliver(
+      {
+        to: normalizedEmail,
+        subject: 'Lời mời tham gia Nexora Workspace',
+        text: `Bạn được mời tham gia Workspace. Sử dụng liên kết này trước ${expiresAt.toISOString()}: ${link}`,
+      },
+      `workspace-invitation:${invitation.id}:${tokenHash}`,
+    );
   } catch (error) {
     await prisma.workspaceInvitation.updateMany({
       where: { id: invitation.id, status: 'PENDING' },
@@ -239,7 +242,7 @@ export async function cancelWorkspaceInvitation(
 export async function resendWorkspaceInvitation(
   actorId: string,
   invitationId: string,
-  deliver: EmailSender = sendEmail,
+  deliver: EmailSender = enqueueEmail,
 ) {
   const existing = await invitationRepository.findById(invitationId);
   if (!existing) throw accessErrors.notFound('Lời mời');
@@ -253,11 +256,6 @@ export async function resendWorkspaceInvitation(
   const newKey = AUTH_CACHE_KEY.workspaceInvitation(tokenHash);
   try {
     await redis.set(newKey, existing.id, { EX: WORKSPACE_INVITATION_TTL_SECONDS });
-    await deliver({
-      to: existing.email,
-      subject: 'Lời mời tham gia Nexora Workspace',
-      text: `Bạn được mời tham gia Workspace. Sử dụng liên kết này trước ${expiresAt.toISOString()}: ${link}`,
-    });
     const rotated = await prisma.workspaceInvitation.updateMany({
       where: {
         id: existing.id,
@@ -268,7 +266,25 @@ export async function resendWorkspaceInvitation(
       data: { tokenHash, expiresAt, inviterId: actorId },
     });
     if (rotated.count !== 1) throw invalidInvitation();
+    await deliver(
+      {
+        to: existing.email,
+        subject: 'Lời mời tham gia Nexora Workspace',
+        text: `Bạn được mời tham gia Workspace. Sử dụng liên kết này trước ${expiresAt.toISOString()}: ${link}`,
+      },
+      `workspace-invitation:${existing.id}:${tokenHash}`,
+    );
   } catch (error) {
+    await prisma.workspaceInvitation
+      .updateMany({
+        where: { id: existing.id, status: 'PENDING', tokenHash },
+        data: {
+          tokenHash: existing.tokenHash,
+          expiresAt: existing.expiresAt,
+          inviterId: existing.inviterId,
+        },
+      })
+      .catch(() => {});
     await redis.del(newKey).catch(() => {});
     throw error;
   }

@@ -5,4 +5,5 @@ export const ERROR_CODE = {
   notFound: 'NOT_FOUND',
   forbidden: 'FORBIDDEN',
   conflict: 'CONFLICT',
+  workspacePmTransferRequired: 'WORKSPACE_PM_TRANSFER_REQUIRED',
 } as const;

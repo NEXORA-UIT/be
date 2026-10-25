@@ -14,7 +14,6 @@ import {
 } from '../../src/infrastructure/storage/object-storage.js';
 import { collaborationRouter } from '../../src/modules/collaboration/routes/index.js';
 import {
-  cleanupAttachmentObject,
   createComment,
   deleteCardAttachment,
   listCardActivity,
@@ -255,7 +254,7 @@ describe('Collaboration and Card attachments', () => {
       Buffer.from('%PDF-1.7\narchive test'),
     );
     await assert.rejects(
-      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      () => deleteCardAttachment(member.user.id, attachment.id),
       (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
     );
     assert.equal(
@@ -294,7 +293,7 @@ describe('Collaboration and Card attachments', () => {
     assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
     assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
     await assert.rejects(
-      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      () => deleteCardAttachment(member.user.id, attachment.id),
       (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
     );
     assert.deepEqual(
@@ -308,7 +307,7 @@ describe('Collaboration and Card attachments', () => {
     assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
     assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
     await assert.rejects(
-      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      () => deleteCardAttachment(member.user.id, attachment.id),
       (error: { code?: string }) => error.code === 'WORKSPACE_FROZEN',
     );
     assert.deepEqual(
@@ -322,7 +321,7 @@ describe('Collaboration and Card attachments', () => {
     assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
     assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
     await assert.rejects(
-      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      () => deleteCardAttachment(member.user.id, attachment.id),
       (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
     );
     await prisma.board.update({ where: { id: board.id }, data: { archivedAt: null } });
@@ -334,7 +333,7 @@ describe('Collaboration and Card attachments', () => {
     assert.equal((await listCardActivity(member.user.id, card.id)).data.length, 2);
     assert.equal((await listCardAttachments(member.user.id, card.id)).data.length, 1);
     await assert.rejects(
-      () => deleteCardAttachment(member.user.id, attachment.id, storage),
+      () => deleteCardAttachment(member.user.id, attachment.id),
       (error: { code?: string }) => error.code === 'RESOURCE_ARCHIVED',
     );
     await prisma.workspace.update({ where: { id: workspace.id }, data: { archivedAt: null } });
@@ -426,21 +425,52 @@ describe('Collaboration and Card attachments', () => {
     assert.equal(tooLarge.status, 413);
 
     const row = await prisma.attachment.findUniqueOrThrow({ where: { id: attachment.id } });
+    await prisma.attachment.update({
+      where: { id: attachment.id },
+      data: { storageKey: 'invalid-storage-key' },
+    });
+    await assert.rejects(() => deleteCardAttachment(member.user.id, attachment.id), {
+      code: 'ATTACHMENT_CLEANUP_FAILED',
+    });
+    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
+    await prisma.attachment.update({
+      where: { id: attachment.id },
+      data: { storageKey: row.storageKey },
+    });
+    await deleteCardAttachment(member.user.id, attachment.id);
+    assert.equal(await prisma.attachment.findUnique({ where: { id: attachment.id } }), null);
+    assert.equal(row.storageKey !== null, true);
+    assert.ok(
+      await prisma.pendingObjectCleanup.findUnique({ where: { storageKey: row.storageKey! } }),
+    );
+    const now = new Date();
     const failingStorage: ObjectStorage = {
-      put: (bytes) => storage.put(bytes),
+      put: (bytes, options) => storage.put(bytes, options),
       get: (key) => storage.get(key),
       delete: async () => {
         throw new Error('simulated storage outage');
       },
     };
-    await assert.rejects(
-      () => cleanupAttachmentObject(attachment.id, failingStorage),
-      /simulated storage outage/,
+    const failedCleanup = await retryPendingObjectCleanups(failingStorage, 1, now, row.storageKey!);
+    assert.equal(failedCleanup.failed, 1);
+    const pending = await prisma.pendingObjectCleanup.findUniqueOrThrow({
+      where: { storageKey: row.storageKey! },
+    });
+    assert.equal(pending.attemptCount, 1);
+    assert.ok(pending.nextAttemptAt > now);
+    assert.equal((await retryPendingObjectCleanups(storage, 1, now, row.storageKey!)).attempted, 0);
+    const retried = await retryPendingObjectCleanups(
+      storage,
+      1,
+      pending.nextAttemptAt,
+      row.storageKey!,
     );
-    assert.ok(await prisma.attachment.findUnique({ where: { id: attachment.id } }));
-    await deleteCardAttachment(member.user.id, attachment.id, storage);
-    assert.equal(await prisma.attachment.findUnique({ where: { id: attachment.id } }), null);
-    assert.equal(row.storageKey !== null, true);
+    assert.equal(retried.cleaned, 1);
+    await assert.rejects(() => storage.get(row.storageKey!));
+    assert.equal(
+      await prisma.pendingObjectCleanup.findUnique({ where: { storageKey: row.storageKey! } }),
+      null,
+    );
   });
 
   it('persists and retries object cleanup when attachment metadata creation fails', async () => {
@@ -473,14 +503,24 @@ describe('Collaboration and Card attachments', () => {
     assert.equal(await prisma.attachment.count({ where: { storageKey } }), 0);
     assert.equal(await prisma.pendingObjectCleanup.count({ where: { storageKey } }), 1);
 
-    const retryResult = await retryPendingObjectCleanups({
-      put: async () => storageKey,
-      get: async () => Buffer.alloc(0),
-      delete: async (key) => {
-        assert.equal(key, storageKey);
+    const retryResult = await retryPendingObjectCleanups(
+      {
+        put: async () => storageKey,
+        get: async () => Buffer.alloc(0),
+        delete: async (key) => {
+          assert.equal(key, storageKey);
+        },
       },
+      1,
+      new Date(),
+      storageKey,
+    );
+    assert.deepEqual(retryResult, {
+      attempted: 1,
+      cleaned: 1,
+      failed: 0,
+      skippedReferenced: 0,
     });
-    assert.deepEqual(retryResult, { attempted: 1, cleaned: 1, failed: 0 });
     assert.equal(await prisma.pendingObjectCleanup.count({ where: { storageKey } }), 0);
   });
 });

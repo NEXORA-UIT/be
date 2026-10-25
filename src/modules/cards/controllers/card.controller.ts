@@ -17,15 +17,8 @@ function routeParam(request: Request, name: string): string {
   return parseCardId(value);
 }
 
-function actor(request: Request) {
-  return {
-    userId: request.auth.userId,
-    fullName: request.user?.fullName || 'Thành viên',
-  };
-}
-
 export async function createCardController(request: Request, response: Response) {
-  const card = await createCard(actor(request), routeParam(request, 'listId'), request.body);
+  const card = await createCard(request.auth.userId, routeParam(request, 'listId'), request.body);
   response.status(201).json({ success: true, data: card });
 }
 
@@ -43,26 +36,26 @@ export async function getCardController(request: Request, response: Response) {
 }
 
 export async function updateCardController(request: Request, response: Response) {
-  const card = await updateCard(actor(request), routeParam(request, 'id'), request.body);
+  const card = await updateCard(request.auth.userId, routeParam(request, 'id'), request.body);
   response.json({ success: true, data: card });
 }
 
 export async function moveCardController(request: Request, response: Response) {
-  const card = await moveCard(actor(request), routeParam(request, 'id'), request.body);
+  const card = await moveCard(request.auth.userId, routeParam(request, 'id'), request.body);
   response.json({ success: true, data: card });
 }
 
 export async function archiveCardController(request: Request, response: Response) {
-  await archiveCard(actor(request), routeParam(request, 'id'));
+  await archiveCard(request.auth.userId, routeParam(request, 'id'));
   response.json({ success: true, data: {} });
 }
 
 export async function restoreCardController(request: Request, response: Response) {
-  await restoreCard(actor(request), routeParam(request, 'id'));
+  await restoreCard(request.auth.userId, routeParam(request, 'id'));
   response.json({ success: true, data: {} });
 }
 
 export async function deleteCardController(request: Request, response: Response) {
-  await deleteCard(actor(request), routeParam(request, 'id'));
+  await deleteCard(request.auth.userId, routeParam(request, 'id'));
   response.json({ success: true, data: {} });
 }

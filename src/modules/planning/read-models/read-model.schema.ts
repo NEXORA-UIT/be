@@ -19,7 +19,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
     throw new AppError(
       400,
       'VALIDATION_ERROR',
-      'Invalid query parameters',
+      'Tham số truy vấn không hợp lệ',
       result.error.issues.map((issue) => ({
         field: issue.path.join('.'),
         message: issue.message,
@@ -39,7 +39,7 @@ export function parseCalendarQuery(value: unknown) {
     throw new AppError(
       400,
       'VALIDATION_ERROR',
-      'Start time must be before or equal to end time',
+      'Thời điểm bắt đầu phải trước hoặc bằng thời điểm kết thúc',
     );
   }
   return query;

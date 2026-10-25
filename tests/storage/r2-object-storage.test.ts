@@ -35,12 +35,23 @@ describe('R2 object storage', () => {
     });
     const storage = new R2ObjectStorage(config, client);
 
-    const key = await storage.put(bytes);
-    assert.match(key, /^[0-9a-f-]{36}$/i);
+    const key =
+      'workspaces/2a41f05e-8dc6-4cac-b9f2-019d52f2edda/boards/2a41f05e-8dc6-4cac-b9f2-019d52f2edda/2a41f05e-8dc6-4cac-b9f2-019d52f2edda/report%20%26%20notes.pdf';
+    const storedKey = await storage.put(bytes, {
+      storageKey: key,
+      contentType: 'application/pdf',
+      fileName: 'report & notes.pdf',
+    });
+    assert.equal(storedKey, key);
     assert.ok(commands[0] instanceof PutObjectCommand);
     assert.equal(commands[0]?.input.Bucket, config.bucket);
     assert.equal(commands[0]?.input.Key, key);
     assert.deepEqual(commands[0]?.input.Body, bytes);
+    assert.equal(commands[0]?.input.ContentType, 'application/pdf');
+    assert.equal(
+      commands[0]?.input.ContentDisposition,
+      "attachment; filename*=UTF-8''report%20%26%20notes.pdf",
+    );
     assert.deepEqual(await storage.get(key), bytes);
     assert.ok(commands[1] instanceof GetObjectCommand);
     assert.equal(commands[1]?.input.Bucket, config.bucket);
@@ -85,7 +96,15 @@ describe('R2 object storage', () => {
       }),
     );
 
-    await assert.rejects(() => storage.put(Buffer.from('fail')), /simulated R2 outage/);
+    await assert.rejects(
+      () =>
+        storage.put(Buffer.from('fail'), {
+          storageKey: '2a41f05e-8dc6-4cac-b9f2-019d52f2edda',
+          contentType: 'application/pdf',
+          fileName: 'fail.pdf',
+        }),
+      /simulated R2 outage/,
+    );
     await assert.rejects(
       () => storage.delete('2a41f05e-8dc6-4cac-b9f2-019d52f2edda'),
       /simulated R2 outage/,

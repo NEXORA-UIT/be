@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import type { RegisterDto } from '../dto/auth.schema.js';
 import { authConfig } from '../../../config/auth.config.js';
 import { emailConfig } from '../../../config/email/email.config.js';
-import { sendEmail } from '../../../infrastructure/email/email.client.js';
+import { enqueueEmail } from '../../../infrastructure/queue/queue.client.js';
+import type { EmailMessage } from '../../../infrastructure/email/email.client.js';
 import { authCacheRepository } from '../repository/auth-cache.repository.js';
 import { userRepository } from '../repository/user.repository.js';
 import { AUTH_SECURITY } from '../utils/auth.constants.js';
@@ -10,7 +11,7 @@ import { authErrors } from '../utils/auth.errors.js';
 import { hashToken, randomToken } from '../utils/token.util.js';
 import { issueTokens } from './token.service.js';
 
-type EmailSender = typeof sendEmail;
+type EmailSender = (message: EmailMessage, idempotencyKey: string) => Promise<unknown>;
 
 function canSendVerificationEmail() {
   return Boolean(emailConfig.gmailUser && emailConfig.gmailAppPassword && emailConfig.verifyUrl);
@@ -29,7 +30,7 @@ function createVerificationMessage(email: string, token: string) {
   };
 }
 
-export async function requestRegistration(input: RegisterDto, deliver: EmailSender = sendEmail) {
+export async function requestRegistration(input: RegisterDto, deliver: EmailSender = enqueueEmail) {
   const email = input.email.trim().toLowerCase();
   const existingUser = await userRepository.findByEmail(email);
   if (existingUser) throw authErrors.emailTaken();
@@ -49,7 +50,7 @@ export async function requestRegistration(input: RegisterDto, deliver: EmailSend
 
   try {
     const message = createVerificationMessage(email, token);
-    await deliver(message);
+    await deliver(message, `registration:${tokenHash}`);
   } catch (error) {
     await authCacheRepository.removePendingRegistration(tokenHash);
     throw error;

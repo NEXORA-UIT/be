@@ -1,12 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { Prisma, type Attachment, type Comment } from '@prisma/client';
 import { prisma } from '../../../infrastructure/database/prisma.js';
-import {
-  broadcastToBoard,
-  resolveActor,
-  type UserOrActor,
-} from '../../../infrastructure/websocket/broadcaster.service.js';
+import { emitUserChange } from '../../../infrastructure/realtime/events.js';
 import { attachmentStorage } from '../../../infrastructure/storage/attachment-storage.js';
-import type { ObjectStorage } from '../../../infrastructure/storage/object-storage.js';
+import {
+  assertValidAttachmentStorageKey,
+  type ObjectStorage,
+} from '../../../infrastructure/storage/object-storage.js';
 import { requireBoardAccess } from '../../../shared/authorization/access.service.js';
 import { requireBoardWriteAccessInTransaction } from '../../../shared/authorization/access-transaction.service.js';
 import { accessErrors } from '../../../shared/authorization/access.errors.js';
@@ -56,6 +56,7 @@ async function findNonDeletedCard(
       archivedAt: true,
       deletedAt: true,
       list: { select: { archivedAt: true } },
+      board: { select: { workspaceId: true } },
     },
   });
   if (!card) throw accessErrors.notFound('Card');
@@ -155,43 +156,29 @@ export async function listComments(userId: string, cardId: string) {
   return { data: comments.map(mapComment) };
 }
 
-export async function createComment(actorOrUserId: UserOrActor, cardId: string, content: string) {
-  const actor = await resolveActor(actorOrUserId);
+export async function createComment(userId: string, cardId: string, content: string) {
   const normalized = validateContent(content);
   const result = await runBoardTransaction(async (transaction) => {
-    const card = await requireWritableCard(transaction, actor.userId, cardId);
+    const card = await requireWritableCard(transaction, userId, cardId);
     const mentionedUserIds = await validateMentions(normalized, card.boardId, transaction);
     const comment = await transaction.comment.create({
-      data: { cardId, userId: actor.userId, content: normalized },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            avatarUrl: true,
-          },
-        },
-      },
-    });
-    const commentsCount = await transaction.comment.count({
-      where: { cardId, deletedAt: null },
+      data: { cardId, userId, content: normalized },
     });
     await transaction.activityLog.create({
       data: {
         boardId: card.boardId,
         cardId,
-        actorId: actor.userId,
+        actorId: userId,
         action: 'COMMENT_CREATED',
         details: { commentId: comment.id },
       },
     });
-    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== actor.userId);
+    const recipients = mentionedUserIds.filter((mentionedUserId) => mentionedUserId !== userId);
     if (recipients.length > 0) {
       await transaction.notification.createMany({
         data: recipients.map((mentionedUserId) => ({
           userId: mentionedUserId,
-          actorId: actor.userId,
+          actorId: userId,
           boardId: card.boardId,
           cardId,
           type: 'COMMENT_MENTION',
@@ -199,49 +186,17 @@ export async function createComment(actorOrUserId: UserOrActor, cardId: string, 
         })),
       });
     }
-    return {
-      comment: mapComment(comment),
-      rawComment: comment,
-      boardId: card.boardId,
-      commentsCount,
-    };
+    return { comment: mapComment(comment), notificationRecipients: recipients };
   });
-
-  broadcastToBoard({
-    boardId: result.boardId,
-    event: 'COMMENT_ADDED',
-    actor,
-    data: {
-      cardId,
-      comment: {
-        id: result.rawComment.id,
-        cardId: result.rawComment.cardId,
-        userId: result.rawComment.userId,
-        content: result.rawComment.content,
-        user: result.rawComment.user
-          ? {
-              id: result.rawComment.user.id,
-              fullName: result.rawComment.user.fullName,
-              email: result.rawComment.user.email,
-              avatarUrl: result.rawComment.user.avatarUrl,
-            }
-          : {
-              id: actor.userId,
-              fullName: actor.fullName,
-            },
-        createdAt: result.rawComment.createdAt.toISOString(),
-        updatedAt: result.rawComment.updatedAt.toISOString(),
-      },
-      commentsCount: result.commentsCount,
-    },
-  });
-
+  for (const recipientId of result.notificationRecipients) {
+    emitUserChange(recipientId, 'notifications');
+  }
   return result.comment;
 }
 
 export async function updateComment(userId: string, commentId: string, content: string) {
   const normalized = validateContent(content);
-  return runBoardTransaction(async (transaction) => {
+  const result = await runBoardTransaction(async (transaction) => {
     const comment = await transaction.comment.findUnique({
       where: { id: commentId },
       include: {
@@ -292,8 +247,12 @@ export async function updateComment(userId: string, commentId: string, content: 
         })),
       });
     }
-    return mapComment(updated);
+    return { comment: mapComment(updated), notificationRecipients: newRecipients };
   });
+  for (const recipientId of result.notificationRecipients) {
+    emitUserChange(recipientId, 'notifications');
+  }
+  return result.comment;
 }
 
 export async function deleteComment(userId: string, commentId: string): Promise<void> {
@@ -391,26 +350,55 @@ export async function authorizeCardAttachmentUpload(userId: string, cardId: stri
 export async function retryPendingObjectCleanups(
   storage: ObjectStorage = attachmentStorage,
   limit = 100,
+  now = new Date(),
+  onlyStorageKey?: string,
 ) {
   const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 1_000);
   const pending = await prisma.pendingObjectCleanup.findMany({
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    where: {
+      nextAttemptAt: { lte: now },
+      ...(onlyStorageKey ? { storageKey: onlyStorageKey } : {}),
+    },
+    orderBy: [{ nextAttemptAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     take: pageSize,
   });
   let cleaned = 0;
   let failed = 0;
+  let skippedReferenced = 0;
 
   for (const item of pending) {
+    const activeAttachment = await prisma.attachment.findFirst({
+      where: { storageKey: item.storageKey },
+      select: { id: true },
+    });
+    if (activeAttachment) {
+      await prisma.pendingObjectCleanup.updateMany({
+        where: { id: item.id },
+        data: { nextAttemptAt: new Date(now.getTime() + 10 * 60_000) },
+      });
+      skippedReferenced += 1;
+      continue;
+    }
+
     try {
       await storage.delete(item.storageKey);
-      await prisma.pendingObjectCleanup.delete({ where: { id: item.id } });
+      await prisma.pendingObjectCleanup.deleteMany({ where: { id: item.id } });
       cleaned += 1;
     } catch {
+      const attemptCount = item.attemptCount + 1;
+      const backoffMinutes = Math.min(24 * 60, 2 ** Math.min(attemptCount, 10));
+      await prisma.pendingObjectCleanup.updateMany({
+        where: { id: item.id },
+        data: {
+          attemptCount,
+          nextAttemptAt: new Date(now.getTime() + backoffMinutes * 60_000),
+        },
+      });
       failed += 1;
     }
   }
 
-  return { attempted: pending.length, cleaned, failed };
+  return { attempted: pending.length, cleaned, failed, skippedReferenced };
 }
 
 export async function uploadCardAttachment(
@@ -430,17 +418,31 @@ export async function uploadCardAttachment(
     throw badRequest('ATTACHMENT_TYPE_INVALID', 'Định dạng tệp không hợp lệ');
   }
   assertAllowedFilename(fileName, mimeType);
-  await requireWritableCard(prisma, userId, cardId);
-  await retryPendingObjectCleanups(storage);
-  const storageKey = await storage.put(content);
+  const writableCard = await requireWritableCard(prisma, userId, cardId);
+  const attachmentId = randomUUID();
+  const normalizedFileName = normalizeFilename(fileName, mimeType);
+  const encodedFileName = encodeURIComponent(normalizedFileName).replace(
+    /[!'()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  const storageKey = [
+    'workspaces',
+    writableCard.board.workspaceId,
+    'boards',
+    writableCard.boardId,
+    attachmentId,
+    encodedFileName,
+  ].join('/');
+  await storage.put(content, { storageKey, contentType: mimeType, fileName: normalizedFileName });
   try {
     return await prisma.$transaction(async (transaction) => {
       const card = await requireWritableCard(transaction, userId, cardId);
       const attachment = await transaction.attachment.create({
         data: {
+          id: attachmentId,
           cardId,
           userId,
-          fileName: normalizeFilename(fileName, mimeType),
+          fileName: normalizedFileName,
           fileUrl: `/attachments/${storageKey}`,
           fileSize: content.byteLength,
           mimeType,
@@ -515,27 +517,20 @@ export async function readCardAttachment(
   return { attachment: mapAttachment(attachment), content };
 }
 
-export async function cleanupAttachmentObject(
-  attachmentId: string,
-  storage: ObjectStorage = attachmentStorage,
-) {
-  const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
-  if (!attachment) return;
-  if (!attachment.storageKey)
-    throw new Error('Attachment has no storage key; refusing to delete metadata');
-  await storage.delete(attachment.storageKey);
-  await prisma.attachment.deleteMany({ where: { id: attachmentId } });
-}
-
-export async function deleteCardAttachment(
-  userId: string,
-  attachmentId: string,
-  storage: ObjectStorage = attachmentStorage,
-) {
+export async function deleteCardAttachment(userId: string, attachmentId: string) {
   await runBoardTransaction(async (transaction) => {
     const attachment = await transaction.attachment.findUnique({ where: { id: attachmentId } });
     if (!attachment) throw accessErrors.notFound('Attachment');
     if (!attachment.storageKey) throw accessErrors.notFound('Attachment');
+    try {
+      assertValidAttachmentStorageKey(attachment.storageKey);
+    } catch {
+      throw new AppError(
+        503,
+        'ATTACHMENT_CLEANUP_FAILED',
+        'Không thể xác định tệp đính kèm; dữ liệu được giữ lại để kiểm tra',
+      );
+    }
     const card = await requireWritableCard(transaction, userId, attachment.cardId);
     const board = await transaction.board.findUniqueOrThrow({
       where: { id: card.boardId },
@@ -554,7 +549,11 @@ export async function deleteCardAttachment(
     if (attachment.userId !== userId && role !== 'OWNER' && role !== 'PM') {
       throw accessErrors.forbidden();
     }
-    await storage.delete(attachment.storageKey);
+    await transaction.pendingObjectCleanup.upsert({
+      where: { storageKey: attachment.storageKey },
+      create: { storageKey: attachment.storageKey },
+      update: {},
+    });
     await transaction.attachment.delete({ where: { id: attachmentId } });
     await transaction.activityLog.create({
       data: {
