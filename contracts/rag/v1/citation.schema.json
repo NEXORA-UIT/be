@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "chunkId": {
+      "format": "uuid",
+      "title": "Chunkid",
+      "type": "string"
+    },
+    "documentId": {
+      "format": "uuid",
+      "title": "Documentid",
+      "type": "string"
+    },
+    "pageNumber": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pagenumber"
+    },
+    "snippet": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Snippet",
+      "type": "string"
+    },
+    "sourceLocator": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sourcelocator"
+    }
+  },
+  "required": [
+    "documentId",
+    "chunkId",
+    "snippet"
+  ],
+  "title": "CitationV1",
+  "type": "object"
+}

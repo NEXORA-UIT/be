@@ -6,20 +6,26 @@ import { Queue, QueueEvents } from 'bullmq';
 import { z } from 'zod';
 import { bullConnection } from '../../src/infrastructure/queue/queue.client.js';
 
-const queueName = 'nexora-rag-ingestion';
+const HEALTH_TIMEOUT_MS = 5_000;
+const JOB_ATTEMPTS = 3;
+const JOB_BACKOFF_DELAY_MS = 1_000;
+const JOB_COMPLETION_TIMEOUT_MS = 60_000;
 const apiBaseUrl = (process.env.FASTAPI_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
 const schemasDirectory = resolve(
-  process.env.RAG_CONTRACTS_DIR ?? resolve(process.cwd(), '../fastapi-service/schemas/v1'),
+  process.env.RAG_CONTRACTS_DIR ?? resolve(process.cwd(), 'contracts/rag/v1'),
 );
 const readSchema = (name: string) =>
   JSON.parse(readFileSync(resolve(schemasDirectory, name), 'utf8')) as Record<string, unknown>;
+const queueProtocol = JSON.parse(
+  readFileSync(resolve(schemasDirectory, 'queue-contracts.json'), 'utf8'),
+) as { queueName: string; jobNames: { phase0Ping: string } };
 
 const pingJobSchema = z.fromJSONSchema(readSchema('ping-job.schema.json'));
 const pingResultSchema = z.fromJSONSchema(readSchema('ping-result.schema.json'));
 
 async function main() {
   const healthResponse = await fetch(`${apiBaseUrl}/health`, {
-    signal: AbortSignal.timeout(5_000),
+    signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
   });
   assert.equal(healthResponse.status, 200, 'FastAPI /health must return 200');
   const health = (await healthResponse.json()) as { status?: string };
@@ -29,17 +35,17 @@ async function main() {
   const payload = { schemaVersion: 1, correlationId };
   pingJobSchema.parse(payload);
 
-  const queue = new Queue(queueName, { connection: bullConnection });
-  const events = new QueueEvents(queueName, { connection: bullConnection });
+  const queue = new Queue(queueProtocol.queueName, { connection: bullConnection });
+  const events = new QueueEvents(queueProtocol.queueName, { connection: bullConnection });
   try {
     await events.waitUntilReady();
-    const job = await queue.add('phase0.ping', payload, {
+    const job = await queue.add(queueProtocol.jobNames.phase0Ping, payload, {
       jobId: `phase0-${correlationId}`,
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1_000 },
+      attempts: JOB_ATTEMPTS,
+      backoff: { type: 'exponential', delay: JOB_BACKOFF_DELAY_MS },
       removeOnComplete: true,
     });
-    const rawResult = await job.waitUntilFinished(events, 60_000);
+    const rawResult = await job.waitUntilFinished(events, JOB_COMPLETION_TIMEOUT_MS);
     const result = pingResultSchema.parse(rawResult) as {
       correlationId: string;
       expressStatus: number;
@@ -48,7 +54,9 @@ async function main() {
     assert.equal(result.correlationId, correlationId);
     assert.equal(result.accepted, true);
     assert.equal(result.expressStatus, 200);
-    console.log(JSON.stringify({ health: 'ok', queue: queueName, jobId: job.id, result }));
+    console.log(
+      JSON.stringify({ health: 'ok', queue: queueProtocol.queueName, jobId: job.id, result }),
+    );
   } finally {
     await Promise.all([queue.close(), events.close()]);
   }

@@ -5,11 +5,21 @@ import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
 
-const schemasDirectory = resolve(process.cwd(), '../fastapi-service/schemas/v1');
+const schemasDirectory = resolve(
+  process.env.RAG_CONTRACTS_DIR ?? resolve(process.cwd(), 'contracts/rag/v1'),
+);
 const readSchema = (name: string) =>
   JSON.parse(readFileSync(resolve(schemasDirectory, name), 'utf8')) as Record<string, unknown>;
+const queueProtocol = JSON.parse(
+  readFileSync(resolve(schemasDirectory, 'queue-contracts.json'), 'utf8'),
+) as { queueName: string; jobNames: { phase0Ping: string } };
 
 describe('FastAPI shared JSON Schema contracts', () => {
+  it('uses the versioned BullMQ queue and job names', () => {
+    assert.equal(queueProtocol.queueName, 'nexora-rag-ingestion');
+    assert.equal(queueProtocol.jobNames.phase0Ping, 'phase0.ping');
+  });
+
   it('accepts valid ping data and rejects bool-as-int and unknown fields', () => {
     const schema = z.fromJSONSchema(readSchema('ping-job.schema.json'));
     assert.equal(schema.safeParse({ schemaVersion: 1, correlationId: randomUUID() }).success, true);
@@ -28,6 +38,13 @@ describe('FastAPI shared JSON Schema contracts', () => {
     const ingestion = z.fromJSONSchema(readSchema('ingestion-job.schema.json'));
     const query = z.fromJSONSchema(readSchema('rag-query-request.schema.json'));
     const ids = { boardId: randomUUID(), correlationId: randomUUID() };
+    const questionWithSpaces = '  question  ';
+    const parsedQuestion = query.parse({
+      schemaVersion: 1,
+      ...ids,
+      question: questionWithSpaces,
+    }) as { question: string };
+    assert.equal(parsedQuestion.question, questionWithSpaces);
     assert.equal(
       ingestion.safeParse({
         schemaVersion: 1,
@@ -47,6 +64,14 @@ describe('FastAPI shared JSON Schema contracts', () => {
       false,
     );
     assert.equal(query.safeParse({ schemaVersion: 1, ...ids, question: '  ' }).success, false);
+    assert.equal(
+      query.safeParse({
+        schemaVersion: 1,
+        ...ids,
+        question: ` ${'x'.repeat(2000)} `,
+      }).success,
+      false,
+    );
     assert.equal(
       query.safeParse({ schemaVersion: 1, ...ids, question: 'x'.repeat(2001) }).success,
       false,
