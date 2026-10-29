@@ -38,6 +38,18 @@ RAG is the document ingestion/retrieval/generation capability. Agent is a future
 - Workers can scale independently (§6.4.1).
 - pgvector extension is enabled via the migration included in this branch; Prisma owns that migration.
 
+## Local PostgreSQL and pgvector
+
+Compose builds `nexora-postgres:17-alpine-pgvector-0.8.7` from `infrastructure/docker/pgvector/Dockerfile`. An existing container created earlier from the plain `postgres:17-alpine` image must be recreated to load the pgvector shared library; an extension row alone does not prove vector operations work.
+
+From the BE repository root, rebuild and recreate only PostgreSQL:
+
+```powershell
+docker compose --env-file .env.local -f infrastructure/docker/compose.yaml up -d --build postgres
+```
+
+This reuses the named database volume. Verify with the Python `test_backend_database_has_working_pgvector` integration probe, which checks both the installed extension version and a vector distance operation.
+
 ## Next steps
 
 1. BE/Bảo agrees Document/DocumentChunk columns, relations, vector dimension, indexes, delete/re-upload semantics and status fields in Prisma.

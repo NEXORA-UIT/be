@@ -67,9 +67,9 @@ Quyết định triển khai chi tiết nằm trong [docs/CORE/deferred-infrastr
 | **tsx (4.20)**                   |   Đang sử dụng    | Công cụ thực thi TypeScript trực tiếp hỗ trợ hot reload khi phát triển  |
 | **PostgreSQL**                   |   Đang sử dụng    | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững              |
 | **Prisma ORM**                   |   Đang sử dụng    | Quản lý lược đồ dữ liệu, migration và truy vấn                          |
-| **pgvector**                     | Dự kiến (Planned) | Vector database mở rộng lưu trữ embedding cho hệ thống RAG              |
+| **pgvector**                     | Đã cấu hình local  | PostgreSQL extension phục vụ semantic search cho hệ thống RAG            |
 | **Redis**                        |   Đang sử dụng    | Lưu token ngắn hạn, OAuth state và dữ liệu tạm                          |
-| **BullMQ**                       | Dự kiến (Planned) | Hệ thống quản lý hàng đợi và tác vụ nền bất đồng bộ                     |
+| **BullMQ**                       | Đang sử dụng      | Hàng đợi/tác vụ nền; hợp đồng và smoke transport cho RAG đã có           |
 | **Cloudinary / R2**              | Dự kiến (Planned) | Lưu trữ tệp đính kèm, ảnh đại diện và tài liệu Knowledge Base           |
 | **OAuth 2.0 (Google, GitHub)**   | Dự kiến (Planned) | Đăng nhập một chạm tiện lợi và bảo mật                                  |
 | **LLM Orchestration / Langfuse** | Dự kiến (Planned) | Điều phối Trợ lý AI, theo dõi token và giám sát cuộc gọi mô hình        |
