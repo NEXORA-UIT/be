@@ -433,7 +433,11 @@ export async function uploadCardAttachment(
     attachmentId,
     encodedFileName,
   ].join('/');
-  await storage.put(content, { storageKey, contentType: mimeType, fileName: normalizedFileName });
+  const storedStorageKey = await storage.put(content, {
+    storageKey,
+    contentType: mimeType,
+    fileName: normalizedFileName,
+  });
   try {
     return await prisma.$transaction(async (transaction) => {
       const card = await requireWritableCard(transaction, userId, cardId);
@@ -446,7 +450,7 @@ export async function uploadCardAttachment(
           fileUrl: `/attachments/${storageKey}`,
           fileSize: content.byteLength,
           mimeType,
-          storageKey,
+          storageKey: storedStorageKey,
         },
       });
       await transaction.activityLog.create({
@@ -462,12 +466,12 @@ export async function uploadCardAttachment(
     });
   } catch (error) {
     try {
-      await storage.delete(storageKey);
+      await storage.delete(storedStorageKey);
     } catch {
       try {
         await prisma.pendingObjectCleanup.upsert({
-          where: { storageKey },
-          create: { storageKey },
+          where: { storageKey: storedStorageKey },
+          create: { storageKey: storedStorageKey },
           update: {},
         });
       } catch {
