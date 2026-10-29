@@ -53,6 +53,9 @@ components:
       properties:
         question:
           type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
           example: Tiêu chuẩn nén tệp đính kèm được quy định thế nào trong tài liệu?
     RAGCitation:
       type: object
@@ -68,19 +71,27 @@ components:
           format: uuid
         documentName:
           type: string
+          minLength: 1
+          pattern: '\S'
           example: Tài liệu SRS Đồ án 1.pdf
         chunkId:
           type: string
           format: uuid
         pageNumber:
           type: integer
+          minimum: 1
+          nullable: true
           description: Optional for TXT/DOCX sources without page numbers.
           example: 57
         sourceLocator:
           type: string
+          nullable: true
           description: Stable paragraph/section locator for sources without pages.
         snippet:
           type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '\S'
           example: Dung lượng tệp đính kèm tối đa là 25MB...
     RAGAnswer:
       type: object
@@ -108,6 +119,7 @@ components:
           format: uuid
         delta:
           type: string
+          minLength: 1
     RAGCitationEvent:
       type: object
       required: [schemaVersion, correlationId, citation]
@@ -132,6 +144,8 @@ components:
           format: uuid
         answer:
           type: string
+          minLength: 1
+          pattern: '\S'
         citations:
           type: array
           items:
@@ -151,6 +165,8 @@ components:
           enum: [RAG_QUERY_FAILED, MODEL_UNAVAILABLE, REQUEST_TIMEOUT]
         message:
           type: string
+          minLength: 1
+          pattern: '\S'
           description: Sanitized client-safe error; never an exception or stack trace.
         retryable:
           type: boolean

@@ -11,6 +11,12 @@
       "title": "Documentid",
       "type": "string"
     },
+    "documentName": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Documentname",
+      "type": "string"
+    },
     "pageNumber": {
       "anyOf": [
         {
@@ -46,6 +52,7 @@
   },
   "required": [
     "documentId",
+    "documentName",
     "chunkId",
     "snippet"
   ],
