@@ -142,9 +142,17 @@ describe('FastAPI shared JSON Schema contracts', () => {
     const { document } = loadOpenApiDocument();
     const components = document.components as Record<string, unknown>;
     const schemas = components.schemas as Record<string, unknown>;
+    const strictRagSchemas = [
+      'RAGCitation',
+      'RAGAnswerDeltaEvent',
+      'RAGCitationEvent',
+      'RAGAnswerDoneEvent',
+      'RAGErrorEvent',
+    ];
     const citation = schemas.RAGCitation as {
       required: string[];
       properties: Record<string, { nullable?: boolean }>;
+      additionalProperties?: boolean;
     };
     const paths = document.paths as Record<string, unknown>;
     const queryPath = paths['/boards/{id}/rag/query'] as {
@@ -165,6 +173,13 @@ describe('FastAPI shared JSON Schema contracts', () => {
     ]);
     assert.equal(citation.properties.pageNumber.nullable, true);
     assert.equal(citation.properties.sourceLocator.nullable, true);
+    for (const schemaName of strictRagSchemas) {
+      assert.equal(
+        (schemas[schemaName] as { additionalProperties?: boolean }).additionalProperties,
+        false,
+        `${schemaName} must reject unknown fields like the Python contract`,
+      );
+    }
     assert.deepEqual(Object.keys(eventStream['x-sse-events']), [
       'answer.delta',
       'citation',

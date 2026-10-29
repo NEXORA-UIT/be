@@ -59,6 +59,7 @@ components:
           example: Tiêu chuẩn nén tệp đính kèm được quy định thế nào trong tài liệu?
     RAGCitation:
       type: object
+      additionalProperties: false
       required:
         - documentId
         - documentName
@@ -109,6 +110,7 @@ components:
             $ref: "#/components/schemas/RAGCitation"
     RAGAnswerDeltaEvent:
       type: object
+      additionalProperties: false
       required: [schemaVersion, correlationId, delta]
       properties:
         schemaVersion:
@@ -122,6 +124,7 @@ components:
           minLength: 1
     RAGCitationEvent:
       type: object
+      additionalProperties: false
       required: [schemaVersion, correlationId, citation]
       properties:
         schemaVersion:
@@ -134,6 +137,7 @@ components:
           $ref: "#/components/schemas/RAGCitation"
     RAGAnswerDoneEvent:
       type: object
+      additionalProperties: false
       required: [schemaVersion, correlationId, answer, citations]
       properties:
         schemaVersion:
@@ -152,6 +156,7 @@ components:
             $ref: "#/components/schemas/RAGCitation"
     RAGErrorEvent:
       type: object
+      additionalProperties: false
       required: [schemaVersion, correlationId, code, message, retryable]
       properties:
         schemaVersion:
