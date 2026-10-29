@@ -122,7 +122,7 @@ paths:
       tags:
         - Knowledge Base
       summary: Query board Knowledge Base (RAG)
-      description: Performs semantic vector search strictly partitioned by `board_id` and synthesizes an answer with exact source citations (file name and page numbers).
+      description: Performs board-scoped semantic retrieval and streams a grounded answer with citations. pageNumber is optional; sourceLocator supports page-less sources.
       operationId: queryKnowledgeBaseRAG
       security:
         - bearerAuth: []
@@ -136,11 +136,21 @@ paths:
               $ref: "#/components/schemas/RAGQueryRequest"
       responses:
         "200":
-          description: Grounded answer with citations.
+          description: Server-Sent Events. On success emits answer.delta and zero or more citation events, followed by one done event; on failure emits one sanitized error event and closes.
           content:
-            application/json:
+            text/event-stream:
               schema:
-                $ref: "#/components/schemas/RAGAnswerResponse"
+                type: string
+                description: Each SSE data line is a JSON payload containing schemaVersion and correlationId.
+              x-sse-events:
+                answer.delta:
+                  $ref: "#/components/schemas/RAGAnswerDeltaEvent"
+                citation:
+                  $ref: "#/components/schemas/RAGCitationEvent"
+                done:
+                  $ref: "#/components/schemas/RAGAnswerDoneEvent"
+                error:
+                  $ref: "#/components/schemas/RAGErrorEvent"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

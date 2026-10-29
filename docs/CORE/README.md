@@ -18,6 +18,7 @@ Tài liệu này lưu quy tắc nghiệp vụ và kế hoạch theo module. Tr�
 - [Cấu hình và di chuyển Card Attachment sang R2](attachment-storage.md)
 - [Tác vụ định kỳ: nhắc hạn và dọn Attachment](scheduled-jobs.md)
 - [Trạng thái quyết định BullMQ và Socket.IO](deferred-infrastructure.md)
+- [Ranh giới foundation RAG và bàn giao ingestion](rag-foundation.md)
 - [Quy ước đặt tên backend](naming-conventions.md)
 - [Tài liệu AUTH hiện có](../AUTH/README.md)
 - [Hợp đồng API hiện có](../api/README.md)

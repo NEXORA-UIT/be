@@ -59,7 +59,7 @@ components:
       required:
         - documentId
         - documentName
-        - pageNumber
+        - chunkId
         - snippet
       description: Source citation grounding an AI response.
       properties:
@@ -69,9 +69,16 @@ components:
         documentName:
           type: string
           example: Tài liệu SRS Đồ án 1.pdf
+        chunkId:
+          type: string
+          format: uuid
         pageNumber:
           type: integer
+          description: Optional for TXT/DOCX sources without page numbers.
           example: 57
+        sourceLocator:
+          type: string
+          description: Stable paragraph/section locator for sources without pages.
         snippet:
           type: string
           example: Dung lượng tệp đính kèm tối đa là 25MB...
@@ -89,6 +96,64 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RAGCitation"
+    RAGAnswerDeltaEvent:
+      type: object
+      required: [schemaVersion, correlationId, delta]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        correlationId:
+          type: string
+          format: uuid
+        delta:
+          type: string
+    RAGCitationEvent:
+      type: object
+      required: [schemaVersion, correlationId, citation]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        correlationId:
+          type: string
+          format: uuid
+        citation:
+          $ref: "#/components/schemas/RAGCitation"
+    RAGAnswerDoneEvent:
+      type: object
+      required: [schemaVersion, correlationId, answer, citations]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        correlationId:
+          type: string
+          format: uuid
+        answer:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RAGCitation"
+    RAGErrorEvent:
+      type: object
+      required: [schemaVersion, correlationId, code, message, retryable]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        correlationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          enum: [RAG_QUERY_FAILED, MODEL_UNAVAILABLE, REQUEST_TIMEOUT]
+        message:
+          type: string
+          description: Sanitized client-safe error; never an exception or stack trace.
+        retryable:
+          type: boolean
     KnowledgeBaseDocumentResponse:
       type: object
       required:
