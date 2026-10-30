@@ -6,7 +6,7 @@ Hợp đồng job, HTTP nội bộ, SSE và thứ tự bàn giao nằm ở [ai/d
 
 - Express xác thực và kiểm tra quyền board, upload file lên R2, tạo `Document(PENDING)` và gửi `document.ingest.v1` vào BullMQ. BE quản lý Prisma schema/migration.
 - Python Worker sẽ là consumer duy nhất của queue RAG và ghi chunks/trạng thái với revision guard. Node workers hiện có chỉ xử lý email và maintenance.
-- Express gọi FastAPI cho query nội bộ và proxy SSE về FE; FastAPI lọc dữ liệu theo board và tài liệu `READY`.
+- Bảo triển khai retrieval trong FastAPI ở repo `ai`: lọc dữ liệu theo board và tài liệu `READY`. Express chỉ kiểm tra quyền, gọi FastAPI và proxy SSE về FE.
 - `Document`/`DocumentChunk`, producer và FastAPI query chưa triển khai. Các schema JSON snapshot và ping job Phase 0 đã được gỡ; không dựa vào chúng khi code flow thật.
 
 ## PostgreSQL / pgvector
