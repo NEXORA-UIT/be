@@ -27,7 +27,7 @@ Citation fields required for FE are documentId, documentName, chunkId and snippe
 
 ## RAG and Agent are separate
 
-RAG is the document ingestion/retrieval/generation capability. Agent is a future tool-orchestration capability that can use searchDocuments and other board tools. In the AI repo they are separate packages: src/nexora_ai/rag and src/nexora_ai/agent. Agent behavior is not part of this foundation. Express retains authz and writes; AI proposes actions, and Express enforces approval, idempotency and optimistic concurrency.
+RAG is the document ingestion/retrieval/generation capability. Agent is a future tool-orchestration capability that can use searchDocuments and other board tools. In the AI repo they are separate packages: `src/nexora_ai/rag/` and one `src/nexora_ai/agents/` package. Agent behavior is not part of this foundation. Express retains authz and writes; AI proposes actions, and Express enforces approval, idempotency and optimistic concurrency.
 
 ## SRS constraints to preserve
 
